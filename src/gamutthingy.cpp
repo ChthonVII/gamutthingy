@@ -209,6 +209,32 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 12){ // knee type
+            if (strcmp(argv[i], "hard") == 0){
+                softkneemode = false;
+            }
+            else if (strcmp(argv[i], "soft") == 0){
+                softkneemode = true;
+            }
+            else {
+                printf("Invalid parameter for knee type. Expecting \"soft\" or \"hard\".\n");
+                return ERROR_BAD_PARAM_KNEE_TYPE;
+            }
+            expect  = 0;
+        }
+        else if (expect == 13){ // gamma type
+            if (strcmp(argv[i], "srgb") == 0){
+                gammamode = true;
+            }
+            else if (strcmp(argv[i], "linear") == 0){
+                gammamode = false;
+            }
+            else {
+                printf("Invalid parameter for gamma function. Expecting \"srgb\" or \"linear\".\n");
+                return ERROR_BAD_PARAM_GAMMA_TYPE;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -222,10 +248,7 @@ int main(int argc, const char **argv){
                 expect = 3;
             }
             else if ((strcmp(argv[i], "--gamma") == 0) || (strcmp(argv[i], "-g") == 0)){
-                gammamode = true;
-            }
-            else if ((strcmp(argv[i], "--linear") == 0) || (strcmp(argv[i], "-l") == 0)){
-                gammamode = false;
+                expect = 13;
             }
             else if ((strcmp(argv[i], "--source-gamut") == 0) || (strcmp(argv[i], "-s") == 0)){
                 expect = 4;
@@ -236,25 +259,22 @@ int main(int argc, const char **argv){
             else if ((strcmp(argv[i], "--map-mode") == 0) || (strcmp(argv[i], "-m") == 0)){
                 expect = 6;
             }
-            else if ((strcmp(argv[i], "--remap-factor") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
+            else if ((strcmp(argv[i], "--remap-factor") == 0) || (strcmp(argv[i], "--rf") == 0)){
                 expect = 7;
             }
-            else if ((strcmp(argv[i], "--remap-limit") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
+            else if ((strcmp(argv[i], "--remap-limit") == 0) || (strcmp(argv[i], "--rl") == 0)){
                 expect = 8;
             }
-            else if ((strcmp(argv[i], "--knee-factor") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
+            else if ((strcmp(argv[i], "--knee-factor") == 0) || (strcmp(argv[i], "--kf") == 0)){
                 expect = 9;
             }
-            else if ((strcmp(argv[i], "--soft-knee") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
-                softkneemode = true;
+            else if ((strcmp(argv[i], "--knee") == 0) || (strcmp(argv[i], "-k") == 0)){
+                expect = 12;
             }
-            else if ((strcmp(argv[i], "--hard-knee") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
-                softkneemode = false;
-            }
-            else if ((strcmp(argv[i], "--remap-direction") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
+            else if ((strcmp(argv[i], "--gamut-mapping-algorithm") == 0) || (strcmp(argv[i], "--gma") == 0)){
                 expect = 10;
             }
-            else if ((strcmp(argv[i], "--safe-zone-type") == 0)/* || (strcmp(argv[i], "-m") == 0)*/){
+            else if ((strcmp(argv[i], "--safe-zone-type") == 0) || (strcmp(argv[i], "-z") == 0)){
                 expect = 11;
             }
             else {
@@ -299,6 +319,12 @@ int main(int argc, const char **argv){
                 break;
              case 11:
                 printf("safe zone type.\n.");
+                break;
+            case 12:
+                printf("knee type.\n.");
+                break;
+            case 13:
+                printf("gamma function.\n.");
                 break;
             default:
                 printf("oh... er... wtf error!.\n.");
