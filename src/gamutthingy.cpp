@@ -187,6 +187,9 @@ int main(int argc, const char **argv){
             else if (strcmp(argv[i], "hlpcm") == 0){
                 mapmode = MAP_HLPCM;
             }
+            else if (strcmp(argv[i], "vp") == 0){
+                mapmode = MAP_VP;
+            }
             else {
                 printf("Invalid parameter for mapping direction. Expecting \"gcusp\" or \"hlpcm\".\n");
                 return ERROR_BAD_PARAM_MAPPING_DIRECTION;

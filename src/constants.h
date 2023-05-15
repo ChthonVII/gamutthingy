@@ -25,6 +25,7 @@
 
 #define MAP_GCUSP 0
 #define MAP_HLPCM 1
+#define MAP_VP 2
 
 #define RMZONE_DELTA_BASED 0
 #define RMZONE_DEST_BASED 1

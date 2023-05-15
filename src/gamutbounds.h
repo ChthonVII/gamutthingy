@@ -15,6 +15,10 @@
 #define CHROMA_STEPS 50 // 2%
 #define FINE_CHROMA_STEPS 20 // 0.1%
 
+#define BOUND_NORMAL 0
+#define BOUND_ABOVE 1
+#define BOUND_BELOW 2
+
 class boundarypoint{
 public:
     double x;
@@ -80,8 +84,10 @@ public:
     vec3 linearRGBtoLCh(vec3 input);
     // TODO: LChtoLinearRGB
     
-    vec2 getBoundary2D(vec2 color, double focalpointluma, int hueindex);
-    vec3 getBoundary3D(vec3 color, double focalpointluma, int hueindex);
+    vec2 getBoundary2D(vec2 color, double focalpointluma, int hueindex, int boundtype);
+    vec3 getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype);
+    
+    vec2 getLACSlope(int hueindexA, int hueindexB, double hue);
     
 };
 
@@ -89,5 +95,6 @@ int hueToFloorIndex(double hue, double &excess);
 
 vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype);
 
+double scaledistance(bool &changed, double distcolor, double distsource, double distdest, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int safezonetype);
 
 #endif
