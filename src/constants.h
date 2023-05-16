@@ -6,8 +6,9 @@
 
 #define VERBOSITY_SILENT 0
 #define VERBOSITY_MINIMAL 1
-#define VERBOSITY_HIGH 2
-#define VERBOSITY_EXTREME 3
+#define VERBOSITY_SLIGHT 2
+#define VERBOSITY_HIGH 3
+#define VERBOSITY_EXTREME 4
 
 #define COLORCLOSE 0.0015 // this should be more than small enough to yield the same RGB8 value after rounding
 #define EPSILON 1e-6 // this is about where rounding errors start to creep in
@@ -30,7 +31,7 @@
 #define RMZONE_DELTA_BASED 0
 #define RMZONE_DEST_BASED 1
 
-
+#define RETURN_SUCCESS 0
 #define ERROR_BAD_PARAM_SOURCE_GAMUT 1
 #define ERROR_BAD_PARAM_DEST_GAMUT 2
 #define ERROR_BAD_PARAM_MAPPING_MODE 3
@@ -44,7 +45,15 @@
 #define ERROR_BAD_PARAM_ZONE_TYPE 11
 #define ERROR_BAD_PARAM_KNEE_TYPE 12
 #define ERROR_BAD_PARAM_GAMMA_TYPE 13
-#define ERROR_INVERT_MATRIX_FAIL 14
+#define ERROR_BAD_PARAM_DITHER 14
+#define ERROR_BAD_PARAM_VERBOSITY 15
+#define ERROR_INVERT_MATRIX_FAIL 16
+#define ERROR_PNG_FAIL 17
+#define ERROR_PNG_WRITE_FAIL 18
+#define ERROR_PNG_READ_FAIL 19
+#define ERROR_PNG_MEM_FAIL 20
+#define ERROR_PNG_OPEN_FAIL 21
+#define GAMUT_INITIALIZE_FAIL 22
 
 
 extern const vec3 D65;

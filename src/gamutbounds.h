@@ -43,7 +43,6 @@ public:
     bool issourcegamut;
     bool needschromaticadapt;
     vec3 whitepoint;
-    vec3 otherwhitepoint;
     vec3 redpoint;
     vec3 greenpoint;
     vec3 bluepoint;
@@ -62,7 +61,7 @@ public:
     std::vector<boundarypoint> data[HUE_STEPS];
     double cusplumalist[HUE_STEPS];
     
-    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, vec3 dwp, int verbose);
+    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose);
     void reservespace();
     void initializeMatrixP();
     bool initializeInverseMatrixP();

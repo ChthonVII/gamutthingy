@@ -15,7 +15,7 @@
 #include <numbers>
 
 
-bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, vec3 dwp, int verbose){
+bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose){
     verbosemode = verbose;
     gamutname = name;
     whitepoint = wp;
@@ -23,10 +23,9 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     greenpoint = gp;
     bluepoint = bp;
     issourcegamut = issource;
-    otherwhitepoint = dwp;
     // working in JzCzhz colorspace requires everything be converted to D65 whitepoint
     needschromaticadapt = (!whitepoint.isequal(D65));
-    if (verbose >= VERBOSITY_MINIMAL){
+    if (verbose >= VERBOSITY_SLIGHT){
     printf("\n----------\nInitializing %s as ", gamutname.c_str());
         if (issourcegamut){
             printf("source gamut");
@@ -75,7 +74,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     // not worth printing
     
     initializeMatrixNPM();
-    if (verbose >= VERBOSITY_MINIMAL){
+    if (verbose >= VERBOSITY_SLIGHT){
         printf("\nMatrix NPM (linear RGB to XYZ) is:\n");
         print3x3matrix(matrixNPM);
     }
@@ -84,7 +83,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
         printf("Initialization aborted!\n");
         return false;
     }
-    if (verbose >= VERBOSITY_MINIMAL){
+    if (verbose >= VERBOSITY_SLIGHT){
         printf("\nInverse matrix NPM (XYZ to linear RGB) is:\n");
         print3x3matrix(inverseMatrixNPM);
     }
@@ -94,7 +93,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
             printf("Initialization aborted!\n");
             return false;
         }
-        if (verbose >= VERBOSITY_MINIMAL){
+        if (verbose >= VERBOSITY_SLIGHT){
             printf("\nMatrix M (XYZ to XYZ chromatic adaptation of whitepoint to D65) is:\n");
             print3x3matrix(matrixMtoD65);
             printf("\nMatrix NPM-adapt (linear RGB to XYZ-D65) is:\n");
@@ -105,11 +104,11 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     }
     
     reservespace();
-    if (verbose >= VERBOSITY_MINIMAL) printf("\nSampling gamut boundaries...");
+    if (verbose >= VERBOSITY_SLIGHT) printf("\nSampling gamut boundaries...");
     FindBoundaries();
-    if (verbose >= VERBOSITY_MINIMAL) printf(" done.\n");
+    if (verbose >= VERBOSITY_SLIGHT) printf(" done.\n");
     
-    if (verbose >= VERBOSITY_MINIMAL) printf("\nDone initializing gamut descriptor for %s.\n----------\n", gamutname.c_str());
+    if (verbose >= VERBOSITY_SLIGHT) printf("\nDone initializing gamut descriptor for %s.\n----------\n", gamutname.c_str());
     return true;
 }
 
@@ -830,6 +829,16 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
             Joutput.y = newcolor.x; // chroma is C
         }
     } // end of VP second step
+    
+    // if no compression was needed, then skip JzCzhz and just use XYZ (possibly with Bradford)
+    // should reduce floating point errors
+    // on the other hand, this might introduce a discontinuity at the edge where scaling starts... ugg
+    /*
+    if (!scaleneeded){
+        vec3 tempcolor = sourcegamut.linearRGBtoXYZ(color);
+        return destgamut.XYZtoLinearRGB(tempcolor);
+    }
+    */
     
     return destgamut.JzCzhzToLinearRGB(Joutput);
 }

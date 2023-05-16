@@ -1,45 +1,29 @@
-// g++ -std=c++20 -o gamutboundaries gamutboundaries.cpp -lm
-
-//g++ -std=c++20 -o gamutboundaries gamutboundaries.cpp -lpng16 -lz -lm
-
-//https://stackoverflow.com/questions/47649507/3d-line-segment-and-plane-intersection-contd
-
-//#include <stddef.h>
-//#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-//#include <stdbool.h>
-//#include <math.h>
-//#include <limits>
-//#include <cfloat>
-//#include <vector>
 #include <string>
-//#include <numbers>
 #include <errno.h>
 
-/* Normally use <png.h> here to get the installed libpng, but this is done to
- * ensure the code picks up the local libpng implementation:
- */
+// Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
-#include <png.h> // Linux should have libpng-dev installed; Windows users can figure stuff out.
-#if defined(PNG_SIMPLIFIED_READ_SUPPORTED) && \
-    defined(PNG_SIMPLIFIED_WRITE_SUPPORTED)
+#include <png.h> 
 
 #include "constants.h"
-//#include "vec2.h"
 #include "vec3.h"
-//#include "plane.h"
 #include "matrix.h"
 //#include "cielab.h"
 #include "jzazbz.h"
 #include "gamutbounds.h"
 #include "colormisc.h"
 
+typedef struct memo{
+    bool known;
+    vec3 data;
+} memo;
+    
 // this has to be global because it's too big for the stack
-png_byte memos[256][256][256][4];
+memo memos[256][256][256];
 
 int main(int argc, const char **argv){
-    printf("hello world\n");
     
     // parameter processing -------------------------------------------------------------------
     
@@ -53,6 +37,7 @@ int main(int argc, const char **argv){
     bool filemode = true;
     bool gammamode = true;
     bool softkneemode = true;
+    bool dither = false;
     int mapdirection = MAP_GCUSP;
     int mapmode = MAP_COMPRESS;
     int sourcegamutindex = GAMUT_NTSCJ_R;
@@ -68,6 +53,7 @@ int main(int argc, const char **argv){
     double remapfactor = 0.4;
     double remaplimit = 0.8;
     double kneefactor = 0.2;
+    int verbosity = VERBOSITY_SLIGHT;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -235,6 +221,47 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 14){ // dither
+            if (strcmp(argv[i], "true") == 0){
+                dither = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                dither = false;
+            }
+            else {
+                printf("Invalid parameter for dither. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_DITHER;
+            }
+            expect  = 0;
+        }
+        else if (expect == 15){ //verbosity
+            char* endptr;
+            errno = 0; //make sure errno is 0 before strtol()
+            long int input = strtol(argv[i], &endptr, 0);
+            bool inputok = true;
+            // are there any chacters left in the input string?
+            if (*endptr != '\0'){
+                inputok = false;
+            }
+            // is errno set?
+            else if (errno != 0){
+                inputok = false;
+            }
+            if (inputok){
+                if (input < VERBOSITY_SILENT){
+                    input = VERBOSITY_SILENT;
+                }
+                if (input > VERBOSITY_EXTREME){
+                    input = VERBOSITY_EXTREME;
+                }
+                verbosity = input;
+            }
+            else {
+                printf("Invalid parameter for verbosity. (Malformed int.)");
+                return ERROR_BAD_PARAM_VERBOSITY;
+            }
+            expect = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -276,6 +303,12 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--safe-zone-type") == 0) || (strcmp(argv[i], "-z") == 0)){
                 expect = 11;
+            }
+            else if ((strcmp(argv[i], "--dither") == 0) || (strcmp(argv[i], "--di") == 0)){
+                expect = 14;
+            }
+            else if ((strcmp(argv[i], "--verbosity") == 0) || (strcmp(argv[i], "-v") == 0)){
+                expect = 15;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -326,6 +359,12 @@ int main(int argc, const char **argv){
             case 13:
                 printf("gamma function.\n.");
                 break;
+            case 14:
+                printf("dither setting.\n.");
+                break;
+            case 15:
+                printf("verbosity level.\n.");
+                break;
             default:
                 printf("oh... er... wtf error!.\n.");
         }
@@ -373,20 +412,126 @@ int main(int argc, const char **argv){
         }
         inputcolor.x = (input >> 16) / 255.0;
         inputcolor.y = ((input & 0x0000FF00) >> 8) / 255.0;
-        inputcolor.y = (input & 0x000000FF) / 255.0;
+        inputcolor.z = (input & 0x000000FF) / 255.0;
     }
     
-
-    
-     //TODO: parse verbose level error 9
-     
-     // TODO: make the knee function params tunable
-    
     //TODO: screen barf params in verbos emode
-    
-    // TODO: safety check knee paramers don't go below 0
-    
-    printf("parameter prse complete\n");
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("\n\n----------\nParameters are:\n");
+        if (filemode){
+            printf("Input file: %s\nOutput file: %s\n", inputfilename, outputfilename);
+        }
+        else {
+            printf("Input color: %s\n", inputcolorstring);
+        }
+        if (gammamode){
+            printf("Gamma function: srgb\n");
+        }
+        else {
+            printf("Gamma function: linear\n");
+        }
+        printf("Source gamut: ");
+        switch(sourcegamutindex){
+            case GAMUT_SRGB:
+                printf("srgb\n");
+                break;
+            case GAMUT_NTSCJ_R:
+                printf("ntscjr (ntscj)\n");
+                break;
+            case GAMUT_NTSCJ_B:
+                printf("ntscjb\n");
+                break;
+            case GAMUT_SMPTEC:
+                printf("smptec\n");
+                break;
+            case GAMUT_EBU:
+                printf("ebu\n");
+                break;
+            default:
+                break;
+        };
+        printf("Destination gamut: ");
+        switch(destgamutindex){
+            case GAMUT_SRGB:
+                printf("srgb\n");
+                break;
+            case GAMUT_NTSCJ_R:
+                printf("ntscjr (ntscj)\n");
+                break;
+            case GAMUT_NTSCJ_B:
+                printf("ntscjb\n");
+                break;
+            case GAMUT_SMPTEC:
+                printf("smptec\n");
+                break;
+            case GAMUT_EBU:
+                printf("ebu\n");
+                break;
+            default:
+                break;
+        };
+        printf("Gamut mapping mode: ");
+        switch(mapmode){
+            case MAP_CLIP:
+                printf("clip\n");
+                break;
+            case MAP_COMPRESS:
+                printf("compress\n");
+                break;
+            case MAP_EXPAND:
+                printf("expand\n");
+                break;
+            default:
+                break;
+        };
+        if (mapmode > MAP_CLIP){
+            printf("Gamut mapping algorithm: ");
+            switch(mapdirection){
+                case MAP_GCUSP:
+                    printf("gcusp\n");
+                    break;
+                case MAP_HLPCM:
+                    printf("hlpcm\n");
+                    break;
+                case MAP_VP:
+                    printf("vp\n");
+                    break;
+                default:
+                    break;
+            };
+            printf("Safe zone type: ");
+            switch(safezonetype){
+                case RMZONE_DELTA_BASED:
+                    printf("const-detail\n");
+                    break;
+                case RMZONE_DEST_BASED:
+                    printf("const-fidelity\n");
+                    break;
+                default:
+                    break;
+            };
+            if (safezonetype == RMZONE_DELTA_BASED){
+                printf("Remap Factor: %f\n", remapfactor);
+            }
+            printf("Remap Limit: %f\n", remaplimit);
+            if (softkneemode){
+                printf("Knee type: soft\nKnee factor: %f\n", kneefactor);
+            }
+            else{
+                printf("Knee type: hard\n");
+            }
+        }
+        if (filemode){
+            if (dither){
+                printf("Dither: true\n");
+            }
+            else {
+                printf("Dither: false\n");
+            }
+        }
+        printf("Verbosity: %i\n", verbosity);
+        printf("----------\n\n");
+    }
     
     
     if (!initializeInverseMatrices()){
@@ -394,29 +539,27 @@ int main(int argc, const char **argv){
         return ERROR_INVERT_MATRIX_FAIL;
     }
     
-    //gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, vec3 dwp, int verbose)
     gamutdescriptor sourcegamut;
-    //bool srcOK = sourcegamut.initialize("NTSC-J", vec3(0.281, 0.311, 0.408), vec3(0.67, 0.33, 0.0), vec3(0.21, 0.71, 0.08), vec3(0.14, 0.08, 0.78), true, vec3(0.312713, 0.329016, 0.358271), 1);
     vec3 sourcewhite = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
     vec3 sourcered = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
     vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
     vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][3][0], gamutpoints[sourcegamutindex][3][1], gamutpoints[sourcegamutindex][3][2]);
     // TODO: remove dest whitepoint since it's not used anymore
-    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, true, D65, 1);
+    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, true, verbosity);
     gamutdescriptor destgamut;
     
-    //bool destOK = destgamut.initialize("sRGB", vec3(0.312713, 0.329016, 0.358271), vec3(0.64, 0.33, 0.03), vec3(0.3, 0.6, 0.1), vec3(0.15, 0.06, 0.79), false, vec3(0.312713, 0.329016, 0.358271), 1);
     vec3 destwhite = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
     vec3 destred = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
     vec3 destgreen = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
     vec3 destblue = vec3(gamutpoints[destgamutindex][3][0], gamutpoints[destgamutindex][3][1], gamutpoints[destgamutindex][3][2]);
-    bool destOK = destgamut.initialize("sRGB", destwhite, destred, destgreen, destblue, false, D65, 1);
+    bool destOK = destgamut.initialize("sRGB", destwhite, destred, destgreen, destblue, false, verbosity);
+    
     if (! srcOK || !destOK){
         printf("Gamut descriptor initializtion failed. All is lost. Abandon ship.\n");
-        return 101;
+        return GAMUT_INITIALIZE_FAIL;
     }
 
-    
+    // this mode converts a single color and printfs the result
     if (!filemode){
         int redout;
         int greenout;
@@ -437,11 +580,18 @@ int main(int argc, const char **argv){
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
         blueout = toRGB8nodither(outcolor.z);
-        printf("Input color %s converts to 0x%02X%02X%02X (red: %i, green: %i, blue: %i)\n", inputcolorstring, redout, greenout, blueout, redout, greenout, blueout);
-        return 0;
+        if (verbosity >= VERBOSITY_MINIMAL){
+            printf("Input color %s (red %f, green %f, blue %f; red %i, green %i, blue %i) converts to 0x%02X%02X%02X (red %f, green %f, blue %f; red: %i, green: %i, blue: %i)\n", inputcolorstring, inputcolor.x, inputcolor.y, inputcolor.z,  toRGB8nodither(inputcolor.x), toRGB8nodither(inputcolor.y), toRGB8nodither(inputcolor.z), redout, greenout, blueout, outcolor.x, outcolor.y, outcolor.z, redout, greenout, blueout);
+        }
+        else {
+            printf("%02X%02X%02X", redout, greenout, blueout);
+        }
+        return RETURN_SUCCESS;
     }
 
-    int result = 1000;
+    // if we didn't just return, we are in file mode
+    
+    int result = ERROR_PNG_FAIL;
     png_image image;
 
     
@@ -460,137 +610,161 @@ int main(int argc, const char **argv){
         buffer = (png_bytep) malloc(PNG_IMAGE_SIZE(image));  //c++ wants an explict cast
 
         if (buffer != NULL){
-        if (png_image_finish_read(&image, NULL/*background*/, buffer, 0/*row_stride*/, NULL/*colormap for PNG_FORMAT_FLAG_COLORMAP */)){
-            
-            // ------------------------------------------------------------------------------------------------------------------------------------------
-            // Begin actual color conversion code
-            
-            
-            //png_byte memos[256][256][256][4];
-            memset(&memos, 0, 256 * 256 * 256 * 4 * sizeof(png_byte));
-            
-            int width = image.width;
-            int height = image.height;
-            for (int y=0; y<height; y++){
-                printf("row %i of %i...\n", y+1, height);
-                for (int x=0; x<width; x++){
-                    
-                    
-                    png_byte redin = buffer[ ((y * width) + x) * 4];
-                    png_byte greenin = buffer[ (((y * width) + x) * 4) + 1 ];
-                    png_byte bluein = buffer[ (((y * width) + x) * 4) + 2 ];
-                    
-                    png_byte redout, greenout, blueout;
-                    
-                    if (memos[redin][greenin][bluein][0] == 1){
-                        redout = memos[redin][greenin][bluein][1];
-                        greenout = memos[redin][greenin][bluein][2];
-                        blueout = memos[redin][greenin][bluein][3];
+            if (png_image_finish_read(&image, NULL/*background*/, buffer, 0/*row_stride*/, NULL/*colormap for PNG_FORMAT_FLAG_COLORMAP */)){
+                
+                // ------------------------------------------------------------------------------------------------------------------------------------------
+                // Begin actual color conversion code
+                
+                // zero the memos
+                memset(&memos, 0, 256 * 256 * 256 * sizeof(memo));
+                
+                if (verbosity >= VERBOSITY_MINIMAL){
+                    printf("Doing gamut conversion on %s and saving result to %s...\n", inputfilename, outputfilename); 
+                }
+                
+                // iterate over every pixel
+                int width = image.width;
+                int height = image.height;
+                for (int y=0; y<height; y++){
+                    if (verbosity >= VERBOSITY_HIGH){
+                        printf("\trow %i of %i...\n", y+1, height);
                     }
-                    else {
-                    
-                        // read out from buffer and convert to double
-                        //double redvalue = buffer[ ((y * width) + x) * 4]/255.0;
-                        //double greenvalue = buffer[ (((y * width) + x) * 4) + 1 ]/255.0;
-                        //double bluevalue = buffer[ (((y * width) + x) * 4) + 2 ]/255.0;
-                        double redvalue = redin/255.0;
-                        double greenvalue = greenin/255.0;
-                        double bluevalue = bluein/255.0;
-                        // don't touch alpha value
-                        
-                        // to linear RGB
-                        if (gammamode){
-                            redvalue = tolinear(redvalue);
-                            greenvalue = tolinear(greenvalue);
-                            bluevalue = tolinear(bluevalue);
+                    else if (verbosity >= VERBOSITY_MINIMAL){
+                        if (y == 0){
+                            printf("0%%... ");
+                            fflush(stdout);
                         }
-                        // The FF7 videos had banding near black when decoded with any piecewise "toe slope" gamma function, suggesting that a pure curve function was needed. May need to try this if such banding appears.
-                        //redvalue = clampdouble(pow(redvalue, 2.2));
-                        //greenvalue = clampdouble(pow(greenvalue, 2.2));
-                        //bluevalue = clampdouble(pow(bluevalue, 2.2));
+                        else if ((y < height -1) && ((((y+1)*20)/height) > ((y*20)/height))){
+                            printf("%i%%... ", ((y+1)*100)/height);
+                            if (((y+1)*100)/height == 50){
+                                printf("\n");
+                            }
+                            fflush(stdout);
+                        }
+                    }
+                    for (int x=0; x<width; x++){
                         
+                        // read bytes from buffer
+                        png_byte redin = buffer[ ((y * width) + x) * 4];
+                        png_byte greenin = buffer[ (((y * width) + x) * 4) + 1 ];
+                        png_byte bluein = buffer[ (((y * width) + x) * 4) + 2 ];
                         
                         vec3 outcolor;
-                        vec3 linearRGB = vec3(redvalue, greenvalue, bluevalue);
                         
-                        if (mapmode == MAP_CLIP){
-                            vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearRGB);
-                            outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+                        // if we've already processed the same input color, just recall the memo
+                        if (memos[redin][greenin][bluein].known){
+                            outcolor = memos[redin][greenin][bluein].data;
                         }
                         else {
-                            outcolor = mapColor(linearRGB, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+                        
+                            // convert to double
+                            double redvalue = redin/255.0;
+                            double greenvalue = greenin/255.0;
+                            double bluevalue = bluein/255.0;
+                            // don't touch alpha value
+                            
+                            // to linear RGB
+                            if (gammamode){
+                                // The FF7 videos had banding near black when decoded with any piecewise "toe slope" gamma function, suggesting that a pure curve function was needed. May need to try this if such banding appears.
+                                redvalue = tolinear(redvalue);
+                                greenvalue = tolinear(greenvalue);
+                                bluevalue = tolinear(bluevalue);
+                            }                           
+                            
+                            vec3 linearRGB = vec3(redvalue, greenvalue, bluevalue);
+                            
+                            // if clipping, just do the matrix math
+                            // (the gamutdescriptors know if they need to do a Bradford (Von Kries) transform
+                            if (mapmode == MAP_CLIP){
+                                vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearRGB);
+                                outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+                            }
+                            // otherwise fire up the gamut mapping algorithm
+                            else {
+                                outcolor = mapColor(linearRGB, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+                            }
+                            
+                            // back to sRGB
+                            if (gammamode){
+                                outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
+                            }
+                            
+                            // memoize the result of the conversion so we don't need to do it again for this input color
+                            memos[redin][greenin][bluein].known = true;
+                            memos[redin][greenin][bluein].data = outcolor;
+                                                    
                         }
-                        
-                        // back to sRGB
-                        if (gammamode){
-                            outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
-                        }
-                        
-                        // back to png_byte
-                        redout = toRGB8nodither(outcolor.x);
-                        greenout = toRGB8nodither(outcolor.y);
-                        blueout = toRGB8nodither(outcolor.z);
-                        
-                        // memoize
-                        memos[redin][greenin][bluein][0] = 1;
-                        memos[redin][greenin][bluein][1] = redout;
-                        memos[redin][greenin][bluein][2] = greenout;
-                        memos[redin][greenin][bluein][3] = blueout;
-                    
-                    }
 
-                    buffer[ ((y * width) + x) * 4] = redout;
-                    buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
-                    buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
-                                            
+                        png_byte redout, greenout, blueout;
+                        
+                        // dither and back to RGB8 if enabled
+                        if (dither){
+                            // use inverse x coord for red and inverse y coord for blue to decouple dither patterns across channels
+                            // see https://blog.kaetemi.be/2015/04/01/practical-bayer-dithering/
+                            redout = quasirandomdither(outcolor.x, width - x - 1, y);
+                            greenout = quasirandomdither(outcolor.y, x, y);
+                            blueout = quasirandomdither(outcolor.z, x, height - y - 1);
+                        }
+                        // otherwise just back to RGB 8
+                        else {
+                            redout = toRGB8nodither(outcolor.x);
+                            greenout = toRGB8nodither(outcolor.y);
+                            blueout = toRGB8nodither(outcolor.z);
+                        }
+                        
+                        // save back to buffer
+                        buffer[ ((y * width) + x) * 4] = redout;
+                        buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
+                        buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
+                                                
+                    }
                 }
-            }
-            
-            // End actual color conversion code
-            // ------------------------------------------------------------------------------------------------------------------------------------------
-            
-            
-            if (png_image_write_to_file(&image, outputfilename, 0/*convert_to_8bit*/, buffer, 0/*row_stride*/, NULL/*colormap*/)){
-                result = 0;
-                printf("done.\n");
+                if ((verbosity >= VERBOSITY_MINIMAL) && (verbosity < VERBOSITY_HIGH)){
+                    printf("100%%\n");
+                }
+                
+                // End actual color conversion code
+                // ------------------------------------------------------------------------------------------------------------------------------------------
+                
+                
+                if (png_image_write_to_file(&image, outputfilename, 0/*convert_to_8bit*/, buffer, 0/*row_stride*/, NULL/*colormap*/)){
+                    result = RETURN_SUCCESS;
+                    printf("done.\n");
+                }
+
+                else {
+                    fprintf(stderr, "ntscjpng: write %s: %s\n", outputfilename, image.message);
+                    result = ERROR_PNG_WRITE_FAIL;
+                }
             }
 
             else {
-                fprintf(stderr, "ntscjpng: write %s: %s\n", outputfilename, image.message);
+                fprintf(stderr, "ntscjpng: read %s: %s\n", inputfilename, image.message);
+                result = ERROR_PNG_READ_FAIL;
             }
+
+            free(buffer);
+            buffer = NULL;
         }
 
         else {
-            fprintf(stderr, "ntscjpng: read %s: %s\n", inputfilename, image.message);
-        }
+            fprintf(stderr, "ntscjpng: out of memory: %lu bytes\n", (unsigned long)PNG_IMAGE_SIZE(image));
+            result = ERROR_PNG_MEM_FAIL;
 
-        free(buffer);
-        buffer = NULL;
-        }
-
-        else {
-        fprintf(stderr, "ntscjpng: out of memory: %lu bytes\n", (unsigned long)PNG_IMAGE_SIZE(image));
-
-        /* This is the only place where a 'free' is required; libpng does
-            * the cleanup on error and success, but in this case we couldn't
-            * complete the read because of running out of memory and so libpng
-            * has not got to the point where it can do cleanup.
-            */
-        png_image_free(&image);
+            /* This is the only place where a 'free' is required; libpng does
+                * the cleanup on error and success, but in this case we couldn't
+                * complete the read because of running out of memory and so libpng
+                * has not got to the point where it can do cleanup.
+                */
+            png_image_free(&image);
         }
     }
 
     else {
         /* Failed to read the input file argument: */
         fprintf(stderr, "ntscjpng: %s: %s\n", inputfilename, image.message);
+        result = ERROR_PNG_OPEN_FAIL;
     }
    
-
-   //else {
-      /* Wrong number of arguments */
-      //fprintf(stderr, "ntscjpng: usage: ntscjpng mode bounds-mode input-file output-file, where mode is \"ntscj-to-srgb\" or \"srgb-to-ntscj\" and bounds-mode is \"clip,\" \"compress,\" or \"scale.\" \n");
-   //}
-
    return result;
 }
-#endif
