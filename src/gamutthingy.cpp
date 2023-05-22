@@ -15,6 +15,12 @@
 #include "gamutbounds.h"
 #include "colormisc.h"
 
+void printhelp(){
+    printf("`--help` or `-h`: Displays help.\n\n`--color` or `-c`: Specifies a single color to convert. A message containing the result will be printed to stdout. Should be a \"0x\" prefixed hexadecimal representation of a RGB8 color. For example: `0xFABF00`.\n\n`--infile` or `-i`: Specifies an input file. Should be a .png image.\n\n`--outfile` or `-o`: Specifies an input file. Should be a .png image.\n\n`--gamma` or `-g`: Specifies the gamma function to be assumed for the input. The inverse function will be applied to the output. Possible values are `srgb` (default) and `linear`. LUTs for FFNx should be created using linear RGB. Images should generally be converted using the sRGB gamma function.\n\n`--source-gamut` or `-s`: Specifies the source gamut. Possible values are:\n\t`srgb`: The sRGB gamut used by (SDR) modern computer monitors. Identical to the bt709 gamut used for modern HD video.\n\t`ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets. (whitepoint 9300K+27mpcd) Default.\n\t`ntscj`: alias for `ntscjr`.\n\t`ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts. (whitepoint 9300K+8mpcd)\n\t`smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.\n\t`ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).\n\n`--dest-gamut` or `-d`: Specifies the destination gamut. Possible values are the same as for source gamut. Default is `srgb`.\n\n`--map-mode` or `-m`: Specifies gamut mapping mode. Possible values are:\n\t`clip`: Linear RGB output is simply clipped to 0, 1. Detail in the out-of-bounds range will be lost.\n\t`compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving some of the out-of-bounds detail. Default.\n\t`expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. Also, reverses the order of the steps in the `vp` algorithm. The only use for this is to prepare an image for a \"roundtrip\" conversion. For example, if you want to display a sRGB image as-is in FFNx's NTSC-J mode, you would convert from sRGB to NTSC-J using `expand` in preparation for FFNx doing the inverse operation.\n\n`--gamut-mapping-algorithm` or `--gma`: Specifies which gamut mapping algorithm to use. (Does nothing if `--map-mode clip`.) Possible values are:\n\t`cusp`: Slightly modified version of the CUSP algorithm. See readme file for details.\n\t`hlpcm`: Slightly modified version of the HLPCM algorithm. See readme file for details.\n\t`vp`: Slightly modified version of the VP algorithm. See readme file for details.\n\n`--safe-zone-type` or `-z`: Specifies how the outer zone subject to remapping and the inner \"safe zone\" exempt from remapping are defined. Possible values are:\n\t`const-fidelity`: The standard approach in which the zones are defined relative to the distance from the \"center of gravity\" to the destination gamut boundary. Default.\n\t`const-detail`: The remapping zone is defined relative to the difference between the distances from the \"center of gravity\" to the source and destination gamut boundaries. An overriding minimum size for the \"safe zone\" (relative to the destination gamut boundary) may also be enforced.\n\n`--remap-factor` or `--rf`: Specifies the size of the remapping zone relative to the difference between the distances from the \"center of gravity\" to the source and destination gamut boundaries. (Does nothing if `--safe-zone-type const-fidelity`.) Default 0.4.\n\n`--remap-limit` or `--rl`: Specifies the size of the safe zone (exempt from remapping) relative to the distance from the \"center of gravity\" to the destination gamut boundary. If `--safe-zone-type const-detail`, this serves as a minimum size limit when application of `--remap-factor` would lead to a smaller safe zone. Default 0.9.\n\n`--knee` or `-k`: Specifies the type of knee function used for compression, `hard` or `soft`. Default `soft`.\n\n`--knee-factor` or `--kf`: Specifies the width of the soft knee relative to the size of the remapping zone. (Does nothing if `--knee hard`.) Note that the soft knee is centered at the knee point, so half the width extends into the safe zone, thus expanding the area that is remapped. Default 0.4.\n\n`--dither` or `--di`: Specifies whether to apply dithering to the ouput, `true` or `false`. Uses Martin Roberts's quasirandom dithering algorithm. Dithering should not be used for LUTs. Dithering should be used for images in general. Default `true`.\n\n`--verbosity` or `-v`: Specify verbosity level. Integers 0-5. Default 2.\n");
+    return;
+}
+
+
 typedef struct memo{
     bool known;
     vec3 data;
@@ -28,8 +34,7 @@ int main(int argc, const char **argv){
     // parameter processing -------------------------------------------------------------------
     
     if ((argc < 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)){
-        printf("display help message\n");
-        // TODO: make a useful help message
+        printhelp();
         return 0;
     }
     
@@ -37,12 +42,12 @@ int main(int argc, const char **argv){
     bool filemode = true;
     bool gammamode = true;
     bool softkneemode = true;
-    bool dither = false;
-    int mapdirection = MAP_GCUSP;
+    bool dither = true;
+    int mapdirection = MAP_VP;
     int mapmode = MAP_COMPRESS;
     int sourcegamutindex = GAMUT_NTSCJ_R;
     int destgamutindex = GAMUT_SRGB;
-    int safezonetype = RMZONE_DELTA_BASED;
+    int safezonetype = RMZONE_DEST_BASED;
     char* inputfilename;
     char* outputfilename;
     char* inputcolorstring;
@@ -51,8 +56,8 @@ int main(int argc, const char **argv){
     bool outfileset = false;
     bool incolorset = false;
     double remapfactor = 0.4;
-    double remaplimit = 0.8;
-    double kneefactor = 0.2;
+    double remaplimit = 0.9;
+    double kneefactor = 0.4;
     int verbosity = VERBOSITY_SLIGHT;
     
     int expect = 0;
@@ -167,7 +172,7 @@ int main(int argc, const char **argv){
             expect = 0;
         }
         else if (expect == 10){ // expecting map direction
-            if (strcmp(argv[i], "gcusp") == 0){
+            if (strcmp(argv[i], "cusp") == 0){
                 mapdirection = MAP_GCUSP;
             }
             else if (strcmp(argv[i], "hlpcm") == 0){
@@ -177,7 +182,7 @@ int main(int argc, const char **argv){
                 mapmode = MAP_VP;
             }
             else {
-                printf("Invalid parameter for mapping direction. Expecting \"gcusp\" or \"hlpcm\".\n");
+                printf("Invalid parameter for mapping direction. Expecting \"cusp\", \"hlpcm\", or \"vp\".\n");
                 return ERROR_BAD_PARAM_MAPPING_DIRECTION;
             }
             expect  = 0;
@@ -488,7 +493,7 @@ int main(int argc, const char **argv){
             printf("Gamut mapping algorithm: ");
             switch(mapdirection){
                 case MAP_GCUSP:
-                    printf("gcusp\n");
+                    printf("cusp\n");
                     break;
                 case MAP_HLPCM:
                     printf("hlpcm\n");

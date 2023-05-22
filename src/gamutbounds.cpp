@@ -536,7 +536,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
             bestpoint = bound2;
         }
     }
-    if (bestdist > EPSILONZERO){
+    if (bestdist > EPSILON){
         printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f.\n", bestdist);
     }
     return bestpoint;

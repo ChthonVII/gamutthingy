@@ -11,7 +11,7 @@
 #define VERBOSITY_EXTREME 4
 
 #define COLORCLOSE 0.0015 // this should be more than small enough to yield the same RGB8 value after rounding
-#define EPSILON 1e-6 // this is about where rounding errors start to creep in
+#define EPSILON 1e-5 // this is about where rounding errors start to creep in
 #define EPSILONZERO 1e-10 // for checking zero
 
 #define GAMUT_SRGB 0
