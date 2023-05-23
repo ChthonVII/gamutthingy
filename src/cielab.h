@@ -1,3 +1,5 @@
+// This file is unused.
+
 #ifndef CIELAB_H
 #define CIELAB_H
 

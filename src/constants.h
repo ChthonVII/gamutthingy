@@ -10,7 +10,6 @@
 #define VERBOSITY_HIGH 3
 #define VERBOSITY_EXTREME 4
 
-#define COLORCLOSE 0.0015 // this should be more than small enough to yield the same RGB8 value after rounding
 #define EPSILON 1e-5 // this is about where rounding errors start to creep in
 #define EPSILONZERO 1e-10 // for checking zero
 
@@ -114,11 +113,6 @@ const double gamutpoints[5][4][3] = {
         {0.15, 0.06, 0.79} //blue
     }
 };
-
-
-
-
-
 
 
 #endif

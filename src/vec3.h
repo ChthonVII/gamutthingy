@@ -42,10 +42,14 @@ public:
     }
     
     // functions
+    // normalizes the vector in place
     void normalize();
+    // returns a normalized copy of the vector without altering the original
     vec3 normalizedcopy();
     double magnitude();
+    // assumes a LCh-style colorspace and outputs the radians hue value as degrees
     double polarangle();
+    // screen barf
     void printout();
     bool isequal(vec3 other);
 };
@@ -54,8 +58,9 @@ double DotProduct(vec3 A, vec3 B);
 
 vec3 CrossProduct(vec3 A, vec3 B);
 
+// converts LAB-style colorspaces to their polar LCh-style cousins, or vice versa
+// h is in radians
 vec3 Polarize(vec3 input);
-
 vec3 Depolarize(vec3 input);
 
 #endif

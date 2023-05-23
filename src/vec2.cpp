@@ -57,6 +57,8 @@ double clockwiseAngle(vec2 A, vec2 B){
     return atan2(det, dot);
 }
 
+// finds the intersection between lines AB and CD and puts the result in output
+// returns false if parallel; otherwise true
 bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output){
     double a1 = B.y - A.y;
     double b1 = A.x - B.x;
@@ -68,7 +70,7 @@ bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output){
     
     double determinant = (a1 * b2) - (a2 * b1);
     
-    if (fabs(determinant - 0.0) < EPSILONZERO){
+    if (fabs(determinant) < EPSILONZERO){
         return false;
     }
     
@@ -77,7 +79,7 @@ bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output){
     return true;
 }
 
-
+// assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
 bool isBetween2D(vec2 A, vec2 B, vec2 C){
     return (
         (((A.x >= B.x) && (B.x >= C.x)) || ((A.x <= B.x) && (B.x <= C.x))) &&

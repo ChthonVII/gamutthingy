@@ -1,3 +1,5 @@
+// This file is unused
+
 #include "cielab.h"
 
 #include <math.h>

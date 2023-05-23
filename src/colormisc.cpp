@@ -37,6 +37,7 @@ png_byte quasirandomdither(double input, int x, int y){
     return (png_byte)output;
 }
 
+// return to RGB8 with just rounding
 png_byte toRGB8nodither(double input){
     int output = (int)((input * 255.0) + 0.5);
     if (output > 255) output = 255;

@@ -18,7 +18,7 @@ double vec3::magnitude(){
     return sqrt((x * x) + (y * y) + (z * z));
 }
 
-// outputs the radians z value as degrees
+// assumes a LCh style colorspace and outputs the radians hue value as degrees
 double vec3::polarangle(){
     return z * (180.0 / std::numbers::pi_v<long double>);
 }
@@ -41,6 +41,7 @@ vec3 vec3::normalizedcopy(){
     return output;
 }
 
+// screen barf
 void vec3::printout(){
     printf("{%.10f, %.10f, %.10f}\n", x, y, z);
     return;
@@ -72,7 +73,6 @@ vec3 Polarize(vec3 input){
     output.x = input.x;
     output.y = sqrt((input.y * input.y) + (input.z * input.z));
     output.z = atan2(input.z, input.y);
-    // is this a problem?
     if (output.z < 0){
         output.z += 2.0 * std::numbers::pi_v<long double>;
     }

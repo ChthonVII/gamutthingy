@@ -38,19 +38,26 @@ public:
     }
     
     // functions
+    // normalizes the vector in place
     void normalize();
+    // returns a normalized copy of the vector without altering the original
     vec2 normalizedcopy();
     double magnitude();
+    // screen barf
     void printout();
     bool isequal(vec2 other);
 };
 
 double DotProduct(vec2 A, vec2 B);
 
+// returns clockwise angle (in radians) between two vectors
 double clockwiseAngle(vec2 A, vec2 B);
 
+// finds the intersection between lines AB and CD and puts the result in output
+// returns false if parallel; otherwise true
 bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output);
 
+// assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
 bool isBetween2D(vec2 A, vec2 B, vec2 C);
 
 #endif

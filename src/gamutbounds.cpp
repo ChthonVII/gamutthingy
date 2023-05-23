@@ -6,14 +6,12 @@
 #include "cielab.h"
 #include "jzazbz.h"
 
-//#include <stddef.h>
-//#include <stdio.h>
-//#include <stdbool.h>
 #include <math.h>
-//#include <limits>
 #include <cfloat>
 #include <numbers>
 
+// make this global so we only need to compute it once
+const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
 
 bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose){
     verbosemode = verbose;
@@ -112,6 +110,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     return true;
 }
 
+// resizes vectors ahead of time
 void gamutdescriptor::reservespace(){
     for (int i=0; i<HUE_STEPS; i++){
         data[i].reserve(LUMA_STEPS + 6); // We need LUMA_STEPS + 2 for the fully convex case. The rest is padding in case of concavity.
@@ -245,14 +244,12 @@ vec3 gamutdescriptor::linearRGBtoJzCzhz(vec3 input){
 
 vec3 gamutdescriptor::JzCzhzToLinearRGB(vec3 input){
     vec3 output = Depolarize(input);
-    //if (isnan(output.x) || isnan(output.y) || isnan(output.z)) printf("NaN after depolarize!\n");
     output = JzazbzToXYZ(output);
-    //if (isnan(output.x) || isnan(output.y) || isnan(output.z)) printf("NaN after JzazbzToXYZ!\n");
     output = XYZtoLinearRGB(output);
-    //if (isnan(output.x) || isnan(output.y) || isnan(output.z)) printf("XYZtoLinearRG!\n");
     return output;
 }
 
+/*
 vec3 gamutdescriptor::linearRGBtoLCh(vec3 input){
     if (verbosemode >= VERBOSITY_EXTREME){
         printf("Linear RGB input is: ");
@@ -271,12 +268,19 @@ vec3 gamutdescriptor::linearRGBtoLCh(vec3 input){
     output = Polarize(output);
     return output;
 }
+*/
 
+// Populates the gamut boundary descriptor using the algorithm from
+// Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. (https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694)
 void gamutdescriptor::FindBoundaries(){
     
+    // first we need to know what scale we'll be working at so we can adjust the step size accordingly
+    
+    // find max luminosity by checking the white point
     vec3 tempcolor = linearRGBtoJzCzhz(vec3(1.0, 1.0, 1.0));
     double maxluma = tempcolor.x;
     
+    // find max chroma by checking the red/green/blue points
     tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
     double maxchroma = tempcolor.y;
     tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
@@ -288,19 +292,16 @@ void gamutdescriptor::FindBoundaries(){
         maxchroma = tempcolor.y;
     }
     maxchroma *= 1.1; // pad it to make sure we don't accidentally clip anything
-    // 5% lightness, 2% chrma, 0.1% chroma dense, ?? lightness dense, 0.2degree hue slice? 0.4?
-    // for testing, just do one slice
-    //ProcessSlice(3, maxluma, maxchroma);
     
+    // process every hue slice
     for (int huestep = 0; huestep < HUE_STEPS; huestep++){
         ProcessSlice(huestep, maxluma, maxchroma);
-    } // end for hue angle
-    
-    
+    }
     
     return;
 }
 
+// Samples the gamut boundaries for one hue slice 
 void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma){
     
     const double lumastep = maxluma / LUMA_STEPS;
@@ -321,7 +322,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         grid[i][0].inbounds = true;
     }
     
-    // skip the first and last rows and the first column because we already know:
+    // skip the first and last rows and the first column because we already know that:
     // first and last rows contain only 1 point in bounds (at chroma = 0)
     // first column is all in bounds
     for (int row = 1; row < maxrow; row++){
@@ -394,7 +395,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
             lumaforbiggestchroma = data[huestep][i].y;
         }
     }
-    biggestchroma -= - (0.5 * finechromastep); // take the half sample back off so we don't miss when that's an over-estimate
+    biggestchroma -= -(0.5 * finechromastep); // take the half sample back off so we don't miss when that's an over-estimate
     // scan for the cusp
     double scanminluma = lumaforbiggestchroma - lumastep;
     double scanmaxluma = lumaforbiggestchroma + lumastep;
@@ -468,11 +469,6 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         }
     }
     
-    
-    
-    // we should have 18 points, I hope
-    //if (data[huestep].size() != 21) printf("huestep %i has %i points!\n", huestep, data[huestep].size());
-    
     /*
     printf("hue: %f size of vector: %i\n", hue, data[huestep].size());
     printf("chroma\t\tluma\t\tangle\t\tcusp\n");
@@ -482,10 +478,13 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     }
     */
     
-    
     return;
 }
 
+// Finds the point where the line from the focal point (chroma 0, luma = focalpointluma) to color intercepts the gamut boundary in the 2D hue splice specified by hueindex.
+// boundtype is used for the VP gamut mapping algorithm
+// BOUND_ABOVE extends the just-above-the-cusp segment indefinitely to the right and ignores the below-the-cusp segments
+// BOUND_BELOW extends the just-below-the-cusp segment indefinitely upwards and ignores the above-the-cusp segments
 vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int hueindex, int boundtype){
     vec2 focalpoint = vec2(0, focalpointluma);
     int linecount = data[hueindex].size() - 1;
@@ -537,20 +536,25 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
         }
     }
     if (bestdist > EPSILON){
+        // Adjusted epsilon to keep this quieter...
         printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f.\n", bestdist);
     }
     return bestpoint;
 }
 
+// Finds the point where the line from the focal point (chroma 0, luma = focalpointluma, hue = color's hue) to color intercepts the gamut boundary.
+// hueindex is the index of the adjacent sampled hue splice below color's hue. (This was computed before, so it's passed for efficiency's sake) 
+// boundtype is used for the VP gamut mapping algorithm
 vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype){
+    
+    // Bascially we're going to call getBoundary2D() for the two adjacent sampled hue slices,
+    // then do a line/plane intersection to get the final answer.
     
     vec2 color2D = vec2(color.y, color.x); // chroma is x; luma is y
     
     // find the boundary at the floor hue angle.
-    vec2 floorbound2D = getBoundary2D(color2D, focalpointluma, hueindex, boundtype);
-    // todo move to #def
-    const double hueperstep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
-    double floorhue = hueindex * hueperstep;
+    vec2 floorbound2D = getBoundary2D(color2D, focalpointluma, hueindex, boundtype);    
+    double floorhue = hueindex * HuePerStep;
     vec3 floorbound3D = vec3(floorbound2D.y, floorbound2D.x, floorhue); // again need to transpose x and y
     
     vec3 output = floorbound3D;
@@ -562,7 +566,7 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
             ceilhueindex = 0;
         }
         vec2 ceilbound2D = getBoundary2D(color2D, focalpointluma, ceilhueindex, boundtype);
-        double ceilhue = ceilhueindex * hueperstep;
+        double ceilhue = ceilhueindex * HuePerStep;
         vec3 ceilbound3D = vec3(ceilbound2D.y, ceilbound2D.x, ceilhue); // again need to transpose x and y
         
         // now find where the line between the two boundary points intersects the plane containing the real hue
@@ -590,12 +594,12 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
     return output;
 }
 
+// Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
+// hueindexA and hueindexB are the indices for the adjacent sampled hue slices
 vec2 gamutdescriptor::getLACSlope(int hueindexA, int hueindexB, double hue){
     
-    // todo move to #def
-    const double hueperstep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
-    double hueA = hueindexA * hueperstep;
-    double hueB = hueindexB * hueperstep;
+    double hueA = hueindexA * HuePerStep;
+    double hueB = hueindexB * HuePerStep;
     
     vec2 cuspA;
     vec2 otherA;
@@ -653,43 +657,28 @@ vec2 gamutdescriptor::getLACSlope(int hueindexA, int hueindexB, double hue){
     output.normalize();
     
     return output;
-    
-    
-    /*
-    vec2 slopeA;
-    vec2 slopeB;
-    int nodecount = data[hueindexA].size();
-    for (int i = 1; i< nodecount; i++){
-        if (data[hueindexA][i].iscusp){
-            slopeA = vec2(data[hueindexA][i-1].x, data[hueindexA][i-1].y) - vec2(data[hueindexA][i].x, data[hueindexA][i].y);
-        }
-    }
-    nodecount = data[hueindexB].size();
-    for (int i = 1; i< nodecount; i++){
-        if (data[hueindexB][i].iscusp){
-            slopeB = vec2(data[hueindexB][i-1].x, data[hueindexB][i-1].y) - vec2(data[hueindexB][i].x, data[hueindexB][i].y);
-        }
-    }
-    slopeA.normalize();
-    slopeB.normalize();
-    // TODO: replace lazy average with line/plane intersections
-    vec2 averageslope = slopeA + slopeB;
-    averageslope = averageslope * 0.5;
-    averageslope.normalize();
-    return averageslope;
-    */
 }
 
+// returns the index of the adjacent sampled hue slice "below" hue,
+// and stores how far hue is towards the next slice (on a 0 to 1 scale) to excess
 int hueToFloorIndex(double hue, double &excess){
-    // todo move to #def
-    const double hueperstep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
-    //printf("hueperstep is %f\n", hueperstep);
-    int index = (int)(hue / hueperstep);
-    excess = (hue - (index * hueperstep)) / hueperstep;
+    int index = (int)(hue / HuePerStep);
+    excess = (hue - (index * HuePerStep)) / HuePerStep;
     return index;
 }
 
-// linear RGB in and out
+// The core function! Takes a linear RGB color, two gamut descriptors, and some gamut-mapping parameters, and outputs a remapped linear RGB color
+// color: linear RGB input color
+// sourcegamut: the source gamut
+// destgamut: the destination gmaut
+// expand: whether to apply inverse compression function when the destination gamut exceeds the source gamut
+// remapfactor: size of remap zone relative to difference between gamuts
+// remaplimit: size of safe zone relative to destination gamut; overrides results of remapfactor
+// softknee: use soft knee compression rather than hard knee
+// kneefactor: size of soft knee relative to remap zone (half of soft knee on either side of knee point)
+// mapdirection: which gamut mapping algorithm to use MAP_GCUSP (actually just CUSP), MAP_HLPCM, or MAP_VP
+// safezonetype: whether to use the traditional relative-to-destination-gamut approach (RMZONE_DEST_BASED) or Su, Tao, & Kim's relative-to-difference-between-gamuts approach (RMZONE_DELTA_BASED)
+//  if RMZONE_DEST_BASED, then remapfactor does nothing
 vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype){
     
     // skip the easy black and white cases with no computation
@@ -702,15 +691,20 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
     vec2 colorCJ = vec2(Jcolor.y, Jcolor.x); // chroma is x; luma is y
     vec3 Joutput = Jcolor;
     
-    // find the index for the hue angle and projection of the destination cusp back to neutral gray
+    // find the index for the hue angle
     double ceilweight;
     int floorhueindex = hueToFloorIndex(Jcolor.z, ceilweight);
     int ceilhueindex = floorhueindex + 1;
     if (ceilhueindex == HUE_STEPS){
         ceilhueindex = 0;
     }
-    // for gcusp, take a weighted average from the two nearest hues that were sampled
-    // for hlpcm, take the input's luma
+    // find the luma to use for the focal point
+    // for CUSP, take a weighted average from the two nearest hues that were sampled
+    // for HLPCM, take the input's luma
+    // for VP, it depends on the step
+    //      the first step is black
+    //      the second step projects from the color back to the neutral axis parallel to the slope of the just-above-the-cusp boundary segment 
+    //      (this is my modification of the second step. See readme for why.) 
     double maptoluma;
     int boundtype = BOUND_NORMAL;
     if (mapdirection == MAP_GCUSP){
@@ -843,7 +837,13 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
     return destgamut.JzCzhzToLinearRGB(Joutput);
 }
 
-
+// Scales the distance to a color according to parameters
+// distcolor: distance from the focal point to the color
+// distsource: distance from the focal point to the source gamut boundary
+// distdest: distance from the focal point to the destination gamut boundary
+// expand, rempafactor, rempalimit, softknee, kneefactor, safezonetype: same as for mapColor()
+// changed: Whether a change was made is saved here. (No change if the color is in the safe zone.)
+//      If no change, then the result should be discarded to reduce floating point errors
 double scaledistance(bool &changed, double distcolor, double distsource, double distdest, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int safezonetype){
     
     changed = false;
