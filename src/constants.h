@@ -10,8 +10,9 @@
 #define VERBOSITY_HIGH 3
 #define VERBOSITY_EXTREME 4
 
-#define EPSILON 1e-5 // this is about where rounding errors start to creep in
+#define EPSILON 1e-6 // this is about where rounding errors start to creep in
 #define EPSILONZERO 1e-10 // for checking zero
+#define EPSILONDONTCARE 2e-4 // this is for silencing errors on the between() function
 
 #define GAMUT_SRGB 0
 #define GAMUT_NTSCJ_R 1

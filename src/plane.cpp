@@ -38,5 +38,10 @@ bool linePlaneIntersection(vec3 &contactpoint, vec3 rayOrigin, vec3 rayDirection
             contactpoint = rayOrigin + (rayDirection * (d / e));
             return true;
         }
+        /*
+        else {
+            printf("dot product of %f, %f, %f, and %f, %f, %f is 0\n", planeNormal.x, planeNormal.y, planeNormal.z, rayDirection.x, rayDirection.y, rayDirection.z);
+        }
+        */
         return false;
 }

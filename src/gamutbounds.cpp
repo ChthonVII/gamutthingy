@@ -395,7 +395,9 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
             lumaforbiggestchroma = data[huestep][i].y;
         }
     }
-    biggestchroma -= -(0.5 * finechromastep); // take the half sample back off so we don't miss when that's an over-estimate
+    // we need to take the half sample back off so we don't miss when that's an over-estimate
+    // actually take off a full step in case there's floating point errors
+    biggestchroma -= finechromastep; 
     // scan for the cusp
     double scanminluma = lumaforbiggestchroma - lumastep;
     double scanmaxluma = lumaforbiggestchroma + lumastep;
@@ -469,14 +471,61 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         }
     }
     
+    // check for duplicate points
+    bool cleancheck = false;
+    while (!cleancheck){
+        cleancheck = true;
+        pointcount = data[huestep].size();
+        for (int i = 0; i< pointcount - 1; i++){
+            if ((fabs(data[huestep][i].x - data[huestep][i+1].x) < EPSILON) && (fabs(data[huestep][i].y - data[huestep][i+1].y) < EPSILON)){
+                //printf("deduplicating!\n");
+                if (data[huestep][i].iscusp){
+                    data[huestep][i+1].iscusp = true;
+                }
+                data[huestep].erase(data[huestep].begin() + i);
+                cleancheck = false;
+                break;
+            }
+        }
+    }
+    
+    
+    
     /*
-    printf("hue: %f size of vector: %i\n", hue, data[huestep].size());
-    printf("chroma\t\tluma\t\tangle\t\tcusp\n");
-    for (int i = 0; i<data[huestep].size(); i++){
-        //printf("point %i: x = %f, y = %f\n", i, data[huestep][i].x, data[huestep][i].y);
-        printf("%f\t%f\t%f\t%i\n", data[huestep][i].x, data[huestep][i].y, (data[huestep][i].angle * 180.0) / (double)std::numbers::pi_v<long double>, data[huestep][i].iscusp);
+    if (huestep == 0){
+        printf("hue: %f size of vector: %i\n", hue, (int)data[huestep].size());
+        printf("chroma\t\tluma\t\tangle\t\tcusp\n");
+        for (int i = 0; i<(int)data[huestep].size(); i++){
+            //printf("point %i: x = %f, y = %f\n", i, data[huestep][i].x, data[huestep][i].y);
+            printf("%f\t%f\t%f\t%i\n", data[huestep][i].x, data[huestep][i].y, (data[huestep][i].angle * 180.0) / (double)std::numbers::pi_v<long double>, data[huestep][i].iscusp);
+        }
     }
     */
+    
+    // set the fake point used for VP's extrapolation
+    bool foundpoint = false;
+    int i;
+    for (i=0; i<pointcount; i++){
+        if (data[huestep][i].iscusp){
+            bool breakout = false;
+            for (int j = i-1; j >= 0; j--){
+                // 3x max chroma should be far enough out to catch everything, but not as problematically far out as zero-luma intersection can sometimes be
+                // Go back until we hit a point that's at least a lumastep above. Otherwise slope might be flat b/c basically the same point twice.
+                if ((data[huestep][j].y - data[huestep][i].y >= lumastep) && lineIntersection2D(vec2(data[huestep][j].x, data[huestep][j].y), vec2(data[huestep][i].x, data[huestep][i].y), vec2(3.0 * maxchroma, 0.0), vec2(3.0 * maxchroma, maxluma), fakepoints[huestep])){
+                     foundpoint = true;
+                    breakout = true;
+                    break;
+                }
+                if (breakout){
+                    break;
+                }
+            }
+        }
+    }
+    if (!foundpoint){
+        printf("Something went wrong in ProcessSlice(). No intercept for VP's fake point! Point is %f, %f and index is %i\n", data[huestep][i].x, data[huestep][i].y, i);
+    }
+    
     
     return;
 }
@@ -484,43 +533,47 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
 // Finds the point where the line from the focal point (chroma 0, luma = focalpointluma) to color intercepts the gamut boundary in the 2D hue splice specified by hueindex.
 // boundtype is used for the VP gamut mapping algorithm
 // BOUND_ABOVE extends the just-above-the-cusp segment indefinitely to the right and ignores the below-the-cusp segments
-// BOUND_BELOW extends the just-below-the-cusp segment indefinitely upwards and ignores the above-the-cusp segments
 vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int hueindex, int boundtype){
-    vec2 focalpoint = vec2(0, focalpointluma);
+    vec2 focalpoint = vec2(0.0, focalpointluma);
     int linecount = data[hueindex].size() - 1;
     vec2 intersections[linecount];
-    bool pastcusp = false;
+
+    // Note: We'll get false positives if mapping towards white.
+    // If we ever want to do that, we'll need to selectively flip the loop order.
+    
     for (int i = 0; i<linecount; i++){
-        if (data[hueindex][i].iscusp){
-            pastcusp = true;
-        }
-        if ((boundtype == BOUND_BELOW) && !pastcusp){
-            continue;
-        }
         vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
         vec2 bound2 = vec2(data[hueindex][i+1].x, data[hueindex][i+1].y);
+        bool breaktime = false;
+        if ((boundtype == BOUND_ABOVE) && data[hueindex][i].iscusp){
+            breaktime = true;
+            bound2 = fakepoints[hueindex];
+        }
         vec2 intersection;
         bool intersects = lineIntersection2D(focalpoint, color, bound1, bound2, intersection);
         //printf("i is %i, focalpoint %f, %f, color, %f, %f, bound1 %f, %f, bound2 %f, %f, intersects %i, at %f, %f\n", i, focalpoint.x, focalpoint.y, color.x, color.y, bound1.x, bound1.y, bound2.x, bound2.y, intersects, intersection.x, intersection.y);
-        if (intersects && 
-            (   isBetween2D(bound1, intersection, bound2) || 
-                ((boundtype == BOUND_ABOVE) && data[hueindex][i+1].iscusp && (data[hueindex][i].x <= intersection.x) && (data[hueindex][i].x >= intersection.y)) || 
-                ((boundtype == BOUND_BELOW) && data[hueindex][i].iscusp && (data[hueindex][i+1].x <= intersection.x) && (data[hueindex][i+1].x <= intersection.y))
-            )
-        ){
+        if (intersects && isBetween2D(bound1, intersection, bound2)){
             return intersection;
         }
         intersections[i] = intersection; // save the intersection in case we need to do step 2
+        if (breaktime){
+            break;
+        }
     }
     // if we made it this far, we've probably had a floating point error that caused isBetween2D() to give a wrong answer
     // which means we are probably very near one of the boundary nodes
     // so just take the node closest to an intersection
-    // (this should be vanishingly rare, so we're doing a second loop rather than slow down the first.)
+    // (this should be rare, so we're doing a second loop rather than slow down the first.)
     float bestdist = DBL_MAX;
     vec2 bestpoint = vec2(0,0);
     for (int i = 0; i<linecount; i++){
         vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
         vec2 bound2 = vec2(data[hueindex][i+1].x, data[hueindex][i+1].y);
+        bool breaktime = false;
+        if ((boundtype == BOUND_ABOVE) && data[hueindex][i].iscusp){
+            breaktime = true;
+            bound2 = fakepoints[hueindex];
+        }
         vec2 intersection = intersections[i];
         vec2 diff = intersection - bound1;
         double diffdist = diff.magnitude();
@@ -534,10 +587,17 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
             bestdist = diffdist;
             bestpoint = bound2;
         }
+        if (breaktime){
+            break;
+        }
     }
-    if (bestdist > EPSILON){
+    if (bestdist > EPSILONDONTCARE){
         // Adjusted epsilon to keep this quieter...
-        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f.\n", bestdist);
+        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %f, %f; focal point %f, %f; best point: %f, %f.\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y);
+        for (int i=0; i<(int)data[hueindex].size(); i++){
+            printf("\t\tnode %i: %f, %f, cusp=%i\n", i, data[hueindex][i].x, data[hueindex][i].y, data[hueindex][i].iscusp);
+        }
+        printf("\t\tfakepoint: %f, %f\n", fakepoints[hueindex].x, fakepoints[hueindex].y);
     }
     return bestpoint;
 }
@@ -582,10 +642,21 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
         plane hueplane;
         hueplane.initialize(cartblack, cartcolor, cartgray);
         vec3 tweenbound;
-        if (!linePlaneIntersection(tweenbound, cartfloorbound, floortoceil, hueplane.normal, hueplane.point)){
-            printf("Something went very wrong in getBoundary3D()\n");
+        // if the boundary is black or white, we'll get  a NAN error we need to bypass
+        // (although this in itself is probably bad input...)
+        if ((floorbound3D.y < EPSILONZERO) && (ceilbound3D.y < EPSILONZERO)){
+            // x and y are correct from above
+            output.z = color.z;
         }
-        output = Polarize(tweenbound);
+        else{
+            if (!linePlaneIntersection(tweenbound, cartfloorbound, floortoceil, hueplane.normal, hueplane.point)){
+                printf("Something went very wrong in getBoundary3D(), boundtype is %i\n", boundtype);
+                printf("\tinput was %f, %f, %f\n", color.x, color.y, color.z);
+                printf("\tfloorbound %f, %f; ceilbound %f, %f\n", floorbound2D.x, floorbound2D.y, ceilbound2D.x, ceilbound2D.y);
+                printf("\t3D: floor %f, %f, %f; mid %f, %f, %f; ceil %f, %f, %f\n", floorbound3D.x, floorbound3D.y, floorbound3D.z, output.x, output.y, output.z, ceilbound3D.x, ceilbound3D.y, ceilbound3D.z);
+            }
+            output = Polarize(tweenbound);
+        }
         //printf("input was %f, %f, %f\n", color.x, color.y, color.z);
         //printf("floorbound %f, %f; ceilbound %f, %f\n", floorbound2D.x, floorbound2D.y, ceilbound2D.x, ceilbound2D.y);
         //printf("3D: floor %f, %f, %f; mid %f, %f, %f; ceil %f, %f, %f\n", floorbound3D.x, floorbound3D.y, floorbound3D.z, output.x, output.y, output.z, ceilbound3D.x, ceilbound3D.y, ceilbound3D.z);
@@ -594,31 +665,34 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
     return output;
 }
 
+// This function is dead. It belonged to an attempted fix for VP's step3 issues that didn't work out well
 // Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
 // hueindexA and hueindexB are the indices for the adjacent sampled hue slices
+/*
 vec2 gamutdescriptor::getLACSlope(int hueindexA, int hueindexB, double hue){
     
     double hueA = hueindexA * HuePerStep;
     double hueB = hueindexB * HuePerStep;
     
     vec2 cuspA;
-    vec2 otherA;
     vec2 cuspB;
-    vec2 otherB;
+    // todo: just store the whole cusp and refactor the cusp luma stuff 
     int nodecount = data[hueindexA].size();
     for (int i = 1; i< nodecount; i++){
         if (data[hueindexA][i].iscusp){
             cuspA = vec2(data[hueindexA][i].x, data[hueindexA][i].y);
-            otherA = vec2(data[hueindexA][i-1].x, data[hueindexA][i-1].y);
+            break;
         }
     }
     nodecount = data[hueindexB].size();
     for (int i = 1; i< nodecount; i++){
         if (data[hueindexB][i].iscusp){
             cuspB = vec2(data[hueindexB][i].x, data[hueindexB][i].y);
-            otherB = vec2(data[hueindexB][i-1].x, data[hueindexB][i-1].y);
+            break;
         }
     }
+    vec2 otherA = fakepoints[hueindexA];
+    vec2 otherB = fakepoints[hueindexB];
     vec3 cuspA3D = vec3(cuspA.y, cuspA.x, hueA); // y is luma; x is chroma; J is luma, C is chroma
     vec3 otherA3D = vec3(otherA.y, otherA.x, hueA);  // y is luma; x is chroma; J is luma, C is chroma
     vec3 cuspB3D = vec3(cuspB.y, cuspB.x, hueB);  // y is luma; x is chroma; J is luma, C is chroma
@@ -640,24 +714,32 @@ vec2 gamutdescriptor::getLACSlope(int hueindexA, int hueindexB, double hue){
     vec3 tweenbound;
     
     if (!linePlaneIntersection(tweenbound, cuspA3Dcarto, cuspAtoB, hueplane.normal, hueplane.point)){
-        printf("Something went very wrong in getLACSlope()\n");
+        printf("Something went very wrong in getLACSlope() spot1 - %f, %f, %f and %f, %f, %f and hue = %f; carto are %f, %f, %f and %f, %f, %f; and diff is %f, %f, %f\n", cuspA3D.x, cuspA3D.y, cuspA3D.z, cuspB3D.x, cuspB3D.y, cuspB3D.z, hue, cuspA3Dcarto.x, cuspA3Dcarto.y, cuspA3Dcarto.z, cuspB3Dcarto.x, cuspB3Dcarto.y, cuspB3Dcarto.z, cuspAtoB.x, cuspAtoB.y, cuspAtoB.z);
     }
     vec3 tweencusp = Polarize(tweenbound);
     
-    if (!linePlaneIntersection(tweenbound, otherA3Dcarto, otherAtoB, hueplane.normal, hueplane.point)){
-        printf("Something went very wrong in getLACSlope()\n");
+    vec3 tweenother;
+    // diff might be zero if this node is black or white; need to bypass that case because NAN
+    if ((otherA3D.x == otherB3D.x) && (otherA3D.y == otherB3D.y)){
+        tweenother = otherA3D;
     }
-    vec3 tweenother = Polarize(tweenbound);
-    
+    else{
+        if (!linePlaneIntersection(tweenbound, otherA3Dcarto, otherAtoB, hueplane.normal, hueplane.point)){
+            printf("Something went very wrong in getLACSlope() spot2 - %f, %f, %f and %f, %f, %f and hue = %f; carto are %f, %f, %f and %f, %f, %f; and diff is %f, %f, %f\n", otherA3D.x, otherA3D.y, otherA3D.z, otherB3D.x, otherB3D.y, otherB3D.z, hue, otherA3Dcarto.x, otherA3Dcarto.y, otherA3Dcarto.z, otherB3Dcarto.x, otherB3Dcarto.y, otherB3Dcarto.z, otherAtoB.x, otherAtoB.y, otherAtoB.z);
+        }
+        tweenother = Polarize(tweenbound);
+    }
     vec2 tweencusp2D = vec2(tweencusp.y, tweencusp.x);  // y is luma; x is chroma; J is luma, C is chroma
     vec2 tweenother2D = vec2(tweenother.y, tweenother.x);  // y is luma; x is chroma; J is luma, C is chroma
     
-    vec2 output = tweenother2D - tweencusp2D;
+    //vec2 output = tweenother2D - tweencusp2D;
+    vec2 output =  tweencusp2D - tweenother2D;
     
     output.normalize();
     
     return output;
 }
+*/
 
 // returns the index of the adjacent sampled hue slice "below" hue,
 // and stores how far hue is towards the next slice (on a 0 to 1 scale) to excess
@@ -698,33 +780,39 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
     if (ceilhueindex == HUE_STEPS){
         ceilhueindex = 0;
     }
+    
+    double floorcuspluma = destgamut.cusplumalist[floorhueindex];
+    double ceilcuspluma = destgamut.cusplumalist[ceilhueindex];
+    double cuspluma = ((1.0 - ceilweight) * floorcuspluma) + (ceilweight * ceilcuspluma);
+    
     // find the luma to use for the focal point
     // for CUSP, take a weighted average from the two nearest hues that were sampled
     // for HLPCM, take the input's luma
     // for VP, it depends on the step
     //      the first step is black
-    //      the second step projects from the color back to the neutral axis parallel to the slope of the just-above-the-cusp boundary segment 
-    //      (this is my modification of the second step. See readme for why.) 
+    //      the second step is the input's luma (as modified by step 1)
     double maptoluma;
     int boundtype = BOUND_NORMAL;
+    bool skip = false;
     if (mapdirection == MAP_GCUSP){
-        double floormaptoluma = destgamut.cusplumalist[floorhueindex];
-        double ceilmaptoluma = destgamut.cusplumalist[ceilhueindex];
-        maptoluma = ((1.0 - ceilweight) * floormaptoluma) + (ceilweight * ceilmaptoluma);
+        maptoluma = cuspluma;
     }
     else if (mapdirection == MAP_HLPCM){
         maptoluma = Jcolor.x;
     }
     else if (mapdirection == MAP_VP){
-        // inverse first step, map parallel to last above-cusp segment
+        // inverse first step, map horizontally
         if (expand){
-            vec2 paradir = sourcegamut.getLACSlope(floorhueindex, ceilhueindex, Jcolor.z);
-            vec2 proj;
-            if (!lineIntersection2D(colorCJ, colorCJ + paradir, vec2(0.0, 0.0), vec2(0.0, 1.0), proj)){
-                printf("Something went really wrong with VP!\n");
+            maptoluma = Jcolor.x;
+            boundtype = BOUND_NORMAL;
+            // assume paper means that step2 is only applied below the cusp
+            // use source gamut's cusp in the expand case
+            double sfloorcuspluma = sourcegamut.cusplumalist[floorhueindex];
+            double sceilcuspluma = sourcegamut.cusplumalist[ceilhueindex];
+            double scuspluma = ((1.0 - ceilweight) * sfloorcuspluma) + (ceilweight * sceilcuspluma);
+            if (Jcolor.x > scuspluma){
+                skip = true;
             }
-            maptoluma = proj.y;
-            boundtype = BOUND_BELOW;
         }
         // normal first step, map towards black
         else{
@@ -735,75 +823,24 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
     else {
         printf("WTF ERROR!\n");
     }
-    vec2 maptopoint = vec2(0.0, maptoluma);
     
-    // find the boundaries
-    
-    vec3 sourceboundary3D = sourcegamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype);
-    vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
-    vec3 destboundary3D = destgamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype);
-    vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
-    
-    // figure out relative distances
-    vec2 cuspprojtocolor = colorCJ - maptopoint;
-    vec2 cuspprojtosrcbound = sourceboundary - maptopoint;
-    vec2 cuspprojtodestbound = destboundary - maptopoint;
-    double distcolor = cuspprojtocolor.magnitude();
-    double distsource = cuspprojtosrcbound.magnitude();
-    double distdest = cuspprojtodestbound.magnitude();
-    // if the color is outside the source gamut, assume that's a sampling error and use the color's position as the source gamut boundary
-    // (hopefully this doesn't happen much)
-    if (distcolor > distsource){
-         //printf("mapColor() discovered souce gamut sampling error for linear RGB input %f, %f, %f. Distance is %f, but sampled boundary distance is only %f.\n", color.x, color.y, color.z, distcolor, distsource);
-        distsource = distcolor;
-    }
-    //printf("dist to color %f, dist to source bound %f, dist to dest bound %f\n", distcolor, distsource, distdest);
-    
-   bool scaleneeded = false;
-   double newdist = scaledistance(scaleneeded, distcolor, distsource, distdest, expand, remapfactor, remaplimit, softknee, kneefactor, safezonetype);
-    
-    // remap if needed
-    if (scaleneeded){
-        vec2 colordir = cuspprojtocolor.normalizedcopy();
-        vec2 newcolor = maptopoint + (colordir * newdist);
-        Joutput.x = newcolor.y; // luma is J
-        Joutput.y = newcolor.x; // chroma is C
-    }
-    
-    // VP has a second step
-    if (mapdirection == MAP_VP){
-        vec2 icolor = vec2(Joutput.y, Joutput.x); // get back newcolor
-        // inverse second step, map away from black
-        // inverse first step, 
-        if (expand){
-            maptoluma = 0.0;
-            boundtype = BOUND_ABOVE;
-        }
-        // normal second step, map parallel to last above-cusp segment
-        else{
-            vec2 paradir = destgamut.getLACSlope(floorhueindex, ceilhueindex, Jcolor.z);
-            vec2 proj;
-            if (!lineIntersection2D(icolor, icolor + paradir, vec2(0.0, 0.0), vec2(0.0, 1.0), proj)){
-                printf("Something went really wrong with VP!\n");
-            }
-            maptoluma = proj.y;
-            boundtype = BOUND_BELOW;
-        }
-        maptopoint = vec2(0.0, maptoluma);
+    if (!skip){
+        vec2 maptopoint = vec2(0.0, maptoluma);
         
-        // find the boundaries (again)
-        sourceboundary3D = sourcegamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype);
-        sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
-        destboundary3D = destgamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype);
-        destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
+        // find the boundaries
+        
+        vec3 sourceboundary3D = sourcegamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype);
+        vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
+        vec3 destboundary3D = destgamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype);
+        vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
         
         // figure out relative distances
-        cuspprojtocolor = icolor - maptopoint;
-        cuspprojtosrcbound = sourceboundary - maptopoint;
-        cuspprojtodestbound = destboundary - maptopoint;
-        distcolor = cuspprojtocolor.magnitude();
-        distsource = cuspprojtosrcbound.magnitude();
-        distdest = cuspprojtodestbound.magnitude();
+        vec2 cuspprojtocolor = colorCJ - maptopoint;
+        vec2 cuspprojtosrcbound = sourceboundary - maptopoint;
+        vec2 cuspprojtodestbound = destboundary - maptopoint;
+        double distcolor = cuspprojtocolor.magnitude();
+        double distsource = cuspprojtosrcbound.magnitude();
+        double distdest = cuspprojtodestbound.magnitude();
         // if the color is outside the source gamut, assume that's a sampling error and use the color's position as the source gamut boundary
         // (hopefully this doesn't happen much)
         if (distcolor > distsource){
@@ -812,8 +849,8 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
         }
         //printf("dist to color %f, dist to source bound %f, dist to dest bound %f\n", distcolor, distsource, distdest);
         
-        scaleneeded = false;
-        newdist = scaledistance(scaleneeded, distcolor, distsource, distdest, expand, remapfactor, remaplimit, softknee, kneefactor, safezonetype);
+        bool scaleneeded = false;
+        double newdist = scaledistance(scaleneeded, distcolor, distsource, distdest, expand, remapfactor, remaplimit, softknee, kneefactor, safezonetype);
         
         // remap if needed
         if (scaleneeded){
@@ -822,7 +859,67 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
             Joutput.x = newcolor.y; // luma is J
             Joutput.y = newcolor.x; // chroma is C
         }
+    } // end if !skip
+    
+    // VP has a second step
+    if (mapdirection == MAP_VP){
+        
+        skip = false;
+        
+        vec2 icolor = vec2(Joutput.y, Joutput.x); // get back newcolor
+
+        // inverse second step, map away from black
+        if (expand){
+            maptoluma = 0.0;
+            boundtype = BOUND_ABOVE;
+        }
+        // normal second step, map horizontally
+        else{
+            maptoluma = Joutput.x;
+            boundtype = BOUND_NORMAL;
+            // assume paper means that step2 is only applied below the cusp
+            if (Joutput.x > cuspluma){
+                skip = true;
+            }
+        }
+        
+        if (!skip){
+            vec2 maptopoint = vec2(0.0, maptoluma);
+            
+            // find the boundaries (again)
+            vec3 sourceboundary3D = sourcegamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype);
+            vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
+            vec3 destboundary3D = destgamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype);
+            vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
+            
+            // figure out relative distances
+            vec2 cuspprojtocolor = icolor - maptopoint;
+            vec2 cuspprojtosrcbound = sourceboundary - maptopoint;
+            vec2 cuspprojtodestbound = destboundary - maptopoint;
+            double distcolor = cuspprojtocolor.magnitude();
+            double distsource = cuspprojtosrcbound.magnitude();
+            double distdest = cuspprojtodestbound.magnitude();
+            // if the color is outside the source gamut, assume that's a sampling error and use the color's position as the source gamut boundary
+            // (hopefully this doesn't happen much)
+            if (distcolor > distsource){
+                //printf("mapColor() discovered souce gamut sampling error for linear RGB input %f, %f, %f. Distance is %f, but sampled boundary distance is only %f.\n", color.x, color.y, color.z, distcolor, distsource);
+                distsource = distcolor;
+            }
+            //printf("dist to color %f, dist to source bound %f, dist to dest bound %f\n", distcolor, distsource, distdest);
+            
+            bool scaleneeded = false;
+            double newdist = scaledistance(scaleneeded, distcolor, distsource, distdest, expand, remapfactor, remaplimit, softknee, kneefactor, safezonetype);
+            
+            // remap if needed
+            if (scaleneeded){
+                vec2 colordir = cuspprojtocolor.normalizedcopy();
+                vec2 newcolor = maptopoint + (colordir * newdist);
+                Joutput.x = newcolor.y; // luma is J
+                Joutput.y = newcolor.x; // chroma is C
+            }
+        } //end if !skip
     } // end of VP second step
+    
     
     // if no compression was needed, then skip JzCzhz and just use XYZ (possibly with Bradford)
     // should reduce floating point errors
@@ -835,6 +932,7 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
     */
     
     return destgamut.JzCzhzToLinearRGB(Joutput);
+
 }
 
 // Scales the distance to a color according to parameters
@@ -924,7 +1022,7 @@ double scaledistance(bool &changed, double distcolor, double distsource, double 
             }
             // inside the soft knee zone
             else {
-                // wow is this fugly...
+                // wow is this inverse is fugly...
                 double term1 = ((2.0 * slope * kneepoint * kneewidth) + (slope * pow(kneewidth, 2.0)) - (2.0 * kneepoint * kneewidth) - pow(kneewidth, 2.0) - 2.0) / (2.0 * (slope - 1.0) * kneewidth);
                 double term2 = sqrt((-2.0 * slope * kneepoint * kneewidth) - (slope * pow(kneewidth, 2.0)) + (2.0 * slope * kneewidth * distcolor) + (2.0 * kneepoint * kneewidth) + pow(kneewidth, 2.0) - (2.0 * kneewidth * distcolor) + 1.0);
                 double term3 = ((slope - 1.0) * kneewidth);

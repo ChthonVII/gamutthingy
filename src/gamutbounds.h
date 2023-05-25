@@ -8,14 +8,13 @@
 #include <string>
 
 #define HUE_STEPS 1800 // 0.2 degrees
-#define LUMA_STEPS 20 // 5%
-#define FINE_LUMA_STEPS 50 // 0.1% 
+#define LUMA_STEPS 30 // 3.333...% Formerly was 20 // 5% but needed to be bigger; sometimes cusp was above the first coarse point
+#define FINE_LUMA_STEPS 50 // 0.0666...% 
 #define CHROMA_STEPS 50 // 2%
 #define FINE_CHROMA_STEPS 20 // 0.1%
 
 #define BOUND_NORMAL 0
 #define BOUND_ABOVE 1
-#define BOUND_BELOW 2
 
 class boundarypoint{
 public:
@@ -58,6 +57,7 @@ public:
     std::string gamutname;
     std::vector<boundarypoint> data[HUE_STEPS];
     double cusplumalist[HUE_STEPS];
+    vec2 fakepoints[HUE_STEPS];
     
     bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose);
     // resizes vectors ahead of time
@@ -93,9 +93,10 @@ public:
     // boundtype is used for the VP gamut mapping algorithm
     vec3 getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype);
     
+    // This function is dead. It belonged to an attempted fix for VP's step3 issues that didn't work out well
     // Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
     // hueindexA and hueindexB are the indices for the adjacent sampled hue slices
-    vec2 getLACSlope(int hueindexA, int hueindexB, double hue);
+    //vec2 getLACSlope(int hueindexA, int hueindexB, double hue);
     
 };
 
