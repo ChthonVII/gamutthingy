@@ -512,7 +512,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 // 3x max chroma should be far enough out to catch everything, but not as problematically far out as zero-luma intersection can sometimes be
                 // Go back until we hit a point that's at least a lumastep above. Otherwise slope might be flat b/c basically the same point twice.
                 if ((data[huestep][j].y - data[huestep][i].y >= lumastep) && lineIntersection2D(vec2(data[huestep][j].x, data[huestep][j].y), vec2(data[huestep][i].x, data[huestep][i].y), vec2(3.0 * maxchroma, 0.0), vec2(3.0 * maxchroma, maxluma), fakepoints[huestep])){
-                     foundpoint = true;
+                    foundpoint = true;
                     breakout = true;
                     break;
                 }
@@ -524,6 +524,33 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     }
     if (!foundpoint){
         printf("Something went wrong in ProcessSlice(). No intercept for VP's fake point! Point is %f, %f and index is %i\n", data[huestep][i].x, data[huestep][i].y, i);
+    }
+    
+    foundpoint = false;
+    for (i=0; i<pointcount; i++){
+        if (data[huestep][i].iscusp){
+            /*
+            bool breakout = false;
+            for (int j = i+1; j < pointcount; j++){
+                if ((data[huestep][i].y - data[huestep][j].y >= lumastep) && lineIntersection2D(vec2(data[huestep][j].x, data[huestep][j].y), vec2(data[huestep][i].x, data[huestep][i].y), vec2(0.0, 1.5 * maxluma), vec2(1.0, 1.5 * maxluma), ufakepoints[huestep])){
+                    foundpoint = true;
+                    breakout = true;
+                    break;
+                }
+                if (breakout){
+                    break;
+                }
+            }
+            */
+            // just use the line from 0,0 to cusp, because "in bounds" will be defined by that later
+            if (lineIntersection2D(vec2(0.0, 0.0), vec2(data[huestep][i].x, data[huestep][i].y), vec2(0.0, 1.5 * maxluma), vec2(1.0, 1.5 * maxluma), ufakepoints[huestep])){
+                foundpoint = true;
+                break;
+            }
+        }
+    }
+    if (!foundpoint){
+        printf("Something went wrong in ProcessSlice(). No intercept for VP's upper fake point! Point is %f, %f and index is %i\n", data[huestep][i].x, data[huestep][i].y, i);
     }
     
     
@@ -541,6 +568,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
     // Note: We'll get false positives if mapping towards white.
     // If we ever want to do that, we'll need to selectively flip the loop order.
     
+    bool foundcusp = false;
     for (int i = 0; i<linecount; i++){
         vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
         vec2 bound2 = vec2(data[hueindex][i+1].x, data[hueindex][i+1].y);
@@ -548,6 +576,15 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
         if ((boundtype == BOUND_ABOVE) && data[hueindex][i].iscusp){
             breaktime = true;
             bound2 = fakepoints[hueindex];
+        }
+        if (!foundcusp && (boundtype == BOUND_BELOW)){
+            if (data[hueindex][i+1].iscusp){
+                foundcusp = true;
+                bound1 = ufakepoints[hueindex];
+            }
+            else {
+                continue;
+            }
         }
         vec2 intersection;
         bool intersects = lineIntersection2D(focalpoint, color, bound1, bound2, intersection);
@@ -566,6 +603,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
     // (this should be rare, so we're doing a second loop rather than slow down the first.)
     float bestdist = DBL_MAX;
     vec2 bestpoint = vec2(0,0);
+    foundcusp = false;
     for (int i = 0; i<linecount; i++){
         vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
         vec2 bound2 = vec2(data[hueindex][i+1].x, data[hueindex][i+1].y);
@@ -573,6 +611,15 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
         if ((boundtype == BOUND_ABOVE) && data[hueindex][i].iscusp){
             breaktime = true;
             bound2 = fakepoints[hueindex];
+        }
+        if (!foundcusp && (boundtype == BOUND_BELOW)){
+            if (data[hueindex][i+1].iscusp){
+                foundcusp = true;
+                bound1 = ufakepoints[hueindex];
+            }
+            else {
+                continue;
+            }
         }
         vec2 intersection = intersections[i];
         vec2 diff = intersection - bound1;
@@ -820,6 +867,18 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
             boundtype = BOUND_ABOVE;
         }
     }
+    else if (mapdirection == MAP_VPR){
+        // inverse first step, map away from black
+        if (expand){
+            maptoluma = 0.0;
+            boundtype = BOUND_ABOVE;
+        }
+        // normal first step, map horizontally, using extrapolated bound above the cusp
+        else{
+            maptoluma = Jcolor.x;
+            boundtype = BOUND_BELOW;
+        }
+    }
     else {
         printf("WTF ERROR!\n");
     }
@@ -862,24 +921,38 @@ vec3 mapColor(vec3 color, gamutdescriptor sourcegamut, gamutdescriptor destgamut
     } // end if !skip
     
     // VP has a second step
-    if (mapdirection == MAP_VP){
+    if ((mapdirection == MAP_VP) || (mapdirection == MAP_VPR)){
         
         skip = false;
         
         vec2 icolor = vec2(Joutput.y, Joutput.x); // get back newcolor
 
-        // inverse second step, map away from black
-        if (expand){
-            maptoluma = 0.0;
-            boundtype = BOUND_ABOVE;
+        if (mapdirection == MAP_VP){
+            // inverse second step, map away from black
+            if (expand){
+                maptoluma = 0.0;
+                boundtype = BOUND_ABOVE;
+            }
+            // normal second step, map horizontally
+            else{
+                maptoluma = Joutput.x;
+                boundtype = BOUND_NORMAL;
+                // assume paper means that step2 is only applied below the cusp
+                if (Joutput.x > cuspluma){
+                    skip = true;
+                }
+            }
         }
-        // normal second step, map horizontally
-        else{
-            maptoluma = Joutput.x;
-            boundtype = BOUND_NORMAL;
-            // assume paper means that step2 is only applied below the cusp
-            if (Joutput.x > cuspluma){
-                skip = true;
+        else if (mapdirection == MAP_VPR){
+             // inverse second step, horizontally
+            if (expand){
+                maptoluma = Joutput.x;
+                boundtype = BOUND_BELOW;
+            }
+            // normal second step, map to black
+            else{
+                maptoluma = 0.0;
+                boundtype = BOUND_ABOVE;
             }
         }
         

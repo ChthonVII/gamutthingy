@@ -15,6 +15,7 @@
 
 #define BOUND_NORMAL 0
 #define BOUND_ABOVE 1
+#define BOUND_BELOW 2
 
 class boundarypoint{
 public:
@@ -58,6 +59,7 @@ public:
     std::vector<boundarypoint> data[HUE_STEPS];
     double cusplumalist[HUE_STEPS];
     vec2 fakepoints[HUE_STEPS];
+    vec2 ufakepoints[HUE_STEPS];
     
     bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose);
     // resizes vectors ahead of time
