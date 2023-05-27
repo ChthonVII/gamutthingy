@@ -563,7 +563,7 @@ int main(int argc, const char **argv){
     vec3 destred = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
     vec3 destgreen = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
     vec3 destblue = vec3(gamutpoints[destgamutindex][3][0], gamutpoints[destgamutindex][3][1], gamutpoints[destgamutindex][3][2]);
-    bool destOK = destgamut.initialize("sRGB", destwhite, destred, destgreen, destblue, false, verbosity);
+    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, false, verbosity);
     
     if (! srcOK || !destOK){
         printf("Gamut descriptor initializtion failed. All is lost. Abandon ship.\n");
