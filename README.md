@@ -3,7 +3,7 @@ Converts .png images between color gamuts with chromatic adaptation and gamut co
 
 Principally intended for creating gamut conversion LUTs for FFNx and for color correcting texture assets for Final Fantasy 7 & 8.
 
-Supercedes ntscjpng.
+Supercedes ntscjpng and ntscjguess.
 
 **Parameters:**
 - `--help` or `-h`: Displays help.
@@ -40,8 +40,9 @@ Supercedes ntscjpng.
 
 **General Usage:**
 - To prepare a LUT compatible with FFNx: Process the supplied neutral LUT, 64.png, using selected parameters. Gamma should linear and dithering should be off. For example: `gamutthingy -i 64.png -o output.png -g linear -s ntscj -d srgb --map-mode compress --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di false`
-- To prepare a sRGB image for use in FFNx's NTSC-J mode: Convert from sRGB to NTSC-J with `--map-mode expand`. The LUTs that ship with FFNx were made with the default settings, so use the defaults unless you've replaced the LUTs. For example: `gamutthingy -i input.png -o output.png -g srgb -s srgb -d ntscj --map-mode expand --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di true`
-- To prepare a NTSC-J image for use in FFNx's sRGB mode: Convert from NTSC-J to sRGB with `--map-mode compress`. The LUTs that ship with FFNx were made with the default settings, so use the defaults unless you've replaced the LUTs. For example: `gamutthingy -i input.png -o output.png -g srgb -s ntscj -d srgb --map-mode compress --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di true`
+- To prepare a sRGB image for use in FFNx's NTSC-J mode: Convert from sRGB to NTSC-J with `--map-mode expand`. The LUTs that ship with FFNx were made with the default settings, so use the defaults unless you've replaced the LUTs. For example: `gamutthingy -i input.png -o output.png -g srgb -s srgb -d ntscj --map-mode expand --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di true`. You might wish to disable dithering for things like fonts and stretching/repeating UI elements where it might be noticable. Use `--map-mode compress` rather than `expand` when targeting HDR mode.
+- To prepare a NTSC-J image for use in FFNx's sRGB mode: Convert from NTSC-J to sRGB with `--map-mode compress`. The LUTs that ship with FFNx were made with the default settings, so use the defaults unless you've replaced the LUTs. For example: `gamutthingy -i input.png -o output.png -g srgb -s ntscj -d srgb --map-mode compress --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di true`. You might wish to disable dithering for things like fonts and stretching/repeating UI elements where it might be noticable.
+- To compute hardcoded colors for things like hext files and mark.dat in FFNx's NTSC-J mode use `--color` to convert a single color. Example: `gamutthingy -c 0xABCDEF -g srgb -s srgb -d ntscj --map-mode expand --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di false`. Use `--map-mode compress` rather than `expand` when targeting HDR mode.
 
 **Implementation Details:**
 - When converting between gamuts with different white points, chromatic adaptation is done via the "Bradford method" described in [6]. See also [7].
