@@ -603,6 +603,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
     // (this should be rare, so we're doing a second loop rather than slow down the first.)
     float bestdist = DBL_MAX;
     vec2 bestpoint = vec2(0,0);
+    vec2 bestnode = vec2(0,0);
     foundcusp = false;
     for (int i = 0; i<linecount; i++){
         vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
@@ -626,13 +627,15 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
         double diffdist = diff.magnitude();
         if (diffdist < bestdist){
             bestdist = diffdist;
-            bestpoint = bound1;
+            bestnode = bound1;
+            bestpoint = intersection;
         }
         diff = bound2 - intersection;
         diffdist = diff.magnitude();
         if (diffdist < bestdist){
             bestdist = diffdist;
-            bestpoint = bound2;
+            bestnode = bound2;
+            bestpoint = intersection;
         }
         if (breaktime){
             break;
@@ -640,7 +643,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
     }
     if (bestdist > EPSILONDONTCARE){
         // Adjusted epsilon to keep this quieter...
-        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %f, %f; focal point %f, %f; best point: %f, %f.\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y);
+        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %f, %f; focal point %f, %f; best point: %f, %f; bestnode: %f, %f.\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y, bestnode.x, bestnode.y);
         for (int i=0; i<(int)data[hueindex].size(); i++){
             printf("\t\tnode %i: %f, %f, cusp=%i\n", i, data[hueindex][i].x, data[hueindex][i].y, data[hueindex][i].iscusp);
         }
