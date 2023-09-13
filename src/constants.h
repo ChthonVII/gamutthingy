@@ -17,8 +17,9 @@
 #define GAMUT_SRGB 0
 #define GAMUT_NTSCJ_R 1
 #define GAMUT_NTSCJ_B 2
-#define GAMUT_SMPTEC 3
-#define GAMUT_EBU 4
+#define GAMUT_NTSCJ_P22 3
+#define GAMUT_SMPTEC 4
+#define GAMUT_EBU 5
     
 #define MAP_CLIP 0
 #define MAP_COMPRESS 1
@@ -70,15 +71,16 @@ const double BradfordMatrix[3][3] = {
 };
 
 
-const std::string gamutnames[5] = {
+const std::string gamutnames[6] = {
     "sRGB / bt709",
     "NTSC-J (television set receiver)",
     "NTSC-J (broadcast)",
+    "NTSC-J (P22 phosphors)",
     "SMPTE-C",
     "EBU (470bg)"
 };
 
-const double gamutpoints[5][4][3] = {
+const double gamutpoints[6][4][3] = {
     // srgb
     {
         {0.312713, 0.329016, 0.358271}, //white
@@ -99,6 +101,17 @@ const double gamutpoints[5][4][3] = {
         {0.67, 0.33, 0.0}, //red
         {0.21, 0.71, 0.08}, //green
         {0.14, 0.08, 0.78} //blue
+    },
+    // ntscj (measurements taken upon television set receiver using P22 phospors, whitepoint 9300K+27mpcd)
+    // see: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang
+    // "Mix between averaging KV-20M20, KDS VS19, Dell D93, 4-TR-B09v1_0.pdf and Phosphor Handbook 'P22'
+    // Phosphors based on 1975's EBU Tech.3123-E (formerly known as JEDEC-P22)
+    // Typical P22 phosphors used in Japanese consumer CRTs with 9300K+27MPCD white point"
+    {
+        {0.281, 0.311, 0.408}, //white
+        {0.625, 0.350, 0.025}, //red
+        {0.280, 0.605, 0.115}, //green
+        {0.152, 0.062, 0.786} //blue
     },
     // smptec
     {

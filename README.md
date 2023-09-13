@@ -13,9 +13,10 @@ Supercedes ntscjpng and ntscjguess.
 - `--gamma` or `-g`: Specifies the gamma function (and inverse) to be applied to the input and output. Possible values are `srgb` (default) and `linear`. LUTs for FFNx should be created using linear RGB. Images should generally be converted using the sRGB gamma function.
 - `--source-gamut` or `-s`: Specifies the source gamut. Possible values are:
      - `srgb`: The sRGB gamut used by (SDR) modern computer monitors. Identical to the bt709 gamut used for modern HD video.
-     - `ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets. (whitepoint 9300K+27mpcd) Default.
-     - `ntscj`: alias for `ntscjr`.
-     - `ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts. (whitepoint 9300K+8mpcd)
+     - `ntscjp22`: NTSC-J gamut as derived from average measurements conducted on Japanese CRT television sets with typical P22 phosphors. (whitepoint 9300K+27mpcd) Default.
+     - `ntscj`: alias for `ntscjp22`.
+     - `ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets, official specification. (whitepoint 9300K+27mpcd) Default.
+     - `ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts, official specification. (whitepoint 9300K+8mpcd)
      - `smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.
      - `ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).
 - `--dest-gamut` or `-d`: Specifies the destination gamut. Possible values are the same as for source gamut. Default is `srgb`.
