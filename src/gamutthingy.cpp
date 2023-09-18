@@ -62,6 +62,7 @@ int main(int argc, const char **argv){
     
     int expect = 0;
     for (int i=1; i<argc; i++){
+        //printf("processing: %s expect is %i\n", argv[i], expect);
         if (expect == 1){ // expecting input filename
             inputfilename = const_cast<char*>(argv[i]);
             expect  = 0;
@@ -106,11 +107,14 @@ int main(int argc, const char **argv){
             if (strcmp(argv[i], "srgb") == 0){
                 destgamutindex = GAMUT_SRGB;
             }
-            else if ((strcmp(argv[i], "ntscj") == 0) || (strcmp(argv[i], "ntscjr") == 0)){
+            else if (/*(strcmp(argv[i], "ntscj") == 0) ||*/ (strcmp(argv[i], "ntscjr") == 0)){
                 destgamutindex = GAMUT_NTSCJ_R;
             }
             else if (strcmp(argv[i], "ntscjb") == 0){
                 destgamutindex = GAMUT_NTSCJ_B;
+            }
+            else if ((strcmp(argv[i], "ntscj") == 0) || (strcmp(argv[i], "ntscjp22") == 0)){
+                destgamutindex = GAMUT_NTSCJ_P22;
             }
             else if (strcmp(argv[i], "smptec") == 0){
                 destgamutindex = GAMUT_SMPTEC;
@@ -119,7 +123,7 @@ int main(int argc, const char **argv){
                 destgamutindex = GAMUT_EBU;
             }
             else {
-                printf("Invalid parameter for destination gamut. Expecting \"srgb\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"smptec\", or \"ebu\".\n");
+                printf("Invalid parameter for destination gamut. Expecting \"srgb\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"ntscjp22\", \"smptec\", or \"ebu\".\n");
                 return ERROR_BAD_PARAM_DEST_GAMUT;
             }
             expect  = 0;
