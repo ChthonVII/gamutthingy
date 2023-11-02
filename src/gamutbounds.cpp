@@ -9,11 +9,12 @@
 #include <math.h>
 #include <cfloat>
 #include <numbers>
+#include <cstring> //for memcpy
 
 // make this global so we only need to compute it once
 const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
 
-bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose){
+bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose, int cattype){
     verbosemode = verbose;
     gamutname = name;
     whitepoint = wp;
@@ -21,6 +22,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     greenpoint = gp;
     bluepoint = bp;
     issourcegamut = issource;
+    CATtype = cattype;
     // working in JzCzhz colorspace requires everything be converted to D65 whitepoint
     needschromaticadapt = (!whitepoint.isequal(D65));
     if (verbose >= VERBOSITY_SLIGHT){
@@ -178,17 +180,28 @@ void gamutdescriptor::initializeMatrixNPM(){
 }
 
 bool gamutdescriptor::initializeChromaticAdaptationToD65(){
-    double inverseBradfordMatrix[3][3];
-    if (!Invert3x3Matrix(BradfordMatrix, inverseBradfordMatrix)){
-        printf("What the flying fuck?! Bradford matrix was not invertible.\n");   
+    double CATMatrix[3][3];
+    if (CATtype == ADAPT_BRADFORD){
+        memcpy(CATMatrix, BradfordMatrix, 9 * sizeof(double));
+    }
+    else if (CATtype == ADAPT_CAT16){
+        memcpy(CATMatrix, CAT16Matrix, 9 * sizeof(double));
+    }
+    else {
+        printf("Invalid chromatic adapation matrix selection index (%i).\n", CATtype);   
+        return false;
+    }
+    double inverseCATMatrix[3][3];
+    if (!Invert3x3Matrix(CATMatrix, inverseCATMatrix)){
+        printf("What the flying fuck?! Chromatic adaptation matrix was not invertible.\n");   
         return false;
     }
     destMatrixW.x = D65.x / D65.y;
     destMatrixW.y = 1.0;
     destMatrixW.z = D65.z / D65.y;
     
-    vec3 sourceRhoGammaBeta = multMatrixByColor(BradfordMatrix, matrixW);
-    vec3 destRhoGammaBeta = multMatrixByColor(BradfordMatrix, destMatrixW);
+    vec3 sourceRhoGammaBeta = multMatrixByColor(CATMatrix, matrixW);
+    vec3 destRhoGammaBeta = multMatrixByColor(CATMatrix, destMatrixW);
     
     double coneResponseScaleMatrix[3][3] = {
         {destRhoGammaBeta.x / sourceRhoGammaBeta.x, 0.0, 0.0},
@@ -197,8 +210,8 @@ bool gamutdescriptor::initializeChromaticAdaptationToD65(){
     };
     
     double tempMatrix[3][3];
-    mult3x3Matrices(inverseBradfordMatrix, coneResponseScaleMatrix, tempMatrix);
-    mult3x3Matrices(tempMatrix, BradfordMatrix, matrixMtoD65);
+    mult3x3Matrices(inverseCATMatrix, coneResponseScaleMatrix, tempMatrix);
+    mult3x3Matrices(tempMatrix, CATMatrix, matrixMtoD65);
     
     mult3x3Matrices(matrixMtoD65, matrixNPM, matrixNPMadaptToD65);
     if (!Invert3x3Matrix(matrixNPMadaptToD65, inverseMatrixNPMadaptToD65)){

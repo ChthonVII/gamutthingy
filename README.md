@@ -20,6 +20,7 @@ Supercedes ntscjpng and ntscjguess.
      - `smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.
      - `ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).
 - `--dest-gamut` or `-d`: Specifies the destination gamut. Possible values are the same as for source gamut. Default is `srgb`.
+- `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing white points. Possible values are `bradford` and `cat16` (default).
 - `--map-mode` or `-m`: Specifies gamut mapping mode. Possible values are:
      - `clip`: No gamut mapping is performed and linear RGB output is simply clipped to 0, 1. Detail in the out-of-bounds range will be lost.
      - `compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving some of the out-of-bounds detail. Default.
@@ -47,7 +48,7 @@ Supercedes ntscjpng and ntscjguess.
 - To compute hardcoded colors for things like hext files and mark.dat in FFNx's NTSC-J mode use `--color` to convert a single color. Example: `gamutthingy -c 0xABCDEF -g srgb -s srgb -d ntscj --map-mode expand --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di false`. Use `--map-mode compress` rather than `expand` when targeting HDR mode.
 
 **Implementation Details:**
-- When converting between gamuts with different white points, chromatic adaptation is done via the "Bradford method" described in [6]. See also [7].
+- When converting between gamuts with different white points, chromatic adaptation is done via the "Bradford method" described in [6] (see also [7]) or the "CAT16" method described in [10]. CAT16 is the default.
 - Gamut mapping operations are done in the JzCzhz colorspace, the polar cousin to Jzazbz, described in [8]. A couple notes on JzCzhz:
      - Scaling the units of the XYZ input to set the absolute brightness causes the hue angles to rotate. Most of this rotation happens at very low brightness. For example, linear RGB red (1,0,0) rotates about 10 degrees going from 1 nit to 100 nits, but only about 1 degree going from 100 nits to 10,000 nits. I don't know if this is just a flaw in Jzazbz's design or an accurate depiction of some brightness-hue interaction like the Bezold–Brücke shift, or something else entirely. In part to avoid any problems here, everything is scaled to 200 nits.
      - The inverse PQ function used in Jzazbz -> XYZ conversion can sometimes produce NAN outputs. Without doing a formal analysis and proof, I *assume* this is *always* the result of asking pow() to do something that leads to an imaginary or complex number, and *only* happens on inputs that fall outside any possible gamut.
@@ -74,6 +75,8 @@ Supercedes ntscjpng and ntscjguess.
 - [7] Lindbloom, Bruce. "Chromatic Adaptation." BruceLindbloom.com. April 2017. ([Link](http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html))
 - [8] Safdar, Muhammad, Cui, Guihua, Kim, You Jin, & Luo, Ming Ronnier. "Perceptually uniform color space for image signals including high dynamic range and wide gamut." *Optics Express*, Vol. 25, No. 13, pp. 15131-15151. June 2017. ([Link](https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-25-13-15131&id=368272))
 - [9] Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. ([Link](https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694))
+- [10] Li, Changjun, Li, Zhiqiang, Wang, Zhifeng, Xu, Yang, Luo, Ming Ronnier, Cui, Guihua, Melgosa, Manuel, & Pointer, Michael. "A Revision of CIECAM02 and its CAT and UCS." *Proc. IS&T 24th Color and Imaging Conf.*, pp. 208-212 ([Link](https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/24/1/art00035))
+
 
 **Building:**
 

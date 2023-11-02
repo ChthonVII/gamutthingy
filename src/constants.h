@@ -49,16 +49,20 @@
 #define ERROR_BAD_PARAM_GAMMA_TYPE 13
 #define ERROR_BAD_PARAM_DITHER 14
 #define ERROR_BAD_PARAM_VERBOSITY 15
-#define ERROR_INVERT_MATRIX_FAIL 16
-#define ERROR_PNG_FAIL 17
-#define ERROR_PNG_WRITE_FAIL 18
-#define ERROR_PNG_READ_FAIL 19
-#define ERROR_PNG_MEM_FAIL 20
-#define ERROR_PNG_OPEN_FAIL 21
-#define GAMUT_INITIALIZE_FAIL 22
+#define ERROR_BAD_PARAM_ADAPT_TYPE 16
+#define ERROR_INVERT_MATRIX_FAIL 17
+#define ERROR_PNG_FAIL 18
+#define ERROR_PNG_WRITE_FAIL 19
+#define ERROR_PNG_READ_FAIL 20
+#define ERROR_PNG_MEM_FAIL 21
+#define ERROR_PNG_OPEN_FAIL 22
+#define GAMUT_INITIALIZE_FAIL 23
 
 
 extern const vec3 D65;
+
+#define ADAPT_BRADFORD 0
+#define ADAPT_CAT16 1
 
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.
@@ -69,6 +73,16 @@ const double BradfordMatrix[3][3] = {
     {-0.7502, 1.7135, 0.0367},
     {0.0389, -0.0685, 1.0296}
 };
+
+// see:
+// Li Changjun, et al., A Revision of CIECAM02 and its CAT and UCS (2016) (https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/24/1/art00035)
+// https://github.com/LeaVerou/color.js/blob/f505c1b5230e1eabf5893f6a8eefb335936e55e0/src/CATs.js
+const double CAT16Matrix[3][3] = {
+    {0.401288, 0.650173, -0.051461},
+    {-0.250268, 1.204414, 0.045854},
+    {-0.002079, 0.048952, 0.953127}
+};
+
 
 
 const std::string gamutnames[6] = {

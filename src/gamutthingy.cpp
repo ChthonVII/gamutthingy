@@ -59,6 +59,7 @@ int main(int argc, const char **argv){
     double remaplimit = 0.9;
     double kneefactor = 0.4;
     int verbosity = VERBOSITY_SLIGHT;
+    int adapttype = ADAPT_CAT16;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -277,6 +278,19 @@ int main(int argc, const char **argv){
             }
             expect = 0;
         }
+        else if (expect == 16){ // adapt type
+            if (strcmp(argv[i], "bradford") == 0){
+                adapttype = ADAPT_BRADFORD;
+            }
+            else if (strcmp(argv[i], "cat16") == 0){
+                adapttype = ADAPT_CAT16;
+            }
+            else {
+                printf("Invalid parameter for chomatic adapation type. Expecting \"bradford\" or \"cat16\".\n");
+                return ERROR_BAD_PARAM_ADAPT_TYPE;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -324,6 +338,9 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--verbosity") == 0) || (strcmp(argv[i], "-v") == 0)){
                 expect = 15;
+            }
+            else if ((strcmp(argv[i], "--adapt") == 0) || (strcmp(argv[i], "-a") == 0)){
+                expect = 16;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -553,6 +570,17 @@ int main(int argc, const char **argv){
                 printf("Dither: false\n");
             }
         }
+        printf("Chromatic adapation type: ");
+        switch(adapttype){
+            case ADAPT_BRADFORD:
+                printf("Bradford\n");
+                break;
+            case ADAPT_CAT16:
+                printf("CAT16\n");
+                break;
+            default:
+                break;
+        };
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
     }
@@ -569,14 +597,14 @@ int main(int argc, const char **argv){
     vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
     vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][3][0], gamutpoints[sourcegamutindex][3][1], gamutpoints[sourcegamutindex][3][2]);
     // TODO: remove dest whitepoint since it's not used anymore
-    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, true, verbosity);
+    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, true, verbosity, adapttype);
     gamutdescriptor destgamut;
     
     vec3 destwhite = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
     vec3 destred = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
     vec3 destgreen = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
     vec3 destblue = vec3(gamutpoints[destgamutindex][3][0], gamutpoints[destgamutindex][3][1], gamutpoints[destgamutindex][3][2]);
-    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, false, verbosity);
+    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, false, verbosity, adapttype);
     
     if (! srcOK || !destOK){
         printf("Gamut descriptor initializtion failed. All is lost. Abandon ship.\n");
