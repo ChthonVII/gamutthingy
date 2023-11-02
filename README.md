@@ -13,9 +13,9 @@ Supercedes ntscjpng and ntscjguess.
 - `--gamma` or `-g`: Specifies the gamma function (and inverse) to be applied to the input and output. Possible values are `srgb` (default) and `linear`. LUTs for FFNx should be created using linear RGB. Images should generally be converted using the sRGB gamma function.
 - `--source-gamut` or `-s`: Specifies the source gamut. Possible values are:
      - `srgb`: The sRGB gamut used by (SDR) modern computer monitors. Identical to the bt709 gamut used for modern HD video.
-     - `ntscjp22`: NTSC-J gamut as derived from average measurements conducted on Japanese CRT television sets with typical P22 phosphors. (whitepoint 9300K+27mpcd) Default.
-     - `ntscj`: alias for `ntscjp22`.
+     - `ntscj`: alias for `ntscjr`.
      - `ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets, official specification. (whitepoint 9300K+27mpcd) Default.
+     - `ntscjp22`: NTSC-J gamut as derived from average measurements conducted on Japanese CRT television sets with typical P22 phosphors. (whitepoint 9300K+27mpcd) These phosphors deviate significantly from the specification, and were generally used in tandem with a "color correction circuit." See below.
      - `ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts, official specification. (whitepoint 9300K+8mpcd)
      - `smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.
      - `ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).
@@ -64,6 +64,9 @@ Supercedes ntscjpng and ntscjguess.
 - VPR solves the problem with VP's third step by reversing the order of the second and third steps, with some modifications to the new second step. In preparation for VPR's second step, a temporary working gamut boundary is constructed for each gamut by discarding the above-the-cusp boundary segments and replacing them with a segment starting at the cusp, going in the direction away from the black point, to somewhere up above the maximum luminosity. VPR's second step does chroma-only compression using these working gamut boundaries, similar to VP's third step. VPR's third step does compression towards the black point, identical to VP's second step.
 - Dithering is done using Martin Roberts' quasirandom dithering algorithm described in [5].
 - PNG plumbing shamelessly borrowed from png2png example by John Cunningham Bowler.
+
+**About Color Correction Circuits:**
+Japanese CRT television sets in the 1980s and 90s generally used P22 phosphors, which deviated significantly from the NTSC-J specification, in tandem with a "color correction circuit" to compensate for that deviation. Unfortunately, the behavior of these color correction circuits is not well documented, with patent filings appearing to be the best source of information. It appears that 1970s-era color correction circuits simply distorted the YUV demodulation to make flesh tones look accurate at the expense of everything else. A patent from 1999 ([Link](https://patentimages.storage.googleapis.com/de/f2/7b/a7fb8ca4a4454d/US5867286.pdf)) entails something that sounds like a proper gamut conversion with rudimentary gamut compression. Presumably, color correction circuits from the intervening years had intermediate levels of sophistaction and color accuracy. The behavior of later color correction circuits that resembled a proper gamut conversion can be roughly simulated by doing a gamut conversion from `ntscjr` to `ntscjp22` followed by another conversion from `ntscjp22` to the target gamut. However, the end result is not terribly different from a direct conversion from `ntscjr` to the final gamut, and is not necessarily more accurate either. Unfortunately, there is often no way of knowing which model of television set a particular game or piece of media was mastered on, which color correction circuit that model of television used, or what that particular color correction circuit actually did.
 
 **References:**
 - [1] Morovic, Ján. "To Develop a Universal Gamut Mapping Algorithm." Ph.D. Thesis. University of Derby, October 1998. ([Link](https://ethos.bl.uk/OrderDetails.do?did=1&uin=uk.bl.ethos.302487))
