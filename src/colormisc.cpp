@@ -1,6 +1,8 @@
 #include "colormisc.h"
 
 #include <math.h>
+#include <numbers>
+
 
 // clamp a double between 0.0 and 1.0
 double clampdouble(double input){
@@ -57,4 +59,44 @@ double tolinear(double input){
         return clampdouble(input / 12.92);
     }
     return clampdouble(pow((input + 0.055) / 1.055, 2.4));
+}
+
+// Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
+// Answer will be in range -pi to +pi radians.
+double AngleDiff(double angleA, double angleB){
+    
+    // skip the easy case
+    if (angleA == angleB){
+        return 0.0;
+    }
+    
+    // sanitize input
+    while (angleA > (2.0 * std::numbers::pi_v<long double>)){
+        angleA -= (2.0 * std::numbers::pi_v<long double>);
+    }
+    while (angleA < 0.0){
+        angleA += (2.0 * std::numbers::pi_v<long double>);
+    }
+    while (angleB > (2.0 * std::numbers::pi_v<long double>)){
+        angleB -= (2.0 * std::numbers::pi_v<long double>);
+    }
+    while (angleB < 0.0){
+        angleB += (2.0 * std::numbers::pi_v<long double>);
+    }
+    
+    //subtract
+    double output = angleA - angleB;
+    
+    // if difference is greater than 180 degrees, take the exemplary angle instead
+    double outabs = fabs(output);
+    if (outabs > std::numbers::pi_v<long double>){
+        bool isneg = output <= 0.0;
+        output = (2.0 * std::numbers::pi_v<long double>) - outabs;
+        // flip the sign
+        if (!isneg){
+            output *= -1.0;
+        }
+    }
+    
+    return output;
 }

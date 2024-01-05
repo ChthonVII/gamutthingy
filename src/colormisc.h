@@ -17,5 +17,8 @@ png_byte toRGB8nodither(double input);
 double togamma(double input);
 double tolinear(double input);
 
+// Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
+// Answer will be in range -pi to +pi radians.
+double AngleDiff(double angleA, double angleB);
 
 #endif
