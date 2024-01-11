@@ -5,6 +5,7 @@
 #include "matrix.h"
 #include "cielab.h"
 #include "jzazbz.h"
+#include "colormisc.h"
 
 #include <math.h>
 #include <cfloat>
@@ -1127,4 +1128,38 @@ double scaledistance(bool &changed, double distcolor, double distsource, double 
     }
     
     return newdist;
+}
+
+
+// Given (linear) RGB input, returns Pr, Pg, or Pb with the largest absolute value.
+// Effectively "how close are we to a primary/secondary color?"
+// This is a terrible way to do this that is only being implemented to maybe sorta kinda mimic color correction circuits in old TVs.
+// Some of which used (sometimes gamma corrected) Pb Pr to differentiate areas to apply different corrections.
+double gamutdescriptor::linearRGBfindmaxP(vec3 input){
+    double redfactor = matrixNPM[1][0];
+    double greenfactor = matrixNPM[1][1];
+    double bluefactor = matrixNPM[1][2];
+    
+    double luminosity = (redfactor * input.x) + (greenfactor * input.y) + (bluefactor * input.z);
+    
+    double Pr = (input.x - luminosity) / (1.0 - redfactor);
+    Pr = fabs(Pr);
+    Pr = clampdouble(Pr);
+    
+    double Pg = (input.y - luminosity) / (1.0 - greenfactor);
+    Pg = fabs(Pg);
+    Pg = clampdouble(Pg);
+    
+    double Pb = (input.z - luminosity) / (1.0 - bluefactor);
+    Pb = fabs(Pb);
+    Pb = clampdouble(Pb);
+    
+    double output = Pr;
+    if (Pg > output){
+        output = Pg;
+    }
+    if (Pb > output){
+        output = Pb;
+    }
+    return output;
 }

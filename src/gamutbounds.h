@@ -101,6 +101,12 @@ public:
     // hueindexA and hueindexB are the indices for the adjacent sampled hue slices
     //vec2 getLACSlope(int hueindexA, int hueindexB, double hue);
     
+    // Given (linear) RGB input, returns Pr, Pg, or Pb with the largest absolute value.
+    // Effectively "how close are we to a primary/secondary color?"
+    // This is a terrible way to do this that is only being implemented to maybe sorta kinda mimic color correction circuits in old TVs.
+    // Some of which used (sometimes gamma corrected) Pb Pr to differentiate areas to apply different corrections.
+    double linearRGBfindmaxP(vec3 input);
+    
 };
 
 // returns the index of the adjacent sampled hue slice "below" hue,
