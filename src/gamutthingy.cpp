@@ -30,6 +30,39 @@ typedef struct memo{
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
 
+vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype){
+    vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
+    vec3 outcolor;
+        
+    if (mapmode == MAP_CLIP){
+        vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
+        outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+    }
+    else if (mapmode == MAP_CCC_A){
+        // take weighted average of corrected and uncorrected color
+        // based on YPrPgPb-space proximity to primary/secondary colors
+        vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
+        outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+        double maxP = sourcegamut.linearRGBfindmaxP(linearinputcolor);
+        double oldweight = 0.0;
+        if (cccfunctiontype == CCC_EXPONENTIAL){
+            oldweight = powermap(cccfloor, cccceiling, maxP, cccexp);
+        }
+        else if (cccfunctiontype == CCC_CUBIC_HERMITE){
+            oldweight = cubichermitemap(cccfloor, cccceiling, maxP);
+        }
+        double newweight = 1.0 - oldweight;
+        outcolor = (linearinputcolor * oldweight) + (outcolor * newweight);
+    }
+    else {
+        outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+    }
+    if (gammamode){
+        outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
+    }
+    return outcolor;
+}
+
 int main(int argc, const char **argv){
     
     // parameter processing -------------------------------------------------------------------
@@ -678,6 +711,9 @@ int main(int argc, const char **argv){
         int redout;
         int greenout;
         int blueout;
+        
+        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+        /*
         vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
         vec3 outcolor;
         
@@ -707,6 +743,7 @@ int main(int argc, const char **argv){
         if (gammamode){
             outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
         }
+        */
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
         blueout = toRGB8nodither(outcolor.z);
@@ -793,6 +830,11 @@ int main(int argc, const char **argv){
                             double bluevalue = bluein/255.0;
                             // don't touch alpha value
                             
+                            vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
+                            
+                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+                            
+                            /*
                             // to linear RGB
                             if (gammamode){
                                 // The FF7 videos had banding near black when decoded with any piecewise "toe slope" gamma function, suggesting that a pure curve function was needed. May need to try this if such banding appears.
@@ -832,6 +874,7 @@ int main(int argc, const char **argv){
                             if (gammamode){
                                 outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
                             }
+                            */
                             
                             // memoize the result of the conversion so we don't need to do it again for this input color
                             memos[redin][greenin][bluein].known = true;
