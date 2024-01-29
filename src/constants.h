@@ -22,8 +22,10 @@
 #define GAMUT_EBU 5
     
 #define MAP_CLIP 0
-#define MAP_COMPRESS 1
-#define MAP_EXPAND 2
+#define MAP_CCC_A 1
+#define MAP_COMPRESS 2
+#define MAP_EXPAND 3
+#define MAP_FIRST_COMPRESS MAP_COMPRESS // lowest numbered option involving gamut compression
 
 #define MAP_GCUSP 0
 #define MAP_HLPCM 1
@@ -50,19 +52,23 @@
 #define ERROR_BAD_PARAM_DITHER 14
 #define ERROR_BAD_PARAM_VERBOSITY 15
 #define ERROR_BAD_PARAM_ADAPT_TYPE 16
-#define ERROR_INVERT_MATRIX_FAIL 17
-#define ERROR_PNG_FAIL 18
-#define ERROR_PNG_WRITE_FAIL 19
-#define ERROR_PNG_READ_FAIL 20
-#define ERROR_PNG_MEM_FAIL 21
-#define ERROR_PNG_OPEN_FAIL 22
-#define GAMUT_INITIALIZE_FAIL 23
+#define ERROR_BAD_PARAM_CCC_FUNCTION_TYPE 17
+#define ERROR_INVERT_MATRIX_FAIL 18
+#define ERROR_PNG_FAIL 19
+#define ERROR_PNG_WRITE_FAIL 20
+#define ERROR_PNG_READ_FAIL 21
+#define ERROR_PNG_MEM_FAIL 22
+#define ERROR_PNG_OPEN_FAIL 23
+#define GAMUT_INITIALIZE_FAIL 24
 
 
 extern const vec3 D65;
 
 #define ADAPT_BRADFORD 0
 #define ADAPT_CAT16 1
+
+#define CCC_EXPONENTIAL 0
+#define CCC_CUBIC_HERMITE 1
 
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.

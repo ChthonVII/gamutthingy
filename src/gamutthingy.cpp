@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string>
 #include <errno.h>
+#include <math.h>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -60,6 +61,10 @@ int main(int argc, const char **argv){
     double kneefactor = 0.4;
     int verbosity = VERBOSITY_SLIGHT;
     int adapttype = ADAPT_CAT16;
+    int cccfunctiontype = CCC_EXPONENTIAL;
+    double cccfloor = 0.5;
+    double cccceiling = 0.95;
+    double cccexp = 1.0;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -139,13 +144,16 @@ int main(int argc, const char **argv){
             else if (strcmp(argv[i], "expand") == 0){
                 mapmode = MAP_EXPAND;
             }
+            else if (strcmp(argv[i], "ccca") == 0){
+                mapmode = MAP_CCC_A;
+            }
             else {
-                printf("Invalid parameter for mapping mode. Expecting \"clip\", \"compress\", or \"expand\".\n");
+                printf("Invalid parameter for mapping mode. Expecting \"clip\", \"compress\", \"expand\", or \"ccca\".\n");
                 return ERROR_BAD_PARAM_MAPPING_MODE;
             }
             expect  = 0;
         }
-        else if ((expect == 7) || (expect == 8) || (expect == 9)){
+        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20)){
             char* endptr;
             errno = 0; //make sure errno is 0 before strtol()
             double input = strtod(argv[i], &endptr);
@@ -168,6 +176,15 @@ int main(int argc, const char **argv){
                         break;
                     case 9:
                         kneefactor = input;
+                        break;
+                    case 18:
+                        cccfloor = input;
+                        break;
+                    case 19:
+                        cccceiling = input;
+                        break;
+                    case 20:
+                        cccexp = input;
                         break;
                     default:
                         break;
@@ -291,6 +308,19 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 17){ // ccc fucntion type
+            if (strcmp(argv[i], "exponential") == 0){
+                cccfunctiontype = CCC_EXPONENTIAL;
+            }
+            else if (strcmp(argv[i], "cubichermite") == 0){
+                cccfunctiontype = CCC_CUBIC_HERMITE;
+            }
+            else {
+                printf("Invalid parameter for ccc function type. Expecting \"exponential\" or \"cubichermite\".\n");
+                return ERROR_BAD_PARAM_CCC_FUNCTION_TYPE;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -341,6 +371,18 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--adapt") == 0) || (strcmp(argv[i], "-a") == 0)){
                 expect = 16;
+            }
+            else if ((strcmp(argv[i], "--cccfunction") == 0) || (strcmp(argv[i], "--cccf") == 0)){
+                expect = 17;
+            }
+            else if ((strcmp(argv[i], "--cccfloor") == 0) || (strcmp(argv[i], "--cccfl") == 0)){
+                expect = 18;
+            }
+            else if ((strcmp(argv[i], "--cccceiling") == 0) || (strcmp(argv[i], "--ccccl") == 0)){
+                expect = 19;
+            }
+            else if ((strcmp(argv[i], "--cccexponent") == 0) || (strcmp(argv[i], "--cccxp") == 0)){
+                expect = 20;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -513,6 +555,9 @@ int main(int argc, const char **argv){
             case MAP_CLIP:
                 printf("clip\n");
                 break;
+            case MAP_CCC_A:
+                printf("pseudo color correction circuit A\n");
+                break;
             case MAP_COMPRESS:
                 printf("compress\n");
                 break;
@@ -522,7 +567,7 @@ int main(int argc, const char **argv){
             default:
                 break;
         };
-        if (mapmode > MAP_CLIP){
+        if (mapmode >= MAP_FIRST_COMPRESS){
             printf("Gamut mapping algorithm: ");
             switch(mapdirection){
                 case MAP_GCUSP:
@@ -581,6 +626,19 @@ int main(int argc, const char **argv){
             default:
                 break;
         };
+        if (mapmode == MAP_CCC_A){
+            printf("CCC function type: ");
+            switch(cccfunctiontype){
+                case CCC_EXPONENTIAL:
+                    printf("exponential\nCCC exponent: %f\n", cccexp);
+                    break;
+                case CCC_CUBIC_HERMITE:
+                    printf("cubic hermite\nCCC floor: %f\nCCC ceiling: %f\n", cccfloor, cccceiling);
+                    break;
+                default:
+                    break;
+            }
+        }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
     }
@@ -591,20 +649,24 @@ int main(int argc, const char **argv){
         return ERROR_INVERT_MATRIX_FAIL;
     }
     
-    gamutdescriptor sourcegamut;
+    
     vec3 sourcewhite = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
     vec3 sourcered = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
     vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
     vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][3][0], gamutpoints[sourcegamutindex][3][1], gamutpoints[sourcegamutindex][3][2]);
-    // TODO: remove dest whitepoint since it's not used anymore
-    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, true, verbosity, adapttype);
-    gamutdescriptor destgamut;
     
     vec3 destwhite = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
     vec3 destred = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
     vec3 destgreen = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
     vec3 destblue = vec3(gamutpoints[destgamutindex][3][0], gamutpoints[destgamutindex][3][1], gamutpoints[destgamutindex][3][2]);
-    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, false, verbosity, adapttype);
+    
+    bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
+    
+    gamutdescriptor sourcegamut;
+    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, compressenabled);
+    
+    gamutdescriptor destgamut;
+    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled);
     
     if (! srcOK || !destOK){
         printf("Gamut descriptor initializtion failed. All is lost. Abandon ship.\n");
@@ -622,6 +684,22 @@ int main(int argc, const char **argv){
         if (mapmode == MAP_CLIP){
             vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
             outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+        }
+        else if (mapmode == MAP_CCC_A){
+            // take weighted average of corrected and uncorrected color
+            // based on YPrPgPb-space proximity to primary/secondary colors
+            vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
+            outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+            double maxP = sourcegamut.linearRGBfindmaxP(linearinputcolor);
+            double oldweight = 0.0;
+            if (cccfunctiontype == CCC_EXPONENTIAL){
+                oldweight = powermap(cccfloor, cccceiling, maxP, cccexp);
+            }
+            else if (cccfunctiontype == CCC_CUBIC_HERMITE){
+                oldweight = cubichermitemap(cccfloor, cccceiling, maxP);
+            }
+            double newweight = 1.0 - oldweight;
+            outcolor = (linearinputcolor * oldweight) + (outcolor * newweight);
         }
         else {
             outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
@@ -730,6 +808,20 @@ int main(int argc, const char **argv){
                             if (mapmode == MAP_CLIP){
                                 vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearRGB);
                                 outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+                            }
+                            else if (mapmode == MAP_CCC_A){
+                                vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearRGB);
+                                outcolor = destgamut.XYZtoLinearRGB(tempcolor);
+                                double maxP = sourcegamut.linearRGBfindmaxP(linearRGB);
+                                double oldweight = 0.0;
+                                if (cccfunctiontype == CCC_EXPONENTIAL){
+                                    oldweight = powermap(cccfloor, cccceiling, maxP, cccexp);
+                                }
+                                else if (cccfunctiontype == CCC_CUBIC_HERMITE){
+                                    oldweight = cubichermitemap(cccfloor, cccceiling, maxP);
+                                }
+                                double newweight = 1.0 - oldweight;
+                                outcolor = (linearRGB * oldweight) + (outcolor * newweight);
                             }
                             // otherwise fire up the gamut mapping algorithm
                             else {

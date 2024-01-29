@@ -11,11 +11,12 @@
 #include <cfloat>
 #include <numbers>
 #include <cstring> //for memcpy
+#include <algorithm> //for reverse
 
 // make this global so we only need to compute it once
 const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
 
-bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose, int cattype){
+bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled){
     verbosemode = verbose;
     gamutname = name;
     whitepoint = wp;
@@ -24,8 +25,10 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     bluepoint = bp;
     issourcegamut = issource;
     CATtype = cattype;
-    // working in JzCzhz colorspace requires everything be converted to D65 whitepoint
-    needschromaticadapt = (!whitepoint.isequal(D65));
+    // working in JzCzhz colorspace requires everything be converted to D65 whitepoint.
+    // don't convert to D65 if both white points are equal and we're not doing compression.
+    // we're doing extra math (and maybe accruing some floating point errors) in the case where no compression and unequal whitepoints and destination is not D65 -- but I don't care enough about that case to deal with it.
+    needschromaticadapt = ((compressenabled && !whitepoint.isequal(D65)) || (!whitepoint.isequal(other_wp)));
     if (verbose >= VERBOSITY_SLIGHT){
     printf("\n----------\nInitializing %s as ", gamutname.c_str());
         if (issourcegamut){

@@ -62,7 +62,7 @@ public:
     vec2 fakepoints[HUE_STEPS];
     vec2 ufakepoints[HUE_STEPS];
     
-    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, bool issource, int verbose, int cattype);
+    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled);
     // resizes vectors ahead of time
     void reservespace();
     void initializeMatrixP();

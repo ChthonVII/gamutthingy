@@ -21,4 +21,15 @@ double tolinear(double input);
 // Answer will be in range -pi to +pi radians.
 double AngleDiff(double angleA, double angleB);
 
+// if input is <= floor returns 0
+// if input is >= ceiling, returns 1
+// otherwise returns position hermite cubic spline between floor and ceiling 
+double cubichermitemap(double floor, double ceiling, double input);
+
+// if input is <= floor returns 0
+// if input is >= ceiling, returns 1
+// otherwise returns position relative to floor and ceiling taken to power
+// to avoid an ugly elbow, consider using floor=0 with power > 1, or ceiling=1 with power <1
+double powermap(double floor, double ceiling, double input, double power);
+
 #endif

@@ -100,3 +100,79 @@ double AngleDiff(double angleA, double angleB){
     
     return output;
 }
+
+
+// if input is <= floor returns 0
+// if input is >= ceiling, returns 1
+// otherwise returns position cubic hermite spline between floor and ceiling 
+double cubichermitemap(double floor, double ceiling, double input){
+    // sanitize input
+    if (floor < 0.0){
+        floor = 0.0;
+    }
+    if (ceiling > 1.0){
+        ceiling = 1.0;
+    }
+    if (floor > ceiling){
+        ceiling = floor;
+    }
+    if (input < 0.0){
+        input = 0.0;
+    }
+    if (input > 1.0){
+        input = 1.0;
+    }
+    
+    // easy cases
+    if (input <= floor){
+        return 0.0;
+    }
+    if (input >= ceiling){
+        return 1.0;
+    }
+    
+    // shift & scale position relative to floor & ceiling to 0 to 1
+    double scaledinput = (input - floor) / (ceiling - floor);
+    // 01 hermite is -2t^3 + 3t^2
+    double hermitevalue = (-2.0 * scaledinput * scaledinput * scaledinput) + (3 * scaledinput * scaledinput);
+    
+    return hermitevalue;
+}
+
+// if input is <= floor returns 0
+// if input is >= ceiling, returns 1
+// otherwise returns position relative to floor and ceiling taken to power
+// to avoid an ugly elbow, consider using floor=0 with power > 1, or ceiling=1 with power <1
+double powermap(double floor, double ceiling, double input, double power){
+    // sanitize input
+    if (floor < 0.0){
+        floor = 0.0;
+    }
+    if (ceiling > 1.0){
+        ceiling = 1.0;
+    }
+    if (floor > ceiling){
+        ceiling = floor;
+    }
+    if (input < 0.0){
+        input = 0.0;
+    }
+    if (input > 1.0){
+        input = 1.0;
+    }
+    if (power < 0){
+        power = 0;
+    }
+    
+    // easy cases
+    if (input <= floor){
+        return 0.0;
+    }
+    if (input >= ceiling){
+        return 1.0;
+    }
+    
+    // shift & scale position relative to floor & ceiling to 0 to 1
+    double scaledinput = (input - floor) / (ceiling - floor);
+    return pow(scaledinput, power);
+}
