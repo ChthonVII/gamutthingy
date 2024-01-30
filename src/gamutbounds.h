@@ -107,6 +107,12 @@ public:
     // Some of which used (sometimes gamma corrected) Pb Pr to differentiate areas to apply different corrections.
     double linearRGBfindmaxP(vec3 input);
     
+    // given the x and y coordinates of a point in xyY space,
+    // find a Y such that the corresponding linear RGB is 1.0 for lockcolor (LOCKRED, LOCKGREEN, or LOCKBLUE).
+    // output the linear RGB triplet and set Y to the Y value
+    // (this function is used by color correction circuits)
+    vec3 xyYhillclimb(double x, double y, int lockcolor, double &Y);
+    
 };
 
 // returns the index of the adjacent sampled hue slice "below" hue,

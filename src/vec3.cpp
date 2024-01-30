@@ -102,3 +102,15 @@ bool between(vec3 A, vec3 B, vec3 C){
     return xOK && yOK && zOK;
 }
 */
+
+// convert xyY to XYZ
+vec3 xyYtoXYZ(vec3 input){
+    /*
+    X= xY/y
+    Y=Y
+    Z=((1-x-y)Y)/y
+    */
+    double X = (input.x * input.z)/input.y;
+    double Z = ((1.0 - input.x - input.y) * input.z)/input.y;
+    return vec3(X, input.z, Z);
+}

@@ -732,6 +732,78 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
     return output;
 }
 
+// given the x and y coordinates of a point in xyY space,
+// find a Y such that the corresponding linear RGB is 1.0 for lockcolor (LOCKRED, LOCKGREEN, or LOCKBLUE).
+// output the linear RGB triplet and set Y to the Y value
+// (this function is used by color correction circuits)
+vec3 gamutdescriptor::xyYhillclimb(double x, double y, int lockcolor, double &Y){
+    double high = 1.0;
+    double low = 0.0;
+    double Yguess = 0.0;
+    vec3 RGBguess;
+    int stepcount = 0;
+    // binary search
+    // note: There's a more efficient way to binary search floats by linear searching the exponent then binary searching the mantissa. But I'm lazy, and this is readable, and it will only run a handful of times so I don't care about the performance cost.
+    while (true){
+        Yguess = (low + high) * 0.5;
+        vec3 xyYguess = vec3(x, y, Yguess);
+        vec3 XYZguess = xyYtoXYZ(xyYguess);
+        RGBguess = multMatrixByColor(inverseMatrixNPM, XYZguess);
+        double checkcolor = 0.0;
+        switch(lockcolor){
+            case LOCKRED:
+                checkcolor = RGBguess.x;
+                break;
+            case LOCKGREEN:
+                checkcolor = RGBguess.y;
+                break;
+            case LOCKBLUE:
+                checkcolor = RGBguess.z;
+                break;
+            default:
+                printf("Something went very wrong in xyYhillclimb(), lockcolor is %i\n", lockcolor);
+                break;
+        }
+        double offby = fabs(1.0 - checkcolor);
+        if (offby < EPSILONZERO){
+            break;
+        }
+        // binary search should take O(log2(n)+1) at worst
+        // since EPSILONZERO is 1e-10 in constants.h, we should finish in 31 steps.
+        // so 50 means something is definitely wrong
+        else if (stepcount > 50){
+            printf("Something went very wrong in xyYhillclimb(), stepcount is %i\n", stepcount);
+            break;
+        }
+        else {
+            if (checkcolor > 1.0){
+                high = Yguess;
+            }
+            else {
+                low = Yguess;
+            }
+            stepcount++;
+        }
+    }
+    // set outputs
+    Y = Yguess;
+    switch(lockcolor){
+        case LOCKRED:
+            RGBguess.x = 1.0;
+            break;
+        case LOCKGREEN:
+            RGBguess.y = 1.0;
+            break;
+        case LOCKBLUE:
+            RGBguess.z = 1.0;
+            break;
+        default:
+            printf("Something went very wrong in xyYhillclimb(), lockcolor is %i\n", lockcolor);
+            break;
+    }
+    return RGBguess;
+}
+
 // This function is dead. It belonged to an attempted fix for VP's step3 issues that didn't work out well
 // Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
 // hueindexA and hueindexB are the indices for the adjacent sampled hue slices

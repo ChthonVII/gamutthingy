@@ -63,4 +63,7 @@ vec3 CrossProduct(vec3 A, vec3 B);
 vec3 Polarize(vec3 input);
 vec3 Depolarize(vec3 input);
 
+// convert xyY to XYZ
+vec3 xyYtoXYZ(vec3 input);
+
 #endif

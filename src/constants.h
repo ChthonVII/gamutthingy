@@ -70,6 +70,10 @@ extern const vec3 D65;
 #define CCC_EXPONENTIAL 0
 #define CCC_CUBIC_HERMITE 1
 
+#define LOCKRED 0
+#define LOCKGREEN 1
+#define LOCKBLUE 2
+
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
