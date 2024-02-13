@@ -61,6 +61,18 @@ public:
     double cusplumalist[HUE_STEPS];
     vec2 fakepoints[HUE_STEPS];
     vec2 ufakepoints[HUE_STEPS];
+    vec3 polarredpoint;
+    vec3 polargreenpoint;
+    vec3 polarbluepoint;
+    vec3 polarcyanpoint;
+    vec3 polarmagentapoint;
+    vec3 polaryellowpoint;
+    vec3 adjpolarredpoint;
+    vec3 adjpolargreenpoint;
+    vec3 adjpolarbluepoint;
+    vec3 adjpolarcyanpoint;
+    vec3 adjpolarmagentapoint;
+    vec3 adjpolaryellowpoint;
     
     bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled);
     // resizes vectors ahead of time
@@ -73,6 +85,7 @@ public:
     void initializeMatrixNPM();
     bool initializeInverseMatrixNPM();
     bool initializeChromaticAdaptationToD65();
+    bool initializePolarPrimaries();
     // Populates the gamut boundary descriptor using the algorithm from
     // Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. (https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694)
     void FindBoundaries();

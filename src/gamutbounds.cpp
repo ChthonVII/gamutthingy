@@ -226,6 +226,29 @@ bool gamutdescriptor::initializeChromaticAdaptationToD65(){
     return true;
 }
 
+bool gamutdescriptor::initializePolarPrimaries(){
+        
+    polarredpoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
+    polargreenpoint = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
+    polarbluepoint = linearRGBtoJzCzhz(vec3(0.0, 0.0, 1.0));
+        
+    polarcyanpoint = linearRGBtoJzCzhz(vec3(0.0, 1.0, 1.0));
+    polarmagentapoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 1.0));
+    polaryellowpoint = linearRGBtoJzCzhz(vec3(1.0, 1.0, 0.0));
+        
+    // TODO: When implementing 2-step mode, use points that correspond to outputs of step 1 given primaries as input rather than the gamut primaries
+    
+    adjpolarredpoint = polarredpoint;
+    adjpolargreenpoint = polargreenpoint;
+    adjpolarbluepoint = polarbluepoint;
+
+    adjpolarcyanpoint = polarcyanpoint;
+    adjpolarmagentapoint = polarmagentapoint;
+    adjpolaryellowpoint = polaryellowpoint;
+    
+    return true;
+}
+
 vec3 gamutdescriptor::linearRGBtoXYZ(vec3 input){
     if (needschromaticadapt){
         return multMatrixByColor(matrixNPMadaptToD65, input);
