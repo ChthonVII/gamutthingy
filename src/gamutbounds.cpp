@@ -226,6 +226,7 @@ bool gamutdescriptor::initializeChromaticAdaptationToD65(){
     return true;
 }
 
+// store the primaries and secondaries in JzCzhz for later reference
 bool gamutdescriptor::initializePolarPrimaries(){
         
     polarredpoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
@@ -341,6 +342,52 @@ void gamutdescriptor::FindBoundaries(){
     return;
 }
 
+// checks if the supplied JzCzhz color is within this gamut.
+// if not, also sets errorsize to the sum of linear rgb over/underruns.
+// (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
+bool gamutdescriptor::IsJzCzhzInBounds(vec3 color, double &errorsize){
+    
+    bool isinbounds = true;
+    errorsize = 0.0;
+    
+    vec3 rgbcolor = JzCzhzToLinearRGB(color);
+    
+    // inverse PQ function can generate NaN :( Let's assume all NaNs are waaay out of bounds
+    if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z)){
+        isinbounds = false;
+        errorsize = 10000.0; // arbitrary huge number
+    }
+    else {
+        if (rgbcolor.x > 1.0){
+            isinbounds = false;
+            errorsize += rgbcolor.x - 1.0;
+        }
+        else if (rgbcolor.x < 0.0){
+            isinbounds = false;
+            errorsize += (-1.0 * rgbcolor.x);
+        }
+        if (rgbcolor.y > 1.0){
+            isinbounds = false;
+            errorsize += rgbcolor.y - 1.0;
+        }
+        else if (rgbcolor.y < 0.0){
+            isinbounds = false;
+            errorsize += (-1.0 * rgbcolor.y);
+        }
+        if (rgbcolor.z > 1.0){
+            isinbounds = false;
+            errorsize += rgbcolor.z - 1.0;
+        }
+        else if (rgbcolor.z < 0.0){
+            isinbounds = false;
+            errorsize += (-1.0 * rgbcolor.z);
+        }
+    }
+
+    return isinbounds;
+}
+
+
 // Samples the gamut boundaries for one hue slice 
 void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma){
     
@@ -369,6 +416,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         double rowluma = row * lumastep;
         for (int col = 1; col < CHROMA_STEPS; col++){
             vec3 color = vec3(rowluma, col * chromastep, hue);
+            /*
             vec3 rgbcolor = JzCzhzToLinearRGB(color);
             bool isinbounds = true;
             // inverse PQ function can generate NaN :( Let's assume all NaNs are out of bounds
@@ -376,6 +424,10 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 isinbounds = false;
             }
             grid[row][col].inbounds = isinbounds;
+            */
+            double dummy;
+            grid[row][col].inbounds = IsJzCzhzInBounds(color, dummy);
+            
             //printf("row %i, col %i, color: %f, %f, %f, rgbcolor %f, %f, %f, inbounds %i\n", row, col, color.x, color.y, color.z, rgbcolor.z, rgbcolor.y, rgbcolor.z, isinbounds);
         }
     }
@@ -395,12 +447,16 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 for (int finestep = 1; finestep<FINE_CHROMA_STEPS; finestep++){
                     double finex = (col * chromastep) + (finestep * finechromastep);
                     vec3 color = vec3(rowluma, finex, hue);
+                    /*
                     vec3 rgbcolor = JzCzhzToLinearRGB(color);
                     bool isinbounds = true;
                     // inverse PQ function can generate NaN :( Let's assume all NaNs are out of bounds
                     if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0)){
                         isinbounds = false;
                     }
+                    */
+                    double dummy;
+                    bool isinbounds = IsJzCzhzInBounds(color, dummy);
                     // we found the boundary point
                     if ((waitingforout && !isinbounds) || (!waitingforout && isinbounds)){
                         boundarypoint newbpoint;
