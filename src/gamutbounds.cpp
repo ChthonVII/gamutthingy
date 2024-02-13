@@ -883,6 +883,92 @@ vec3 gamutdescriptor::xyYhillclimb(double x, double y, int lockcolor, double &Y)
     return RGBguess;
 }
 
+// Finds the rotation (in radians) to be applied to each primary/secondary color.
+// If the primary/secondary color is representable in the destination gamut, then 0.
+// If the primary/secondary color is not representable in the destination gamut...
+// ...and if its luma and chroma at the destination gamut's primary's/secondary's hue angle would be in bounds,
+//          or would be out of bounds, but less far,
+//          then the primary's/secondary's hue angle minus 
+// ...but if the rotated color would be at least equally far out of bounds, then 0.
+void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut){
+    
+    redrotation = 0.0;
+    double error;
+    // if source primary is representable in dest gamut, no rotation needed
+    if (!othergamut.IsJzCzhzInBounds(adjpolarredpoint, error)){
+        // make sure rotation would be representable, or at least smaller error
+        vec3 rotatedcolor = vec3(adjpolarredpoint.x, adjpolarredpoint.y, othergamut.polarredpoint.z);
+        double rotatederror;
+        bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
+        if (rotategood || (rotatederror < error)){
+            redrotation = AngleDiff(othergamut.polarredpoint.z, adjpolarredpoint.z);
+        }
+    }
+    
+    greenrotation = 0.0;
+    // if source primary is representable in dest gamut, no rotation needed
+    if (!othergamut.IsJzCzhzInBounds(adjpolargreenpoint, error)){
+        // make sure rotation would be representable, or at least smaller error
+        vec3 rotatedcolor = vec3(adjpolargreenpoint.x, adjpolargreenpoint.y, othergamut.polargreenpoint.z);
+        double rotatederror;
+        bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
+        if (rotategood || (rotatederror < error)){
+            greenrotation = AngleDiff(othergamut.polargreenpoint.z, adjpolargreenpoint.z);
+        }
+    }
+    
+    bluerotation = 0.0;
+    // if source primary is representable in dest gamut, no rotation needed
+    if (!othergamut.IsJzCzhzInBounds(adjpolarbluepoint, error)){
+        // make sure rotation would be representable, or at least smaller error
+        vec3 rotatedcolor = vec3(adjpolarbluepoint.x, adjpolarbluepoint.y, othergamut.polarbluepoint.z);
+        double rotatederror;
+        bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
+        if (rotategood || (rotatederror < error)){
+            bluerotation = AngleDiff(othergamut.polarbluepoint.z, adjpolarbluepoint.z);
+        }
+    }
+    
+    yellowrotation = 0.0;
+    // if source primary is representable in dest gamut, no rotation needed
+    if (!othergamut.IsJzCzhzInBounds(adjpolaryellowpoint, error)){
+        // make sure rotation would be representable, or at least smaller error
+        vec3 rotatedcolor = vec3(adjpolaryellowpoint.x, adjpolaryellowpoint.y, othergamut.polaryellowpoint.z);
+        double rotatederror;
+        bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
+        if (rotategood || (rotatederror < error)){
+            yellowrotation = AngleDiff(othergamut.polaryellowpoint.z, adjpolaryellowpoint.z);
+        }
+    }
+    
+    magentarotation = 0.0;
+    // if source primary is representable in dest gamut, no rotation needed
+    if (!othergamut.IsJzCzhzInBounds(adjpolarmagentapoint, error)){
+        // make sure rotation would be representable, or at least smaller error
+        vec3 rotatedcolor = vec3(adjpolarmagentapoint.x, adjpolarmagentapoint.y, othergamut.polarmagentapoint.z);
+        double rotatederror;
+        bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
+        if (rotategood || (rotatederror < error)){
+            magentarotation = AngleDiff(othergamut.polarmagentapoint.z, adjpolarmagentapoint.z);
+        }
+    }
+    
+    cyanrotation = 0.0;
+    // if source primary is representable in dest gamut, no rotation needed
+    if (!othergamut.IsJzCzhzInBounds(adjpolarcyanpoint, error)){
+        // make sure rotation would be representable, or at least smaller error
+        vec3 rotatedcolor = vec3(adjpolarcyanpoint.x, adjpolarcyanpoint.y, othergamut.polarcyanpoint.z);
+        double rotatederror;
+        bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
+        if (rotategood || (rotatederror < error)){
+            cyanrotation = AngleDiff(othergamut.polarcyanpoint.z, adjpolarcyanpoint.z);
+        }
+    }
+    
+    return;
+    
+}
+
 // This function is dead. It belonged to an attempted fix for VP's step3 issues that didn't work out well
 // Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
 // hueindexA and hueindexB are the indices for the adjacent sampled hue slices

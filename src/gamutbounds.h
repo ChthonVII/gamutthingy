@@ -73,6 +73,12 @@ public:
     vec3 adjpolarcyanpoint;
     vec3 adjpolarmagentapoint;
     vec3 adjpolaryellowpoint;
+    double redrotation;
+    double greenrotation;
+    double bluerotation;
+    double yellowrotation;
+    double magentarotation;
+    double cyanrotation;
     
     bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled);
     // resizes vectors ahead of time
@@ -130,6 +136,14 @@ public:
     // (this function is used by color correction circuits)
     vec3 xyYhillclimb(double x, double y, int lockcolor, double &Y);
     
+    // Finds the rotation (in radians) to be applied to each primary/secondary color.
+    // If the primary/secondary color is representable in the destination gamut, then 0.
+    // If the primary/secondary color is not representable in the destination gamut...
+    // ...and if its luma and chroma at the destination gamut's primary's/secondary's hue angle would be in bounds,
+    //          or would be out of bounds, but less far,
+    //          then the primary's/secondary's hue angle minus 
+    // ...but if the rotated color would be at least equally far out of bounds, then 0.
+    void FindPrimaryRotations(gamutdescriptor &othergamut);
 };
 
 // returns the index of the adjacent sampled hue slice "below" hue,
