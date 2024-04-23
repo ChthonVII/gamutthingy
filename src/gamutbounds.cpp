@@ -15,6 +15,7 @@
 
 // make this global so we only need to compute it once
 const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
+const double HalfHuePerStep = HuePerStep / 2.0;
 
 bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled){
     verbosemode = verbose;
@@ -227,8 +228,12 @@ bool gamutdescriptor::initializeChromaticAdaptationToD65(){
 }
 
 // store the primaries and secondaries in JzCzhz for later reference
-bool gamutdescriptor::initializePolarPrimaries(){
+bool gamutdescriptor::initializePolarPrimaries(bool dosc, double scfloor, double scceil, double scexp, int scmode, int verbose){
         
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("\n----------\nInitializing polar JzCzhz primary/seconday coordinates for %s...\n", gamutname.c_str());
+    }
+    
     polarredpoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
     polargreenpoint = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
     polarbluepoint = linearRGBtoJzCzhz(vec3(0.0, 0.0, 1.0));
@@ -246,6 +251,29 @@ bool gamutdescriptor::initializePolarPrimaries(){
     adjpolarcyanpoint = polarcyanpoint;
     adjpolarmagentapoint = polarmagentapoint;
     adjpolaryellowpoint = polaryellowpoint;
+    
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Red: ");
+        adjpolarredpoint.printout();
+        printf("Green: ");
+        adjpolargreenpoint.printout();
+        printf("Blue: ");
+        adjpolarbluepoint.printout();
+        printf("Yellow: ");
+        adjpolaryellowpoint.printout();
+        printf("Magenta: ");
+        adjpolarmagentapoint.printout();
+        printf("Cyan: ");
+        adjpolarcyanpoint.printout();
+    }
+    
+    // intialize parameters for scaling
+    if (dosc){
+        spiralcarismafloor = scfloor;
+        spiralcarismaceiling = scceil;
+        spiralcharismaexponent = scexp;
+        spiralcarismascalemode = scmode;
+    }
     
     return true;
 }
@@ -337,6 +365,117 @@ void gamutdescriptor::FindBoundaries(){
     // process every hue slice
     for (int huestep = 0; huestep < HUE_STEPS; huestep++){
         ProcessSlice(huestep, maxluma, maxchroma);
+        
+        // intitialize the hue rotation stuff
+        rotationneeded[huestep] = false; // make sure this is initialized for later
+        impingingslicecount[huestep] = 0;
+        impingingslices[huestep].clear();
+        selfwarp[huestep].index = huestep;
+        selfwarp[huestep].floor = 0.0;
+        selfwarp[huestep].ceiling = std::numeric_limits<double>::max();
+    }
+    
+    return;
+}
+
+// Precomputes which slices will rotate into which other slices over which chroma ranges under spiral carisma,
+// effectively creating a new "warped" gamut boundary.
+void gamutdescriptor::WarpBoundaries(){
+
+    // process every hue slice
+    for (int huestep = 0; huestep < HUE_STEPS; huestep++){
+        const double hue = ((double)huestep) * ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
+        // find the max rotation
+        double maxrotation = FindHueMaxRotation(hue);
+        double fmaxrotation = fabs(maxrotation);
+        bool negrotate = (maxrotation < 0.0);
+        // how many slices are we going to impinge?
+        int impingedslices = (int)(fmaxrotation / HuePerStep); // use float to int truncation to round down
+        //printf("huestep %i has hue %f, max chroma %f, and maxrotation %f, which impinges %i slices:\n", huestep, hue, cuspchromalist[huestep], maxrotation, impingedslices);
+        if (impingedslices == 0){
+            rotationneeded[huestep] = false;
+        }
+        else {
+            rotationneeded[huestep] = true;
+            double floorchroma = 0.0;
+            double ceilchroma = 0.0;
+            for (int i=0 ; i<=impingedslices; i++){
+                // new floor is old ceiling
+                floorchroma = ceilchroma;
+                // now find the new ceiling
+                // if this is the slice that contains the max rotation, use a gigantic dummy value
+                if (i == impingedslices){
+                    ceilchroma = std::numeric_limits<double>::max();
+                }
+                // otherwise we must invert the mapping function
+                else {
+                        double newceilrotation = (HuePerStep * (double)(i + 1));
+                        double newceilrotationpercent = newceilrotation / fmaxrotation;
+                        double scalefactor;
+                        if (spiralcarismascalemode == SC_EXPONENTIAL){
+                            inversepowermap(spiralcarismafloor, spiralcarismaceiling,newceilrotationpercent, spiralcharismaexponent);
+                        }
+                        else if (spiralcarismascalemode == SC_CUBIC_HERMITE){
+                            scalefactor = inversecubichermitemap(spiralcarismafloor, spiralcarismaceiling, newceilrotationpercent);
+                        }
+                        else {
+                            // if we somehow have an invalid mapping mode passed in, just do linear
+                            scalefactor = newceilrotationpercent;
+                        }
+                        // catch floating point errors
+                        if (scalefactor < 0.0){
+                            scalefactor = 0.0;
+                        }
+                        if (scalefactor > 1.0){
+                            scalefactor = 1.0;
+                        }
+                        ceilchroma = scalefactor * cuspchromalist[huestep];
+                }
+                // now we need to save the floor and ceiling somewhere
+                // offset 0 is this slice itself
+                if (i == 0){
+                    selfwarp[huestep].floor = floorchroma;
+                    selfwarp[huestep].ceiling = ceilchroma;
+                    //printf("\thue %i impinges on itself from chroma floor %10f to chroma ceiling %10f\n", huestep, floorchroma, ceilchroma);
+                }
+                // if the mapping is so steep that it skips over a slice, skip over it here too
+                // we don't want to inflate the maximum possible post-rotation chroma for this slice
+                // and I *think* whatever does rotate in here should keep the maxes on contiguous slices contiguous
+                else if (ceilchroma != floorchroma){
+                    int targetindex = negrotate ? huestep - i : huestep + i;
+                    if (targetindex < 0){
+                        targetindex += HUE_STEPS;
+                    }
+                    else if (targetindex >= HUE_STEPS){
+                        targetindex -= HUE_STEPS;
+                    }
+                    warprange somewarpinfo;
+                    somewarpinfo.index = huestep;
+                    somewarpinfo.floor = floorchroma;
+                    somewarpinfo.ceiling = ceilchroma;
+                    impingingslices[targetindex].push_back(somewarpinfo);
+                    impingingslicecount[targetindex]++;
+                    /*
+                    if (ceilchroma == std::numeric_limits<double>::max()){
+                        printf("\thue %i impinges on hue %i from chroma floor %10f to chroma ceiling max\n", huestep, targetindex, floorchroma);
+                    }
+                    else{
+                        printf("\thue %i impinges on hue %i from chroma floor %10f to chroma ceiling %10f\n", huestep, targetindex, floorchroma, ceilchroma);
+                    }
+                    */
+                }
+                
+                // for now just print results
+                /*
+                if (ceilchroma == std::numeric_limits<double>::max()){
+                    printf("\toffset %i has chroma floor %10f and chroma ceiling max\n", i, floorchroma);
+                }
+                else{
+                    printf("\toffset %i has chroma floor %.10f and chroma ceiling %.10f (range %.10f, eq? %i)\n", i, floorchroma, ceilchroma, ceilchroma  - floorchroma, (ceilchroma == floorchroma) );
+                }
+                */
+            }
+        }
     }
     
     return;
@@ -502,15 +641,18 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     double cuspchroma = biggestchroma;
     while (scanluma <= scanmaxluma){
         vec3 color = vec3(scanluma, biggestchroma, hue);
-        vec3 rgbcolor = JzCzhzToLinearRGB(color);
+        double dummy;
+        //vec3 rgbcolor = JzCzhzToLinearRGB(color);
         // only process this row if it's in bounds at the biggest chroma found so far
-        if (!(isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0))){
+        //if (!(isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0))){
+        if (IsJzCzhzInBounds(color, dummy)){
             double scanchroma = cuspchroma;
             while (scanchroma <= maxchroma){
                 color = vec3(scanluma, scanchroma, hue);
-                rgbcolor = JzCzhzToLinearRGB(color);
+                //rgbcolor = JzCzhzToLinearRGB(color);
                 // we've gone out of bounds, so we can stop now
-                if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0)){
+                //if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0)){
+                if (!IsJzCzhzInBounds(color, dummy)){
                     double boundary = scanchroma - (0.5 * finechromastep); // assume boundary is halfway between samples;
                     if (boundary > cuspchroma){
                         cuspchroma = boundary;
@@ -529,6 +671,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     newbpoint.iscusp = true;
     data[huestep].push_back(newbpoint);
     cusplumalist[huestep] = maptoluma;
+    cuspchromalist[huestep] = cuspchroma;
     
     // step 4 -- insert the black and white points that we skipped because they're known
     // also shuffle stuff around to make the later sorting step faster
@@ -657,6 +800,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
 // boundtype is used for the VP gamut mapping algorithm
 // BOUND_ABOVE extends the just-above-the-cusp segment indefinitely to the right and ignores the below-the-cusp segments
 vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int hueindex, int boundtype){
+
     vec2 focalpoint = vec2(0.0, focalpointluma);
     int linecount = data[hueindex].size() - 1;
     vec2 intersections[linecount];
@@ -751,27 +895,84 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
 // Finds the point where the line from the focal point (chroma 0, luma = focalpointluma, hue = color's hue) to color intercepts the gamut boundary.
 // hueindex is the index of the adjacent sampled hue splice below color's hue. (This was computed before, so it's passed for efficiency's sake) 
 // boundtype is used for the VP gamut mapping algorithm
-vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype){
+vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype, bool dospiralcarisma){
     
     // Bascially we're going to call getBoundary2D() for the two adjacent sampled hue slices,
     // then do a line/plane intersection to get the final answer.
     
     vec2 color2D = vec2(color.y, color.x); // chroma is x; luma is y
     
+    vec2 focalpoint = vec2(0.0, focalpointluma);
+    
     // find the boundary at the floor hue angle.
     vec2 floorbound2D = getBoundary2D(color2D, focalpointluma, hueindex, boundtype);    
+
+    // now we have a miserable time if spiralcarisma is enabled
+    if (dospiralcarisma){
+        vec2 farthestbound = floorbound2D; // shouldn't need to initialize this since we should always have a result, but let's have something to fall back to just in case
+        double farthestdist = 0.0;
+        // first check if the portion of the slice itself containing the inteception with the boundary hasn't warped somewhere else 
+        if ((!rotationneeded[hueindex]) || ((floorbound2D.x > selfwarp[hueindex].floor) && (floorbound2D.x <= selfwarp[hueindex].ceiling))){
+            vec2 thisvec = floorbound2D - focalpoint;
+            farthestdist = thisvec.magnitude();
+            printf("initial boundary for floor slice  %i is ok\n", hueindex);
+            // don't need to set the boundary point b/c already did
+        }
+        for (int i=0; i<(int)impingingslices[hueindex].size(); i++){
+            vec2 somebound = getBoundary2D(color2D, focalpointluma, impingingslices[hueindex][i].index, boundtype);
+            if ((somebound.x > impingingslices[hueindex][i].floor) && (somebound.x <= impingingslices[hueindex][i].ceiling)){
+                vec2 thisvec = somebound - focalpoint;
+                double thisdist = thisvec.magnitude();
+                if (thisdist > farthestdist){
+                    farthestdist = thisdist;
+                    farthestbound = somebound;
+                    printf("expanding boundary for floor slice %i with boundary from impinging slince %i\n", hueindex, impingingslices[hueindex][i].index);
+                }
+            }
+        }
+        floorbound2D = farthestbound;
+    }
+
     double floorhue = hueindex * HuePerStep;
     vec3 floorbound3D = vec3(floorbound2D.y, floorbound2D.x, floorhue); // again need to transpose x and y
     
     vec3 output = floorbound3D;
     
     // assuming the hue isn't exactly at the floor, find the boundary at the ceiling hue angle too
+
     if (color.z != floorhue){
         int ceilhueindex = hueindex +1;
         if (ceilhueindex == HUE_STEPS){
             ceilhueindex = 0;
         }
         vec2 ceilbound2D = getBoundary2D(color2D, focalpointluma, ceilhueindex, boundtype);
+        
+        // now we have a miserable time if spiralcarisma is enabled
+        if (dospiralcarisma){
+            vec2 farthestbound = ceilbound2D; // shouldn't need to initialize this since we should always have a result, but let's have something to fall back to just in case
+            double farthestdist = 0.0;
+            // first check if the portion of the slice itself containing the inteception with the boundary hasn't warped somewhere else 
+            if ((!rotationneeded[ceilhueindex]) || ((ceilbound2D.x > selfwarp[ceilhueindex].floor) && (ceilbound2D.x <= selfwarp[ceilhueindex].ceiling))){
+                vec2 thisvec = ceilbound2D - focalpoint;
+                farthestdist = thisvec.magnitude();
+                // don't need to set the boundary point b/c already did
+                printf("initial boundary for ceiling slice  %i is ok\n", ceilhueindex);
+            }
+            for (int i=0; i<(int)impingingslices[ceilhueindex].size(); i++){
+                vec2 somebound = getBoundary2D(color2D, focalpointluma, impingingslices[ceilhueindex][i].index, boundtype);
+                if ((somebound.x > impingingslices[ceilhueindex][i].floor) && (somebound.x <= impingingslices[ceilhueindex][i].ceiling)){
+                    vec2 thisvec = somebound - focalpoint;
+                    double thisdist = thisvec.magnitude();
+                    if (thisdist > farthestdist){
+                        farthestdist = thisdist;
+                        farthestbound = somebound;
+                        printf("expanding boundary for ceiling slice %i with boundary from impinging slince %i\n", ceilhueindex, impingingslices[ceilhueindex][i].index);
+                    }
+                }
+            }
+            ceilbound2D = farthestbound;
+        }
+        
         double ceilhue = ceilhueindex * HuePerStep;
         vec3 ceilbound3D = vec3(ceilbound2D.y, ceilbound2D.x, ceilhue); // again need to transpose x and y
         
@@ -890,82 +1091,447 @@ vec3 gamutdescriptor::xyYhillclimb(double x, double y, int lockcolor, double &Y)
 //          or would be out of bounds, but less far,
 //          then the primary's/secondary's hue angle minus 
 // ...but if the rotated color would be at least equally far out of bounds, then 0.
-void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut){
+void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double maxscale, int verbose){
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("\n----------\nFinding primary/secondary rotations for %s towards %s...\n", gamutname.c_str(), othergamut.gamutname.c_str());
+    }
+    
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Red: ");
+    }
     redrotation = 0.0;
     double error;
     // if source primary is representable in dest gamut, no rotation needed
     if (!othergamut.IsJzCzhzInBounds(adjpolarredpoint, error)){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("not representable in destination gamut, ");
+        }
         // make sure rotation would be representable, or at least smaller error
         vec3 rotatedcolor = vec3(adjpolarredpoint.x, adjpolarredpoint.y, othergamut.polarredpoint.z);
         double rotatederror;
         bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
         if (rotategood || (rotatederror < error)){
             redrotation = AngleDiff(othergamut.polarredpoint.z, adjpolarredpoint.z);
+            if (verbose >= VERBOSITY_SLIGHT){
+                if (rotategood){
+                    printf("and rotation is representable, ");
+                }
+                else {
+                    printf("and rotation is less far out of bounds, ");
+                }
+            }
+        }
+        else if (verbose >= VERBOSITY_SLIGHT){
+            printf("but rotation is at least as far out of bounds, ");
         }
     }
+    else if (verbose >= VERBOSITY_SLIGHT){
+        printf("representable in destination gamut, ");
+    }
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("rotation is %f\n", redrotation);
+    }
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Green: ");
+    }
     greenrotation = 0.0;
     // if source primary is representable in dest gamut, no rotation needed
     if (!othergamut.IsJzCzhzInBounds(adjpolargreenpoint, error)){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("not representable in destination gamut, ");
+        }
         // make sure rotation would be representable, or at least smaller error
         vec3 rotatedcolor = vec3(adjpolargreenpoint.x, adjpolargreenpoint.y, othergamut.polargreenpoint.z);
         double rotatederror;
         bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
         if (rotategood || (rotatederror < error)){
             greenrotation = AngleDiff(othergamut.polargreenpoint.z, adjpolargreenpoint.z);
+            if (verbose >= VERBOSITY_SLIGHT){
+                if (rotategood){
+                    printf("and rotation is representable, ");
+                }
+                else {
+                    printf("and rotation is less far out of bounds, ");
+                }
+            }
+        }
+        else if (verbose >= VERBOSITY_SLIGHT){
+            printf("but rotation is at least as far out of bounds, ");
         }
     }
+    else if (verbose >= VERBOSITY_SLIGHT){
+        printf("representable in destination gamut, ");
+    }
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("rotation is %f\n", greenrotation);
+    }
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Blue: ");
+    }
     bluerotation = 0.0;
     // if source primary is representable in dest gamut, no rotation needed
     if (!othergamut.IsJzCzhzInBounds(adjpolarbluepoint, error)){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("not representable in destination gamut, ");
+        }
         // make sure rotation would be representable, or at least smaller error
         vec3 rotatedcolor = vec3(adjpolarbluepoint.x, adjpolarbluepoint.y, othergamut.polarbluepoint.z);
         double rotatederror;
         bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
         if (rotategood || (rotatederror < error)){
             bluerotation = AngleDiff(othergamut.polarbluepoint.z, adjpolarbluepoint.z);
+            if (verbose >= VERBOSITY_SLIGHT){
+                if (rotategood){
+                    printf("and rotation is representable, ");
+                }
+                else {
+                    printf("and rotation is less far out of bounds, ");
+                }
+            }
+        }
+        else if (verbose >= VERBOSITY_SLIGHT){
+            printf("but rotation is at least as far out of bounds, ");
         }
     }
+        else if (verbose >= VERBOSITY_SLIGHT){
+        printf("representable in destination gamut, ");
+    }
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("rotation is %f\n", bluerotation);
+    }
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Yellow: ");
+    }
     yellowrotation = 0.0;
     // if source primary is representable in dest gamut, no rotation needed
     if (!othergamut.IsJzCzhzInBounds(adjpolaryellowpoint, error)){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("not representable in destination gamut, ");
+        }
         // make sure rotation would be representable, or at least smaller error
         vec3 rotatedcolor = vec3(adjpolaryellowpoint.x, adjpolaryellowpoint.y, othergamut.polaryellowpoint.z);
         double rotatederror;
         bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
         if (rotategood || (rotatederror < error)){
             yellowrotation = AngleDiff(othergamut.polaryellowpoint.z, adjpolaryellowpoint.z);
+            if (verbose >= VERBOSITY_SLIGHT){
+                if (rotategood){
+                    printf("and rotation is representable, ");
+                }
+                else {
+                    printf("and rotation is less far out of bounds, ");
+                }
+            }
+        }
+        else if (verbose >= VERBOSITY_SLIGHT){
+            printf("but rotation is at least as far out of bounds, ");
         }
     }
+    else if (verbose >= VERBOSITY_SLIGHT){
+        printf("representable in destination gamut, ");
+    }
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("rotation is %f\n", yellowrotation);
+    }
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Magenta: ");
+    }
     magentarotation = 0.0;
     // if source primary is representable in dest gamut, no rotation needed
     if (!othergamut.IsJzCzhzInBounds(adjpolarmagentapoint, error)){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("not representable in destination gamut, ");
+        }
         // make sure rotation would be representable, or at least smaller error
         vec3 rotatedcolor = vec3(adjpolarmagentapoint.x, adjpolarmagentapoint.y, othergamut.polarmagentapoint.z);
         double rotatederror;
         bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
         if (rotategood || (rotatederror < error)){
             magentarotation = AngleDiff(othergamut.polarmagentapoint.z, adjpolarmagentapoint.z);
+            if (verbose >= VERBOSITY_SLIGHT){
+                if (rotategood){
+                    printf("and rotation is representable, ");
+                }
+                else {
+                    printf("and rotation is less far out of bounds, ");
+                }
+            }
+        }
+        else if (verbose >= VERBOSITY_SLIGHT){
+            printf("but rotation is at least as far out of bounds, ");
         }
     }
+    else if (verbose >= VERBOSITY_SLIGHT){
+        printf("representable in destination gamut, ");
+    }
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("rotation is %f\n", magentarotation);
+    }
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Cyan: ");
+    }
     cyanrotation = 0.0;
     // if source primary is representable in dest gamut, no rotation needed
     if (!othergamut.IsJzCzhzInBounds(adjpolarcyanpoint, error)){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("not representable in destination gamut, ");
+        }
         // make sure rotation would be representable, or at least smaller error
         vec3 rotatedcolor = vec3(adjpolarcyanpoint.x, adjpolarcyanpoint.y, othergamut.polarcyanpoint.z);
         double rotatederror;
         bool rotategood = othergamut.IsJzCzhzInBounds(rotatedcolor, rotatederror);
         if (rotategood || (rotatederror < error)){
             cyanrotation = AngleDiff(othergamut.polarcyanpoint.z, adjpolarcyanpoint.z);
+            if (verbose >= VERBOSITY_SLIGHT){
+                if (rotategood){
+                    printf("and rotation is representable, ");
+                }
+                else {
+                    printf("and rotation is less far out of bounds, ");
+                }
+            }
+        }
+        else if (verbose >= VERBOSITY_SLIGHT){
+            printf("but rotation is at least as far out of bounds, ");
         }
     }
+    else if (verbose >= VERBOSITY_SLIGHT){
+        printf("representable in destination gamut, ");
+    }
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("rotation is %f\n", cyanrotation);
+    }
+    
+    if (maxscale < 1.0){
+        if (verbose >= VERBOSITY_SLIGHT){
+            printf("\nscaling all rotations by %f\n", maxscale);
+        }
+        redrotation *= maxscale;
+        yellowrotation *= maxscale;
+        greenrotation *= maxscale;
+        cyanrotation *= maxscale;
+        bluerotation *= maxscale;
+        magentarotation *= maxscale;
+    }
+    
+    redtoyellowpolardist = AngleDiff(adjpolaryellowpoint.z, adjpolarredpoint.z);
+    yellowtogreenpolardist = AngleDiff(adjpolargreenpoint.z, adjpolaryellowpoint.z);
+    greentocyanpolardist = AngleDiff(adjpolarcyanpoint.z, adjpolargreenpoint.z);
+    cyantobluepolardist = AngleDiff(adjpolarbluepoint.z, adjpolarcyanpoint.z);
+    bluetomagentapolardist = AngleDiff(adjpolarmagentapoint.z, adjpolarbluepoint.z);
+    magentatoredpolardist = AngleDiff(adjpolarredpoint.z, adjpolarmagentapoint.z);
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("\nAngular distances:\nRed to yellow: %f\nYellow to green: %f\nGreen to cyan: %f\nCyan to blue: %f\nBlue to magenta: %f\nMagenta to red: %f\n", redtoyellowpolardist, yellowtogreenpolardist, greentocyanpolardist, cyantobluepolardist, bluetomagentapolardist, magentatoredpolardist);
+    }
+    
+    /* no... these should just be raw subtraction since we will have negative inputs
+    redtoyellowrotatediff = AngleDiff(yellowrotation, redrotation);
+    yellowtogreenrotatediff = AngleDiff(greenrotation, yellowrotation);
+    greentocyanrotatediff = AngleDiff(cyanrotation, greenrotation);
+    cyantobluerotatediff  = AngleDiff(bluerotation, cyanrotation);
+    bluetomagentarotatediff = AngleDiff(magentarotation, bluerotation);
+    magentatoredrotatediff = AngleDiff(redrotation, magentarotation);
+    */
+    redtoyellowrotatediff = yellowrotation - redrotation;
+    yellowtogreenrotatediff = greenrotation - yellowrotation;
+    greentocyanrotatediff = cyanrotation - greenrotation;
+    cyantobluerotatediff  = bluerotation - cyanrotation;
+    bluetomagentarotatediff = magentarotation - bluerotation;
+    magentatoredrotatediff = redrotation - magentarotation;
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("\nRotation deltas:\nRed to yellow: %f\nYellow to green: %f\nGreen to cyan: %f\nCyan to blue: %f\nBlue to magenta: %f\nMagenta to red: %f\n", redtoyellowrotatediff, yellowtogreenrotatediff, greentocyanrotatediff, cyantobluerotatediff, bluetomagentarotatediff, magentatoredrotatediff);
+    }
+    
+    
+    // test code
+    /*
+    printf("testing FindHueMaxRotation()...\n");
+    vec3 tempcolor;
+    double temprotate;
+    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Red: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.5, 0.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Orange: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 1.0, 0.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Yellow: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(0.5, 1.0, 0.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Slime: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Green: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.5));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Seagreen: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 1.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Cyan: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 0.5, 1.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Greenish Blue: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 0.0, 1.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Blue: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(5.0, 0.0, 1.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Purplish Blue: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 1.0));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Magenta: %f\n", temprotate);
+    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.5));
+    temprotate = FindHueMaxRotation(tempcolor.z);
+    printf("Purplish Red: %f\n", temprotate);
+    */
     
     return;
+    
+}
+
+// finds the max rotation in radians for a given hue
+double gamutdescriptor::FindHueMaxRotation(double hue){
+    enum color_is {
+        IS_MAGENTA_TO_RED,
+        IS_RED_TO_YELLOW,
+        IS_YELLOW_TO_GREEN,
+        IS_GREEN_TO_CYAN,
+        IS_CYAN_TO_BLUE,
+        IS_BLUE_TO_MAGENTA
+    };
+    color_is whichcolor;
+    if (hue < adjpolarredpoint.z){
+        whichcolor = IS_MAGENTA_TO_RED;
+    }
+    else if (hue < adjpolaryellowpoint.z){
+        whichcolor = IS_RED_TO_YELLOW;
+    }
+    else if (hue < adjpolargreenpoint.z){
+        whichcolor = IS_YELLOW_TO_GREEN;
+    }
+    else if (hue < adjpolarcyanpoint.z){
+        whichcolor = IS_GREEN_TO_CYAN;
+    }
+    else if (hue < adjpolarbluepoint.z){
+        whichcolor = IS_CYAN_TO_BLUE;
+    }
+    else if (hue < adjpolarmagentapoint.z){
+        whichcolor = IS_BLUE_TO_MAGENTA;
+    }
+    else {
+        // we wrapped
+        whichcolor = IS_MAGENTA_TO_RED;
+    }
+    
+    double thisdist;
+    double fulldist;
+    double baseangle;
+    double fullangledelta;
+    
+    switch (whichcolor){
+        case IS_MAGENTA_TO_RED:
+            thisdist = AngleDiff(hue, adjpolarmagentapoint.z);
+            fulldist = magentatoredpolardist;
+            baseangle = magentarotation;
+            fullangledelta = magentatoredrotatediff;
+            break;
+        case IS_RED_TO_YELLOW:
+            thisdist = AngleDiff(hue, adjpolarredpoint.z);
+            fulldist = redtoyellowpolardist;
+            baseangle = redrotation;
+            fullangledelta = redtoyellowrotatediff;
+            break;
+        case IS_YELLOW_TO_GREEN:
+            thisdist = AngleDiff(hue, adjpolaryellowpoint.z);
+            fulldist = yellowtogreenpolardist;
+            baseangle = yellowrotation;
+            fullangledelta = yellowtogreenrotatediff;
+            break;
+        case IS_GREEN_TO_CYAN:
+            thisdist = AngleDiff(hue, adjpolargreenpoint.z);
+            fulldist = greentocyanpolardist;
+            baseangle = greenrotation;
+            fullangledelta = greentocyanrotatediff;
+            break;
+        case IS_CYAN_TO_BLUE:
+            thisdist = AngleDiff(hue, adjpolarcyanpoint.z);
+            fulldist = cyantobluepolardist;
+            baseangle = cyanrotation;
+            fullangledelta = cyantobluerotatediff;
+            break;
+        case IS_BLUE_TO_MAGENTA:
+            thisdist = AngleDiff(hue, adjpolarbluepoint.z);
+            fulldist = bluetomagentapolardist;
+            baseangle = bluerotation;
+            fullangledelta = bluetomagentarotatediff;
+            break;
+        default:
+            printf("oh dear, unreachable state got reached...");
+            break;
+    }
+
+    double distanceshare = thisdist / fulldist;
+    double output = baseangle + (distanceshare * fullangledelta);
+    
+    return output;
+}
+
+// finds spiral carisma rotation in radians for a given JzCzhz color
+double gamutdescriptor::FindHueRotation(vec3 input){
+
+    // find the index for the hue angle
+    double ceilweight;
+    int floorhueindex = hueToFloorIndex(input.z, ceilweight);
+    int ceilhueindex = floorhueindex + 1;
+    if (ceilhueindex == HUE_STEPS){
+        ceilhueindex = 0;
+    }
+    
+    // take weighted average of cusp chroma in adjacent slices
+    double floorcuspchroma = cuspchromalist[floorhueindex];
+    double ceilcuspchroma = cuspchromalist[ceilhueindex];
+    double cuspchroma = ((1.0 - ceilweight) * floorcuspchroma) + (ceilweight * ceilcuspchroma);
+    
+    // what percent of cusp chroma is this color?
+    double chromapercent = input.y / cuspchroma;
+    if (chromapercent > 1.0){
+        chromapercent = 1.0;
+    }
+    
+    // if we are below floor, return 0 (no rotation)
+    if (chromapercent <= spiralcarismafloor){
+        return 0.0;
+    }
+    
+    // find max rotation
+    double maxrotation = FindHueMaxRotation(input.z);
+    
+    // if we are above ceiling, return max rotation
+    if (chromapercent >= spiralcarismaceiling){
+        return maxrotation;
+    }
+    
+    // otherwise use our mapping function
+    double scalefactor;
+    if (spiralcarismascalemode == SC_EXPONENTIAL){
+        scalefactor = powermap(spiralcarismafloor, spiralcarismaceiling, chromapercent, spiralcharismaexponent);
+    }
+    else if (spiralcarismascalemode == SC_CUBIC_HERMITE){
+        scalefactor = cubichermitemap(spiralcarismafloor, spiralcarismaceiling, chromapercent);
+    }
+    else {
+        // if we somehow have an invalid mapping mode passed in, just do linear
+        scalefactor = chromapercent;
+    }
+    
+    return maxrotation * scalefactor;
     
 }
 
@@ -1065,7 +1631,7 @@ int hueToFloorIndex(double hue, double &excess){
 // mapdirection: which gamut mapping algorithm to use MAP_GCUSP (actually just CUSP), MAP_HLPCM, or MAP_VP
 // safezonetype: whether to use the traditional relative-to-destination-gamut approach (RMZONE_DEST_BASED) or Su, Tao, & Kim's relative-to-difference-between-gamuts approach (RMZONE_DELTA_BASED)
 //  if RMZONE_DEST_BASED, then remapfactor does nothing
-vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype){
+vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype, bool dospiralcarisma){
     
     // skip the easy black and white cases with no computation
     if (color.isequal(vec3(0.0, 0.0, 0.0)) || color.isequal(vec3(1.0, 1.0, 1.0))){
@@ -1076,6 +1642,15 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
     vec3 Jcolor = sourcegamut.linearRGBtoJzCzhz(color);
     vec2 colorCJ = vec2(Jcolor.y, Jcolor.x); // chroma is x; luma is y
     vec3 Joutput = Jcolor;
+    
+    // if spiralcarisma is enabled, rotate the input
+    if (dospiralcarisma){
+        printf("rotating hue from %f", Jcolor.z);
+        double huerotation = sourcegamut.FindHueRotation(Jcolor);
+        Jcolor.z = AngleAdd(Jcolor.z, huerotation);
+        Joutput.z = Jcolor.z;
+        printf(" to %f\n", Jcolor.z);
+    }
     
     // find the index for the hue angle
     double ceilweight;
@@ -1144,10 +1719,9 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
         vec2 maptopoint = vec2(0.0, maptoluma);
         
         // find the boundaries
-        
-        vec3 sourceboundary3D = sourcegamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype);
+        vec3 sourceboundary3D = sourcegamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype, dospiralcarisma);
         vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
-        vec3 destboundary3D = destgamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype);
+        vec3 destboundary3D = destgamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype , false);
         vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
         
         // figure out relative distances
@@ -1217,9 +1791,9 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
             vec2 maptopoint = vec2(0.0, maptoluma);
             
             // find the boundaries (again)
-            vec3 sourceboundary3D = sourcegamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype);
+            vec3 sourceboundary3D = sourcegamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype, dospiralcarisma);
             vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
-            vec3 destboundary3D = destgamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype);
+            vec3 destboundary3D = destgamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype, false);
             vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
             
             // figure out relative distances

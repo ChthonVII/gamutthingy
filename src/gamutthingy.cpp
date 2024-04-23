@@ -30,7 +30,7 @@ typedef struct memo{
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
 
-vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype){
+vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma){
     vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
     vec3 outcolor;
         
@@ -55,7 +55,7 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
         outcolor = (linearinputcolor * oldweight) + (outcolor * newweight);
     }
     else {
-        outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+        outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
     }
     if (gammamode){
         outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
@@ -98,6 +98,12 @@ int main(int argc, const char **argv){
     double cccfloor = 0.5;
     double cccceiling = 0.95;
     double cccexp = 1.0;
+    bool spiralcarisma = false;
+    int scfunctiontype = SC_CUBIC_HERMITE;
+    double scfloor = 0.7;
+    double scceiling = 1.0;
+    double scexp = 1.2;
+    double scmax = 1.0;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -186,7 +192,8 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
-        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20)){
+        // expecting a number
+        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20) || (expect == 23) || (expect == 24) || (expect == 25)){
             char* endptr;
             errno = 0; //make sure errno is 0 before strtol()
             double input = strtod(argv[i], &endptr);
@@ -218,6 +225,18 @@ int main(int argc, const char **argv){
                         break;
                     case 20:
                         cccexp = input;
+                        break;
+                    case 23:
+                        scfloor = input;
+                        break;
+                    case 24:
+                        scceiling = input;
+                        break;
+                    case 25:
+                        scexp = input;
+                        break;
+                    case 26:
+                        scmax = input;
                         break;
                     default:
                         break;
@@ -354,6 +373,32 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 21){ // spiralcarisma
+            if (strcmp(argv[i], "true") == 0){
+                spiralcarisma = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                spiralcarisma = false;
+            }
+            else {
+                printf("Invalid parameter for spiralcarisma. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_DITHER;
+            }
+            expect  = 0;
+        }
+        else if (expect == 22){ // sc fucntion type
+            if (strcmp(argv[i], "exponential") == 0){
+                scfunctiontype = SC_EXPONENTIAL;
+            }
+            else if (strcmp(argv[i], "cubichermite") == 0){
+                scfunctiontype = SC_CUBIC_HERMITE;
+            }
+            else {
+                printf("Invalid parameter for sc function type. Expecting \"exponential\" or \"cubichermite\".\n");
+                return ERROR_BAD_PARAM_SC_FUNCTION_TYPE;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -416,6 +461,24 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--cccexponent") == 0) || (strcmp(argv[i], "--cccxp") == 0)){
                 expect = 20;
+            }
+            else if ((strcmp(argv[i], "--spiral-carisma") == 0) || (strcmp(argv[i], "--sc") == 0)){
+                expect = 21;
+            }
+            else if ((strcmp(argv[i], "--scfunction") == 0) || (strcmp(argv[i], "--scf") == 0)){
+                expect = 22;
+            }
+            else if ((strcmp(argv[i], "--scfloor") == 0) || (strcmp(argv[i], "--scfl") == 0)){
+                expect = 23;
+            }
+            else if ((strcmp(argv[i], "--scceiling") == 0) || (strcmp(argv[i], "--sccl") == 0)){
+                expect = 24;
+            }
+            else if ((strcmp(argv[i], "--scexponent") == 0) || (strcmp(argv[i], "--scxp") == 0)){
+                expect = 25;
+            }
+            else if ((strcmp(argv[i], "--scmax") == 0) || (strcmp(argv[i], "--scm") == 0)){
+                expect = 26;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -672,6 +735,12 @@ int main(int argc, const char **argv){
                     break;
             }
         }
+        if (spiralcarisma){
+            printf("Spiral CARISMA: true\n");
+        }
+        else {
+            printf("Spiral CARISMA: false\n");
+        }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
     }
@@ -702,17 +771,34 @@ int main(int argc, const char **argv){
     bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled);
     
     if (! srcOK || !destOK){
-        printf("Gamut descriptor initializtion failed. All is lost. Abandon ship.\n");
+        printf("Gamut descriptor initialization failed. All is lost. Abandon ship.\n");
         return GAMUT_INITIALIZE_FAIL;
     }
 
+    // if spiral CARISMA is enabled, we need some more initialization
+    if (spiralcarisma){
+        srcOK = sourcegamut.initializePolarPrimaries(true, scfloor, scceiling, scexp, scfunctiontype, verbosity);
+        destOK = destgamut.initializePolarPrimaries(false, scfloor, scceiling, scexp, scfunctiontype, verbosity);
+        if (! srcOK || !destOK){
+            printf("Gamut descriptor initialization failed in primary/secondary rotation. All is lost. Abandon ship.\n");
+            return GAMUT_INITIALIZE_FAIL_SPIRAL;
+        }
+        sourcegamut.FindPrimaryRotations(destgamut, scmax, verbosity);
+        
+        sourcegamut.WarpBoundaries();
+        
+        if (verbosity >= VERBOSITY_SLIGHT){
+            printf("\n----------\n");
+        }
+    }
+    
     // this mode converts a single color and printfs the result
     if (!filemode){
         int redout;
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
         /*
         vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
         vec3 outcolor;
@@ -832,7 +918,7 @@ int main(int argc, const char **argv){
                             
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
+                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
                             
                             /*
                             // to linear RGB

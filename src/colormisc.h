@@ -21,15 +21,33 @@ double tolinear(double input);
 // Answer will be in range -pi to +pi radians.
 double AngleDiff(double angleA, double angleB);
 
+// Add two angles, wrapping output to range 0 to 2pi radians
+double AngleAdd(double angleA, double angleB);
+
 // if input is <= floor returns 0
 // if input is >= ceiling, returns 1
-// otherwise returns position hermite cubic spline between floor and ceiling 
+// otherwise returns position on 01 hermite cubic spline between floor and ceiling 
 double cubichermitemap(double floor, double ceiling, double input);
+
+// inverse of cubichermitemap()
+// if input is <= floor returns floor
+// if input is >= ceiling, returns ceiling
+// otherwise returns position on 01 inverse cubic hermite spline between floor and ceiling 
+double inversecubichermitemap(double floor, double ceiling, double input);
 
 // if input is <= floor returns 0
 // if input is >= ceiling, returns 1
 // otherwise returns position relative to floor and ceiling taken to power
 // to avoid an ugly elbow, consider using floor=0 with power > 1, or ceiling=1 with power <1
 double powermap(double floor, double ceiling, double input, double power);
+
+// inverse of powermap()
+// if input is <= floor returns floor
+// if input is >= ceiling, returns ceiling
+// otherwise returns position relative to floor and ceiling taken to inverse power
+double inversepowermap(double floor, double ceiling, double input, double power);
+
+//Compute the inverse of the 01 hermite cubic spline for domain = range = 0-1
+double inversehermite(double input);
 
 #endif

@@ -35,6 +35,13 @@ public:
     bool checkdown;
 };
 
+class warprange{
+public:
+    int index;
+    float floor;
+    float ceiling;
+};
+
 class gamutdescriptor{
 public:
     int verbosemode;
@@ -59,26 +66,56 @@ public:
     std::string gamutname;
     std::vector<boundarypoint> data[HUE_STEPS];
     double cusplumalist[HUE_STEPS];
+    double cuspchromalist[HUE_STEPS];
     vec2 fakepoints[HUE_STEPS];
     vec2 ufakepoints[HUE_STEPS];
+    bool rotationneeded[HUE_STEPS];
+    int impingingslicecount[HUE_STEPS];
+    std::vector<warprange> impingingslices[HUE_STEPS];
+    warprange selfwarp[HUE_STEPS];
+    
+    // Spiral CARMISA needs a bunch of variables precomputed
+    // primary and secondary color JzCzhz coordinates
     vec3 polarredpoint;
     vec3 polargreenpoint;
     vec3 polarbluepoint;
     vec3 polarcyanpoint;
     vec3 polarmagentapoint;
     vec3 polaryellowpoint;
+    // adjusted primary and secondary color JzCzhz coordinates
+    // (for two-step conversions if first step doesn't put its source primaries/secondaries on the destination primaries/secondaries)
     vec3 adjpolarredpoint;
     vec3 adjpolargreenpoint;
     vec3 adjpolarbluepoint;
     vec3 adjpolarcyanpoint;
     vec3 adjpolarmagentapoint;
     vec3 adjpolaryellowpoint;
+    // max rotations for each primary/secondary
     double redrotation;
     double greenrotation;
     double bluerotation;
     double yellowrotation;
     double magentarotation;
     double cyanrotation;
+    // distances between adjacent primaries and secondaries
+    double redtoyellowpolardist;
+    double yellowtogreenpolardist;
+    double greentocyanpolardist;
+    double cyantobluepolardist;
+    double bluetomagentapolardist;
+    double magentatoredpolardist;
+    // differences in max rotations between adjacent primaries and secondaries
+    double redtoyellowrotatediff;
+    double yellowtogreenrotatediff;
+    double greentocyanrotatediff;
+    double cyantobluerotatediff;
+    double bluetomagentarotatediff;
+    double magentatoredrotatediff;
+    // scaling parameters
+    double spiralcarismafloor;
+    double spiralcarismaceiling;
+    double spiralcharismaexponent;
+    int spiralcarismascalemode;
     
     bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled);
     // resizes vectors ahead of time
@@ -91,7 +128,7 @@ public:
     void initializeMatrixNPM();
     bool initializeInverseMatrixNPM();
     bool initializeChromaticAdaptationToD65();
-    bool initializePolarPrimaries();
+    bool initializePolarPrimaries(bool dosc, double scfloor, double scceil, double scexp, int scmode, int verbose);
     // checks if the supplied JzCzhz color is within this gamut.
     // if not, also sets errorsize to the sum of linear rgb over/underruns.
     // (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
@@ -102,6 +139,9 @@ public:
     // Samples the gamut boundaries for one hue slice 
     void ProcessSlice(int huestep, double maxluma, double maxchroma);
     
+    // Precomputes which slices will rotate into which other slices over which chroma ranges under spiral carisma,
+    // effectively creating a new "warped" gamut boundary.
+    void WarpBoundaries();
     
     vec3 linearRGBtoXYZ(vec3 input);
     vec3 XYZtoLinearRGB(vec3 input);
@@ -117,7 +157,7 @@ public:
     // Finds the point where the line from the focal point (chroma 0, luma = focalpointluma, hue = color's hue) to color intercepts the gamut boundary.
     // hueindex is the index of the adjacent sampled hue splice below color's hue. (This was computed before, so it's passed for efficiency's sake) 
     // boundtype is used for the VP gamut mapping algorithm
-    vec3 getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype);
+    vec3 getBoundary3D(vec3 color, double focalpointluma, int hueindex, int boundtype, bool dospiralcarisma);
     
     // This function is dead. It belonged to an attempted fix for VP's step3 issues that didn't work out well
     // Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
@@ -143,7 +183,13 @@ public:
     //          or would be out of bounds, but less far,
     //          then the primary's/secondary's hue angle minus 
     // ...but if the rotated color would be at least equally far out of bounds, then 0.
-    void FindPrimaryRotations(gamutdescriptor &othergamut);
+    void FindPrimaryRotations(gamutdescriptor &othergamut, double maxscale, int verbose);
+    
+    // finds the max rotation in radians for a given hue
+    double FindHueMaxRotation(double hue);
+    
+    // finds spiral carisma rotation in radians for a given JzCzhz color
+    double FindHueRotation(vec3 input);
 };
 
 // returns the index of the adjacent sampled hue slice "below" hue,
@@ -162,7 +208,7 @@ int hueToFloorIndex(double hue, double &excess);
 // mapdirection: which gamut mapping algorithm to use MAP_GCUSP (actually just CUSP), MAP_HLPCM, or MAP_VP
 // safezonetype: whether to use the traditional relative-to-destination-gamut approach (RMZONE_DEST_BASED) or Su, Tao, & Kim's relative-to-difference-between-gamuts approach (RMZONE_DELTA_BASED)
 //  if RMZONE_DEST_BASED, then remapfactor does nothing
-vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype);
+vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype, bool dospiralcarisma);
 
 // Scales the distance to a color according to parameters
 // distcolor: distance from the focal point to the color
