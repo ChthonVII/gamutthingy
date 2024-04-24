@@ -939,7 +939,7 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
         if ((!rotationneeded[hueindex]) || ((floorbound2D.x > selfwarp[hueindex].floor) && (floorbound2D.x <= selfwarp[hueindex].ceiling))){
             vec2 thisvec = floorbound2D - focalpoint;
             farthestdist = thisvec.magnitude();
-            printf("initial boundary for floor slice  %i is ok\n", hueindex);
+            //printf("initial boundary for floor slice  %i is ok\n", hueindex);
             // don't need to set the boundary point b/c already did
         }
         for (int i=0; i<(int)impingingslices[hueindex].size(); i++){
@@ -950,7 +950,7 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
                 if (thisdist > farthestdist){
                     farthestdist = thisdist;
                     farthestbound = somebound;
-                    printf("expanding boundary for floor slice %i with boundary from impinging slince %i\n", hueindex, impingingslices[hueindex][i].index);
+                    //printf("expanding boundary for floor slice %i with boundary from impinging slince %i\n", hueindex, impingingslices[hueindex][i].index);
                 }
             }
         }
@@ -980,7 +980,7 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
                 vec2 thisvec = ceilbound2D - focalpoint;
                 farthestdist = thisvec.magnitude();
                 // don't need to set the boundary point b/c already did
-                printf("initial boundary for ceiling slice  %i is ok\n", ceilhueindex);
+                //printf("initial boundary for ceiling slice  %i is ok\n", ceilhueindex);
             }
             for (int i=0; i<(int)impingingslices[ceilhueindex].size(); i++){
                 vec2 somebound = getBoundary2D(color2D, focalpointluma, impingingslices[ceilhueindex][i].index, boundtype);
@@ -990,7 +990,7 @@ vec3 gamutdescriptor::getBoundary3D(vec3 color, double focalpointluma, int huein
                     if (thisdist > farthestdist){
                         farthestdist = thisdist;
                         farthestbound = somebound;
-                        printf("expanding boundary for ceiling slice %i with boundary from impinging slince %i\n", ceilhueindex, impingingslices[ceilhueindex][i].index);
+                        //printf("expanding boundary for ceiling slice %i with boundary from impinging slince %i\n", ceilhueindex, impingingslices[ceilhueindex][i].index);
                     }
                 }
             }
