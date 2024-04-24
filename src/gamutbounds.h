@@ -73,6 +73,7 @@ public:
     int impingingslicecount[HUE_STEPS];
     std::vector<warprange> impingingslices[HUE_STEPS];
     warprange selfwarp[HUE_STEPS];
+    double matrixChunghwa[3][3];
     
     // Spiral CARMISA needs a bunch of variables precomputed
     // primary and secondary color JzCzhz coordinates
@@ -129,6 +130,7 @@ public:
     bool initializeInverseMatrixNPM();
     bool initializeChromaticAdaptationToD65();
     bool initializePolarPrimaries(bool dosc, double scfloor, double scceil, double scexp, int scmode, int verbose);
+    void initializeMatrixChunghwa(gamutdescriptor &othergamut);
     // checks if the supplied JzCzhz color is within this gamut.
     // if not, also sets errorsize to the sum of linear rgb over/underruns.
     // (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)

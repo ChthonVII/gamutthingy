@@ -54,6 +54,26 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
         double newweight = 1.0 - oldweight;
         outcolor = (linearinputcolor * oldweight) + (outcolor * newweight);
     }
+    else if ((mapmode == MAP_CCC_B) || (mapmode == MAP_CCC_C)){
+        
+        // apply the "Chunghwa" matrix
+        vec3 corrected = multMatrixByColor(destgamut.matrixChunghwa, linearinputcolor);
+        
+        if (mapmode == MAP_CCC_C){
+            vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
+            vec3 accurate = destgamut.XYZtoLinearRGB(tempcolor);
+            double maxP = sourcegamut.linearRGBfindmaxP(linearinputcolor);
+            double cccweight = cubichermitemap(0.0, 1.0, maxP);
+            double accurateweight = 1.0 - cccweight;
+            corrected = (corrected * cccweight) + (accurate * accurateweight); 
+        }
+        
+        // we don't need to clamp here b/c the RGB8 quantizer will clamp for us later
+        
+        
+        outcolor = corrected;
+        
+    }
     else {
         outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
     }
@@ -185,6 +205,12 @@ int main(int argc, const char **argv){
             }
             else if (strcmp(argv[i], "ccca") == 0){
                 mapmode = MAP_CCC_A;
+            }
+            else if (strcmp(argv[i], "cccb") == 0){
+                mapmode = MAP_CCC_B;
+            }
+            else if (strcmp(argv[i], "cccc") == 0){
+                mapmode = MAP_CCC_C;
             }
             else {
                 printf("Invalid parameter for mapping mode. Expecting \"clip\", \"compress\", \"expand\", or \"ccca\".\n");
@@ -769,6 +795,10 @@ int main(int argc, const char **argv){
     
     gamutdescriptor destgamut;
     bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled);
+    
+    if ((mapmode == MAP_CCC_B) || (mapmode == MAP_CCC_C)){
+        destgamut.initializeMatrixChunghwa(sourcegamut);
+    }
     
     if (! srcOK || !destOK){
         printf("Gamut descriptor initialization failed. All is lost. Abandon ship.\n");

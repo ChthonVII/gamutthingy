@@ -278,6 +278,30 @@ bool gamutdescriptor::initializePolarPrimaries(bool dosc, double scfloor, double
     return true;
 }
 
+void gamutdescriptor::initializeMatrixChunghwa(gamutdescriptor &othergamut){
+    
+    double dummy; // this color correction circuit doesn't care what it does to luma
+    
+    // figure out the correction matrix
+    vec3 redweights = xyYhillclimb(othergamut.redpoint.x, othergamut.redpoint.y, LOCKRED, dummy);
+    vec3 greenweights = xyYhillclimb(othergamut.greenpoint.x, othergamut.greenpoint.y, LOCKGREEN, dummy);
+    vec3 blueweights = xyYhillclimb(othergamut.bluepoint.x, othergamut.bluepoint.y, LOCKBLUE, dummy);
+    
+    matrixChunghwa[0][0] = redweights.x;
+    matrixChunghwa[0][1] = greenweights.x;
+    matrixChunghwa[0][2] = blueweights.x;
+    
+    matrixChunghwa[1][0] = redweights.y;
+    matrixChunghwa[1][1] = greenweights.y;
+    matrixChunghwa[1][2] = blueweights.y;
+    
+    matrixChunghwa[2][0] = redweights.z;
+    matrixChunghwa[2][1] = greenweights.z;
+    matrixChunghwa[2][2] = blueweights.z;
+    
+    return;
+}
+
 vec3 gamutdescriptor::linearRGBtoXYZ(vec3 input){
     if (needschromaticadapt){
         return multMatrixByColor(matrixNPMadaptToD65, input);
