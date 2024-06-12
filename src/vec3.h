@@ -66,4 +66,7 @@ vec3 Depolarize(vec3 input);
 // convert xyY to XYZ
 vec3 xyYtoXYZ(vec3 input);
 
+//convert XYZ to xyY
+vec3 XYZtoxyY(vec3 input);
+
 #endif

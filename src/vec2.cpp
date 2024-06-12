@@ -86,3 +86,9 @@ bool isBetween2D(vec2 A, vec2 B, vec2 C){
         (((A.y >= B.y) && (B.y >= C.y)) || ((A.y <= B.y) && (B.y <= C.y)))
     );
 }
+
+double distance2D(vec2 A, vec2 B){
+    double xdiff = B.x - A.x;
+    double ydiff = B.y - A.y;
+    return sqrt((xdiff * xdiff) + (ydiff * ydiff));
+}

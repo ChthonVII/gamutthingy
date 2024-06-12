@@ -114,3 +114,15 @@ vec3 xyYtoXYZ(vec3 input){
     double Z = ((1.0 - input.x - input.y) * input.z)/input.y;
     return vec3(X, input.z, Z);
 }
+
+vec3 XYZtoxyY(vec3 input){
+    /*
+    x= X/(X+Y+Z)
+    y= Y/(X+Y+Z)
+    Y=Y
+    */
+    double sum = input.x + input.y + input.z;
+    double x = input.x/sum;
+    double y = input.y/sum;
+    return vec3(x, y, input.y);
+}

@@ -25,8 +25,10 @@
 #define MAP_CCC_A 1
 #define MAP_CCC_B 2
 #define MAP_CCC_C 3
-#define MAP_COMPRESS 4
-#define MAP_EXPAND 5
+#define MAP_CCC_D 4
+#define MAP_CCC_E 5
+#define MAP_COMPRESS 6
+#define MAP_EXPAND 7
 #define MAP_FIRST_COMPRESS MAP_COMPRESS // lowest numbered option involving gamut compression
 
 #define MAP_GCUSP 0

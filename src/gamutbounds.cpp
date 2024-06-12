@@ -278,7 +278,8 @@ bool gamutdescriptor::initializePolarPrimaries(bool dosc, double scfloor, double
     return true;
 }
 
-void gamutdescriptor::initializeMatrixChunghwa(gamutdescriptor &othergamut){
+// run this for the dest gamut, with the source as othergamut
+void gamutdescriptor::initializeMatrixChunghwa(gamutdescriptor &othergamut, int verbose){
     
     double dummy; // this color correction circuit doesn't care what it does to luma
     
@@ -299,7 +300,370 @@ void gamutdescriptor::initializeMatrixChunghwa(gamutdescriptor &othergamut){
     matrixChunghwa[2][1] = greenweights.z;
     matrixChunghwa[2][2] = blueweights.z;
     
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Chunghwa Matrix:\n");
+        print3x3matrix(matrixChunghwa);
+    }
+    
     return;
+}
+
+// run this for source gamut, with the dest as othergamut
+bool gamutdescriptor::initializeKinoshitaStuff(gamutdescriptor &othergamut, int verbose){
+    
+    // white point in xyY space. (x, y components should be the same in both gamuts)
+    vec2 W = vec2(whitepoint.x, whitepoint.y);
+    
+    // spec RGB points in xyY space (called R,G,B in the patent)
+    // we avoid using these b/c some of the geometry stuff is bypassed with xyYhillclimb()
+    //vec2 Rspec = vec2(redpoint.x, redpoint.y);
+    //vec2 Gspec = vec2(greenpoint.x, greenpoint.y);
+    //vec2 Bspec = vec2(bluepoint.x, bluepoint.y);
+    
+    // phosphor RGB points in xyY space (called *R, *G, *B in the patent)
+    vec2 Rphos = vec2(othergamut.redpoint.x, othergamut.redpoint.y);
+    vec2 Gphos = vec2(othergamut.greenpoint.x, othergamut.greenpoint.y);
+    vec2 Bphos = vec2(othergamut.bluepoint.x, othergamut.bluepoint.y);
+    
+    // phosphor luminance ratio at whitepoint
+    double LWr = othergamut.matrixNPM[1][0];
+    double LWg = othergamut.matrixNPM[1][1];
+    double LWb = othergamut.matrixNPM[1][2];
+    
+    printf("LWr %f, LWg %f, LWb %f\n", LWr, LWg, LWb);
+    
+    // "Optimal" luminances at *R *G *B
+    // The hillclimb approach used here yields the same answer as all the colorspace geometry stuff in the patent, with less rounding errors
+    // find a xyY value with xy at *R (or *G or *B) that converts via spec primaries to linear RGB input with 1.0 R (or G or B)
+    // then take Y
+    double LRr;
+    double LGg;
+    double LBb;
+    xyYhillclimb(Rphos.x, Rphos.y, LOCKRED, LRr);
+    xyYhillclimb(Gphos.x, Gphos.y, LOCKGREEN, LGg);
+    xyYhillclimb(Bphos.x, Bphos.y, LOCKBLUE, LBb);
+    
+    printf("LRr %f, LGg %f, LBb %f\n", LRr, LGg, LBb);
+    
+    // normalize those so they add to 1 (called LRr', LGg', LBb' in the patent)
+    double somesum = LRr + LGg + LBb;
+    double LRrnorm = LRr/somesum;
+    double LGgnorm = LGg/somesum;
+    double LBbnorm = LBb/somesum;
+    
+    printf("LRr' %f, LGg' %f, LBb' %f\n", LRrnorm, LGgnorm, LBbnorm);
+    
+    // find the secondary color points in xyY space for both gamuts via matrix NPM (called M, Y, C, *M, *Y, *C in the patent)
+    // (again, simpler and less rounding errors than the geometric approach)
+    vec2 Mspec, Yspec, Cspec, Mphos, Yphos, Cphos;
+    vec3 tempcolorrgb;
+    vec3 tempcolorXYZ;
+    vec3 tempcolorxyY;
+    
+    tempcolorrgb = vec3(1.0, 0.0, 1.0);
+    tempcolorXYZ = multMatrixByColor(matrixNPM, tempcolorrgb);
+    tempcolorxyY = XYZtoxyY(tempcolorXYZ);
+    Mspec = vec2(tempcolorxyY.x, tempcolorxyY.y);
+    tempcolorXYZ = multMatrixByColor(othergamut.matrixNPM, tempcolorrgb);
+    tempcolorxyY = XYZtoxyY(tempcolorXYZ);
+    Mphos = vec2(tempcolorxyY.x, tempcolorxyY.y);
+    
+    tempcolorrgb = vec3(1.0, 1.0, 0.0);
+    tempcolorXYZ = multMatrixByColor(matrixNPM, tempcolorrgb);
+    tempcolorxyY = XYZtoxyY(tempcolorXYZ);
+    Yspec = vec2(tempcolorxyY.x, tempcolorxyY.y);
+    tempcolorXYZ = multMatrixByColor(othergamut.matrixNPM, tempcolorrgb);
+    tempcolorxyY = XYZtoxyY(tempcolorXYZ);
+    Yphos = vec2(tempcolorxyY.x, tempcolorxyY.y);
+    
+    tempcolorrgb = vec3(0.0, 1.0, 1.0);
+    tempcolorXYZ = multMatrixByColor(matrixNPM, tempcolorrgb);
+    tempcolorxyY = XYZtoxyY(tempcolorXYZ);
+    Cspec = vec2(tempcolorxyY.x, tempcolorxyY.y);
+    tempcolorXYZ = multMatrixByColor(othergamut.matrixNPM, tempcolorrgb);
+    tempcolorxyY = XYZtoxyY(tempcolorXYZ);
+    Cphos = vec2(tempcolorxyY.x, tempcolorxyY.y);
+ 
+    /*
+    Unfortunately, I can't think of a way to avoid the geometry stuff for this next part.
+    Find points M’, Y’, C’ by finding intersection of white to spec secondary and line between phosphor primaries
+    Find input value for phosphor primary by taking ratio of distance other primary to prime secondary over distance other primary to phosphor secondary
+    (e.g., take blue-to-cyan distances to get greenness at cyan)
+    Then multiply this value by phosphor luma ratio
+    */
+    vec2 Mprime, Yprime, Cprime;
+    bool isOK = true;
+    isOK &= lineIntersection2D(W, Mspec, Bphos, Rphos, Mprime);
+    isOK &= lineIntersection2D(W, Yspec, Rphos, Gphos, Yprime);
+    isOK &= lineIntersection2D(W, Cspec, Gphos, Bphos, Cprime);
+    if (!isOK){
+        printf("Unexpected parallel lines in initializeKinoshitaStuff()\n");
+        return false;
+    }
+    
+    double LMr, LMb, LYr, LYg, LCb, LCg;
+    
+    double RphosToMphos = distance2D(Rphos, Mphos);
+    double RphosToMprime = distance2D(Rphos, Mprime);
+    double Mprimeblueness = RphosToMprime/RphosToMphos;
+    LMb = Mprimeblueness * LWb;
+    
+    double BphosToMphos = distance2D(Bphos, Mphos);
+    double BphosToMprime = distance2D(Bphos, Mprime);
+    double Mprimeredness = BphosToMprime/BphosToMphos;
+    LMr = Mprimeredness * LWr;
+    
+    double RphosToYphos = distance2D(Rphos, Yphos);
+    double RphosToYprime = distance2D(Rphos, Yprime);
+    double Yprimegreenness = RphosToYprime/RphosToYphos;
+    LYg = Yprimegreenness * LWg;
+    
+    double GphosToYphos = distance2D(Gphos, Yphos);
+    double GphosToYprime = distance2D(Gphos, Yprime);
+    double Yprimeredness = GphosToYprime/GphosToYphos;
+    LYr = Yprimeredness * LWr;
+    
+    double BphosToCphos = distance2D(Bphos, Cphos);
+    double BphosToCprime = distance2D(Bphos, Cprime);
+    double Cprimegreenness = BphosToCprime/BphosToCphos;
+    LCg = Cprimegreenness * LWg;
+    
+    double GphosToCphos = distance2D(Gphos, Cphos);
+    double GphosToCprime = distance2D(Gphos, Cprime);
+    double Cprimeblueness = GphosToCprime/GphosToCphos;
+    LCb = Cprimeblueness * LWb;
+    
+    printf("LMr %f, LMb %f, LYr %f, LYg %f, LCb %f, LCg %f\n", LMr, LMb, LYr, LYg, LCb, LCg);
+    
+    // normalize secondary color luminosities so they add to the sum of normalized primaries' luminosities
+    double primarysum;
+    double secondarysum;
+    
+    primarysum = LRrnorm + LBbnorm;
+    secondarysum = LMr + LMb;
+    double LMrnorm = (LMr/secondarysum)*primarysum;
+    double LMbnorm = (LMb/secondarysum)*primarysum;
+    
+    primarysum = LRrnorm + LGgnorm;
+    secondarysum = LYr + LYg;
+    double LYrnorm = (LYr/secondarysum)*primarysum;
+    double LYgnorm = (LYg/secondarysum)*primarysum;
+    
+    primarysum = LGgnorm + LBbnorm;
+    secondarysum = LCg + LCb;
+    double LCgnorm = (LCg/secondarysum)*primarysum;
+    double LCbnorm = (LCb/secondarysum)*primarysum;
+    
+    printf("LMr' %f, LMb' %f, LYr' %f, LYg' %f, LCb' %f, LCg' %f\n", LMrnorm, LMbnorm, LYrnorm, LYgnorm, LCgnorm, LCbnorm);
+    
+    // now calculate correction values according to proportions to largest normalized luma for that primary
+    double rmax = LWr;
+    if (LRrnorm > rmax){
+        rmax = LRrnorm;
+    }
+    if (LMrnorm > rmax){
+        rmax = LMrnorm;
+    }
+    if (LYrnorm > rmax){
+        rmax = LYrnorm;
+    }
+    double Rw = LWr/rmax;
+    double Rs = LRrnorm/rmax;
+    double Ry = LYrnorm/rmax;
+    double Rm = LMrnorm/rmax;
+    
+    double gmax = LWg;
+    if (LGgnorm > gmax){
+        gmax = LGgnorm;
+    }
+    if (LYgnorm > gmax){
+        gmax = LYgnorm;
+    }
+    if (LCgnorm > gmax){
+        gmax = LCgnorm;
+    }
+    double Gw = LWg/gmax;
+    double Gs = LGgnorm/gmax;
+    double Gy = LYgnorm/gmax;
+    double Gc = LCgnorm/gmax;
+    
+    double bmax = LWb;
+    if (LBbnorm > bmax){
+        bmax = LBbnorm;
+    }
+    if (LMbnorm > bmax){
+        bmax = LMbnorm;
+    }
+    if (LCbnorm > bmax){
+        bmax = LCbnorm;
+    }
+    double Bw = LWb/bmax;
+    double Bs = LBbnorm/bmax;
+    double Bm = LMbnorm/bmax;
+    double Bc = LCbnorm/bmax;
+    
+    // now we are finally ready to prepare the correction matrices
+    KinoshitaS1Matrix[0][0] = Rs;
+    KinoshitaS1Matrix[0][1] = Ry - Rs;
+    KinoshitaS1Matrix[0][2] = Rw - Ry;
+    KinoshitaS1Matrix[1][0] = 0.0;
+    KinoshitaS1Matrix[1][1] = Gy;
+    KinoshitaS1Matrix[1][2] = Gw - Gy;
+    KinoshitaS1Matrix[2][0] = 0.0;
+    KinoshitaS1Matrix[2][1] = 0.0;
+    KinoshitaS1Matrix[2][2] = Bw;
+    
+    KinoshitaS2Matrix[0][0] = Ry;
+    KinoshitaS2Matrix[0][1] = 0.0;
+    KinoshitaS2Matrix[0][2] = Rw - Ry;
+    KinoshitaS2Matrix[1][0] = Gy - Gs;
+    KinoshitaS2Matrix[1][1] = Gs;
+    KinoshitaS2Matrix[1][2] = Gw - Gy;
+    KinoshitaS2Matrix[2][0] = 0.0;
+    KinoshitaS2Matrix[2][1] = 0.0;
+    KinoshitaS2Matrix[2][2] = Bw;
+    
+    KinoshitaS3Matrix[0][0] = Rw;
+    KinoshitaS3Matrix[0][1] = 0.0;
+    KinoshitaS3Matrix[0][2] = 0.0;
+    KinoshitaS3Matrix[1][0] = Gw - Gc;
+    KinoshitaS3Matrix[1][1] = Gs;
+    KinoshitaS3Matrix[1][2] = Gc - Gs;
+    KinoshitaS3Matrix[2][0] = Bw - Bc;
+    KinoshitaS3Matrix[2][1] = 0.0;
+    KinoshitaS3Matrix[2][2] = Bc;
+    
+    KinoshitaS4Matrix[0][0] = Rw;
+    KinoshitaS4Matrix[0][1] = 0.0;
+    KinoshitaS4Matrix[0][2] = 0.0;
+    KinoshitaS4Matrix[1][0] = Gw - Gc;
+    KinoshitaS4Matrix[1][1] = Gc;
+    KinoshitaS4Matrix[1][2] = 0.0;
+    KinoshitaS4Matrix[2][0] = Bw - Bc;
+    KinoshitaS4Matrix[2][1] = Bc - Bs;
+    KinoshitaS4Matrix[2][2] = Bs;
+    
+    KinoshitaS5Matrix[0][0] = Rm;
+    KinoshitaS5Matrix[0][1] = Rw - Rm;
+    KinoshitaS5Matrix[0][2] = 0.0;
+    KinoshitaS5Matrix[1][0] = 0.0;
+    KinoshitaS5Matrix[1][1] = Gw;
+    KinoshitaS5Matrix[1][2] = 0.0;
+    KinoshitaS5Matrix[2][0] = Bm - Bs;
+    KinoshitaS5Matrix[2][1] = Bw - Bm;
+    KinoshitaS5Matrix[2][2] = Bs;
+    
+    KinoshitaS6Matrix[0][0] = Rs;
+    KinoshitaS6Matrix[0][1] = Rw - Rm;
+    KinoshitaS6Matrix[0][2] = Rm - Rs;
+    KinoshitaS6Matrix[1][0] = 0.0;
+    KinoshitaS6Matrix[1][1] = Gw;
+    KinoshitaS6Matrix[1][2] = 0.0;
+    KinoshitaS6Matrix[2][0] = 0.0;
+    KinoshitaS6Matrix[2][1] = Bw - Bm;
+    KinoshitaS6Matrix[2][2] = Bm;
+    
+    KinoshitaS7Matrix[0][0] = Rs;
+    KinoshitaS7Matrix[0][1] = Ry - Rs;
+    KinoshitaS7Matrix[0][2] = Rw - Ry;
+    KinoshitaS7Matrix[1][0] = Gy - Gs;
+    KinoshitaS7Matrix[1][1] = Gs;
+    KinoshitaS7Matrix[1][2] = Gw - Gy;
+    KinoshitaS7Matrix[2][0] = 0.0;
+    KinoshitaS7Matrix[2][1] = 0.0;
+    KinoshitaS7Matrix[2][2] = Bw;
+    
+    KinoshitaS8Matrix[0][0] = Rw;
+    KinoshitaS8Matrix[0][1] = 0.0;
+    KinoshitaS8Matrix[0][2] = 0.0;
+    KinoshitaS8Matrix[1][0] = Gw - Gc;
+    KinoshitaS8Matrix[1][1] = Gs;
+    KinoshitaS8Matrix[1][2] = Gc - Gs;
+    KinoshitaS8Matrix[2][0] = Bw - Bc;
+    KinoshitaS8Matrix[2][1] = Bc - Bs;
+    KinoshitaS8Matrix[2][2] = Bs;
+    
+    KinoshitaS9Matrix[0][0] = Rs;
+    KinoshitaS9Matrix[0][1] = Rw - Rm;
+    KinoshitaS9Matrix[0][2] = Rm - Rs;
+    KinoshitaS9Matrix[1][0] = 0.0;
+    KinoshitaS9Matrix[1][1] = Gw;
+    KinoshitaS9Matrix[1][2] = 0.0;
+    KinoshitaS9Matrix[2][0] = Bm - Bs;
+    KinoshitaS9Matrix[2][1] = Bw - Bm;
+    KinoshitaS9Matrix[2][2] = Bs;
+    
+    KinoshitaS10Matrix[0][0] = Rs;
+    KinoshitaS10Matrix[0][1] = Rw - Rs;
+    KinoshitaS10Matrix[0][2] = 0.0;
+    KinoshitaS10Matrix[1][0] = 0.0;
+    KinoshitaS10Matrix[1][1] = Gw;
+    KinoshitaS10Matrix[1][2] = 0.0;
+    KinoshitaS10Matrix[2][0] = 0.0;
+    KinoshitaS10Matrix[2][1] = 0.0;
+    KinoshitaS10Matrix[2][2] = Bw;
+    
+    KinoshitaS11Matrix[0][0] = Rw;
+    KinoshitaS11Matrix[0][1] = 0.0;
+    KinoshitaS11Matrix[0][2] = 0.0;
+    KinoshitaS11Matrix[1][0] = 0.0;
+    KinoshitaS11Matrix[1][1] = Gs;
+    KinoshitaS11Matrix[1][2] = Gw - Gs; // patent says Gw - Gc, but that's different from how the other primary lines are done. Suspect typo.
+    KinoshitaS11Matrix[2][0] = 0.0;
+    KinoshitaS11Matrix[2][1] = 0.0;
+    KinoshitaS11Matrix[2][2] = Bw;
+    
+    KinoshitaS12Matrix[0][0] = Rw;
+    KinoshitaS12Matrix[0][1] = 0.0;
+    KinoshitaS12Matrix[0][2] = 0.0;
+    KinoshitaS12Matrix[1][0] = 0.0;
+    KinoshitaS12Matrix[1][1] = Gw;
+    KinoshitaS12Matrix[1][2] = 0.0;
+    KinoshitaS12Matrix[2][0] = Bw - Bs;
+    KinoshitaS12Matrix[2][1] = 0.0;
+    KinoshitaS12Matrix[2][2] = Bs;
+    
+    KinoshitaS13Matrix[0][0] = Rw;
+    KinoshitaS13Matrix[0][1] = 0.0;
+    KinoshitaS13Matrix[0][2] = 0.0;
+    KinoshitaS13Matrix[1][0] = 0.0;
+    KinoshitaS13Matrix[1][1] = Gw;
+    KinoshitaS13Matrix[1][2] = 0.0;
+    KinoshitaS13Matrix[2][0] = 0.0;
+    KinoshitaS13Matrix[2][1] = 0.0;
+    KinoshitaS13Matrix[2][2] = Bw;
+    
+    if (verbose >= VERBOSITY_SLIGHT){
+        printf("Kinoshita Matrix S1:\n");
+        print3x3matrix(KinoshitaS1Matrix);
+        printf("Kinoshita Matrix S2:\n");
+        print3x3matrix(KinoshitaS2Matrix);
+        printf("Kinoshita Matrix S3:\n");
+        print3x3matrix(KinoshitaS3Matrix);
+        printf("Kinoshita Matrix S4:\n");
+        print3x3matrix(KinoshitaS4Matrix);
+        printf("Kinoshita Matrix S5:\n");
+        print3x3matrix(KinoshitaS5Matrix);
+        printf("Kinoshita Matrix S6:\n");
+        print3x3matrix(KinoshitaS6Matrix);
+        printf("Kinoshita Matrix S7:\n");
+        print3x3matrix(KinoshitaS7Matrix);
+        printf("Kinoshita Matrix S8:\n");
+        print3x3matrix(KinoshitaS8Matrix);
+        printf("Kinoshita Matrix S9:\n");
+        print3x3matrix(KinoshitaS9Matrix);
+        printf("Kinoshita Matrix S10:\n");
+        print3x3matrix(KinoshitaS10Matrix);
+        printf("Kinoshita Matrix S11:\n");
+        print3x3matrix(KinoshitaS11Matrix);
+        printf("Kinoshita Matrix S12:\n");
+        print3x3matrix(KinoshitaS12Matrix);
+        printf("Kinoshita Matrix S13:\n");
+        print3x3matrix(KinoshitaS13Matrix);
+    }
+    
+    
+    return true;
 }
 
 vec3 gamutdescriptor::linearRGBtoXYZ(vec3 input){
@@ -1669,11 +2033,11 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
     
     // if spiralcarisma is enabled, rotate the input
     if (dospiralcarisma){
-        printf("rotating hue from %f", Jcolor.z);
+        //printf("rotating hue from %f", Jcolor.z);
         double huerotation = sourcegamut.FindHueRotation(Jcolor);
         Jcolor.z = AngleAdd(Jcolor.z, huerotation);
         Joutput.z = Jcolor.z;
-        printf(" to %f\n", Jcolor.z);
+        //printf(" to %f\n", Jcolor.z);
     }
     
     // find the index for the hue angle
@@ -1999,5 +2363,125 @@ double gamutdescriptor::linearRGBfindmaxP(vec3 input){
     if (Pb > output){
         output = Pb;
     }
+    return output;
+}
+
+// figure out the applicable Kinoshita matrix and multiply it by the input (used by CCC_D and CCC_E)
+vec3 gamutdescriptor::KinoshitaMultiply(vec3 input){
+    vec3 output;
+    int select  = 0;
+    // R == G
+    if (input.x == input.y){
+        // R == G == B
+        if (input.x == input.z){
+            select = 13;
+        }
+        // R == G > B
+        else if (input.x > input.z){
+            select = 7;
+        }
+        // B > R == G
+        else {
+            select = 12;
+        }
+    }
+    // R > G
+    else if (input.x > input.y){
+        // R > G == B
+        if (input.y == input.z){
+            select = 10;
+        }
+        // R > G > B
+        else if (input.y > input.z){
+            select  = 1;
+        }
+        else {
+            // R == B > G
+            if (input.x == input.z){
+                select = 9;
+            }
+            // R > B > G
+            else  if (input.x > input.z){
+                select = 6;
+            }
+            // B > R > G
+            else {
+                select = 5;
+            }
+        }
+    }
+    // G > R
+    else {
+        // G > R == B
+        if (input.x == input.z){
+            select = 11;
+        }
+        // G > R > B
+        else  if (input.x > input.z){
+            select  = 2;
+        }
+        else {
+            // G == B > R
+            if (input.y == input.z){
+                select = 8;
+            }
+            // G > B > R
+            else if (input.y > input.z){
+                select = 3;
+            }
+            // B > G > R
+            else {
+                select = 4;
+            }
+        }
+    }
+    
+    //printf("select is %i\n", select);
+    
+    switch(select){
+        case 1:
+            output = multMatrixByColor(KinoshitaS1Matrix, input);
+            break;
+        case 2:
+            output = multMatrixByColor(KinoshitaS2Matrix, input);
+            break;
+        case 3:
+            output = multMatrixByColor(KinoshitaS3Matrix, input);
+            break;
+        case 4:
+            output = multMatrixByColor(KinoshitaS4Matrix, input);
+            break;
+        case 5:
+            output = multMatrixByColor(KinoshitaS5Matrix, input);
+            break;
+        case 6:
+            output = multMatrixByColor(KinoshitaS6Matrix, input);
+            break;
+        case 7:
+            output = multMatrixByColor(KinoshitaS7Matrix, input);
+            break;
+        case 8:
+            output = multMatrixByColor(KinoshitaS8Matrix, input);
+            break;
+        case 9:
+            output = multMatrixByColor(KinoshitaS9Matrix, input);
+            break;
+        case 10:
+            output = multMatrixByColor(KinoshitaS10Matrix, input);
+            break;
+        case 11:
+            output = multMatrixByColor(KinoshitaS11Matrix, input);
+            break;
+        case 12:
+            output = multMatrixByColor(KinoshitaS12Matrix, input);
+            break;
+        case 13:
+            output = multMatrixByColor(KinoshitaS13Matrix, input);
+            break;
+        default:
+            printf("Serious error in KinoshitaMultiply()!!\n");
+            break;
+    }
+    
     return output;
 }

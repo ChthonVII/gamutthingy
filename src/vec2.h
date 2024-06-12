@@ -60,4 +60,6 @@ bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output);
 // assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
 bool isBetween2D(vec2 A, vec2 B, vec2 C);
 
+double distance2D(vec2 A, vec2 B);
+
 #endif

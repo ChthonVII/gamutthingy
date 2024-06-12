@@ -74,6 +74,20 @@ public:
     std::vector<warprange> impingingslices[HUE_STEPS];
     warprange selfwarp[HUE_STEPS];
     double matrixChunghwa[3][3];
+    double KinoshitaS1Matrix[3][3];
+    double KinoshitaS2Matrix[3][3];
+    double KinoshitaS3Matrix[3][3];
+    double KinoshitaS4Matrix[3][3];
+    double KinoshitaS5Matrix[3][3];
+    double KinoshitaS6Matrix[3][3];
+    double KinoshitaS7Matrix[3][3];
+    double KinoshitaS8Matrix[3][3];
+    double KinoshitaS9Matrix[3][3];
+    double KinoshitaS10Matrix[3][3];
+    double KinoshitaS11Matrix[3][3];
+    double KinoshitaS12Matrix[3][3];
+    double KinoshitaS13Matrix[3][3];
+
     
     // Spiral CARMISA needs a bunch of variables precomputed
     // primary and secondary color JzCzhz coordinates
@@ -130,7 +144,8 @@ public:
     bool initializeInverseMatrixNPM();
     bool initializeChromaticAdaptationToD65();
     bool initializePolarPrimaries(bool dosc, double scfloor, double scceil, double scexp, int scmode, int verbose);
-    void initializeMatrixChunghwa(gamutdescriptor &othergamut);
+    void initializeMatrixChunghwa(gamutdescriptor &othergamut, int verbose);
+    bool initializeKinoshitaStuff(gamutdescriptor &othergamut, int verbose);
     // checks if the supplied JzCzhz color is within this gamut.
     // if not, also sets errorsize to the sum of linear rgb over/underruns.
     // (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
@@ -177,6 +192,9 @@ public:
     // output the linear RGB triplet and set Y to the Y value
     // (this function is used by color correction circuits)
     vec3 xyYhillclimb(double x, double y, int lockcolor, double &Y);
+    
+    // figure out the applicable Kinoshita matrix and multiply it by the input (used by CCC_D and CCC_E)
+    vec3 KinoshitaMultiply(vec3 input);
     
     // Finds the rotation (in radians) to be applied to each primary/secondary color.
     // If the primary/secondary color is representable in the destination gamut, then 0.
