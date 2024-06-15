@@ -198,12 +198,13 @@ public:
     
     // Finds the rotation (in radians) to be applied to each primary/secondary color.
     // If the primary/secondary color is representable in the destination gamut, then 0.
-    // If the primary/secondary color is not representable in the destination gamut...
-    // ...and if its luma and chroma at the destination gamut's primary's/secondary's hue angle would be in bounds,
-    //          or would be out of bounds, but less far,
-    //          then the primary's/secondary's hue angle minus 
-    // ...but if the rotated color would be at least equally far out of bounds, then 0.
-    void FindPrimaryRotations(gamutdescriptor &othergamut, double maxscale, int verbose);
+    // If the primary/secondary color is not representable in the destination gamut, then check
+    // a) the color that the primary/secondary color compresses to, and b)
+    // b) the color that you get by rotating hue to match the hue of destination gamut's primary/secondary, and then compressing.
+    // If the distance from the original color to the compressed color is larger than the distance from the original color to the rotated and compressed color,
+    // then the destination gamut's primary/secondary's hue angle minus the source gamut's primary/secondary's hue angle.
+    // Else 0.
+    void FindPrimaryRotations(gamutdescriptor &othergamut, double maxscale, int verbose, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype);
     
     // finds the max rotation in radians for a given hue
     double FindHueMaxRotation(double hue);

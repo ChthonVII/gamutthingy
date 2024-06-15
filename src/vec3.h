@@ -58,6 +58,8 @@ double DotProduct(vec3 A, vec3 B);
 
 vec3 CrossProduct(vec3 A, vec3 B);
 
+double Distance3D(vec3 A, vec3 B);
+
 // converts LAB-style colorspaces to their polar LCh-style cousins, or vice versa
 // h is in radians
 vec3 Polarize(vec3 input);

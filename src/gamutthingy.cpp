@@ -848,7 +848,7 @@ int main(int argc, const char **argv){
             printf("Gamut descriptor initialization failed in primary/secondary rotation. All is lost. Abandon ship.\n");
             return GAMUT_INITIALIZE_FAIL_SPIRAL;
         }
-        sourcegamut.FindPrimaryRotations(destgamut, scmax, verbosity);
+        sourcegamut.FindPrimaryRotations(destgamut, scmax, verbosity, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
         
         sourcegamut.WarpBoundaries();
         

@@ -126,3 +126,10 @@ vec3 XYZtoxyY(vec3 input){
     double y = input.y/sum;
     return vec3(x, y, input.y);
 }
+
+double Distance3D(vec3 A, vec3 B){
+    double dx = A.x - B.x;
+    double dy = A.y - B.y;
+    double dz = A.z - B.z;
+    return std::sqrt((dx * dx) + (dy * dy) + (dz * dz));
+}
