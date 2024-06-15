@@ -18,8 +18,9 @@
 #define GAMUT_NTSCJ_R 1
 #define GAMUT_NTSCJ_B 2
 #define GAMUT_NTSCJ_P22 3
-#define GAMUT_SMPTEC 4
-#define GAMUT_EBU 5
+#define GAMUT_NTSCJ_EBU 4
+#define GAMUT_SMPTEC 5
+#define GAMUT_EBU 6
     
 #define MAP_CLIP 0
 #define MAP_CCC_A 1
@@ -105,16 +106,17 @@ const double CAT16Matrix[3][3] = {
 
 
 
-const std::string gamutnames[6] = {
+const std::string gamutnames[7] = {
     "sRGB / bt709",
-    "NTSC-J (television set receiver)",
-    "NTSC-J (broadcast)",
+    "NTSC-J (television set receiver specification)",
+    "NTSC-J (broadcast specification)",
     "NTSC-J (P22 phosphors)",
+    "NTSC-J (EBU phosphors)",
     "SMPTE-C",
     "EBU (470bg)"
 };
 
-const double gamutpoints[6][4][3] = {
+const double gamutpoints[7][4][3] = {
     // srgb
     {
         {0.312713, 0.329016, 0.358271}, //white
@@ -146,6 +148,16 @@ const double gamutpoints[6][4][3] = {
         {0.625, 0.350, 0.025}, //red
         {0.280, 0.605, 0.115}, //green
         {0.152, 0.062, 0.786} //blue
+    },
+    // ntscj (EBU phosphors noted in a 1992 Toshiba patent, whitepoint 9300K+27mpcd)
+    // see: https://patents.google.com/patent/US5301017A/en?oq=+5%2c301%2c017
+    // The patent describes these as “the phosphor in a cathode ray tube(CRT) used in the typical television receiver”
+    // Other sources say EBU phosphors were limited to professional and possibly high-end consumer models.
+    {
+        {0.281, 0.311, 0.408}, //white
+        {0.657, 0.338, 0.005}, //red
+        {0.297, 0.609, 0.094}, //green
+        {0.148, 0.054, 0.798} //blue
     },
     // smptec
     {

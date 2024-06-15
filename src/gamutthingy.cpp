@@ -176,6 +176,9 @@ int main(int argc, const char **argv){
             else if (/*(strcmp(argv[i], "ntscj") == 0) ||*/ (strcmp(argv[i], "ntscjp22") == 0)){
                 sourcegamutindex = GAMUT_NTSCJ_P22;
             }
+            else if (strcmp(argv[i], "ntscjebu") == 0){
+                sourcegamutindex = GAMUT_NTSCJ_EBU;
+            }
             else if (strcmp(argv[i], "smptec") == 0){
                 sourcegamutindex = GAMUT_SMPTEC;
             }
@@ -183,7 +186,7 @@ int main(int argc, const char **argv){
                 sourcegamutindex = GAMUT_EBU;
             }
             else {
-                printf("Invalid parameter for source gamut. Expecting \"srgb\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"smptec\", or \"ebu\".\n");
+                printf("Invalid parameter for source gamut. Expecting \"srgb\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"ntscjp22\", \"ntscjebu\", \"smptec\", or \"ebu\".\n");
                 return ERROR_BAD_PARAM_SOURCE_GAMUT;
             }
             expect  = 0;
@@ -201,6 +204,9 @@ int main(int argc, const char **argv){
             else if (/*(strcmp(argv[i], "ntscj") == 0) ||*/ (strcmp(argv[i], "ntscjp22") == 0)){
                 destgamutindex = GAMUT_NTSCJ_P22;
             }
+            else if (strcmp(argv[i], "ntscjebu") == 0){
+                destgamutindex = GAMUT_NTSCJ_EBU;
+            }
             else if (strcmp(argv[i], "smptec") == 0){
                 destgamutindex = GAMUT_SMPTEC;
             }
@@ -208,7 +214,7 @@ int main(int argc, const char **argv){
                 destgamutindex = GAMUT_EBU;
             }
             else {
-                printf("Invalid parameter for destination gamut. Expecting \"srgb\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"ntscjp22\", \"smptec\", or \"ebu\".\n");
+                printf("Invalid parameter for destination gamut. Expecting \"srgb\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"ntscjp22\", \"ntscjebu\" \"smptec\", or \"ebu\".\n");
                 return ERROR_BAD_PARAM_DEST_GAMUT;
             }
             expect  = 0;
