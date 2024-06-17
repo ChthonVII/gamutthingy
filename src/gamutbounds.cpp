@@ -1486,204 +1486,96 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
         printf("\n----------\nFinding primary/secondary rotations for %s towards %s...\n", gamutname.c_str(), othergamut.gamutname.c_str());
     }
     
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("Red: ");
-    }
-    redrotation = 0.0;
-    double error;
-    // if source primary is representable in dest gamut, no rotation needed
-    if (!othergamut.IsJzCzhzInBounds(adjpolarredpoint, error)){
-        if (verbose >= VERBOSITY_SLIGHT){
-            printf("not representable in destination gamut, ");
+    vec3 sourceprimary;
+    vec3 destprimary;
+    double* rotationptr;
+    for (int i = 0; i<6; i++){
+        switch(i){
+            case 0:
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("Red: ");
+                }
+                sourceprimary = adjpolarredpoint;
+                destprimary = othergamut.polarredpoint;
+                rotationptr = &redrotation;
+                break;
+            case 1:
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("Green: ");
+                }
+                sourceprimary = adjpolargreenpoint;
+                destprimary = othergamut.polargreenpoint;
+                rotationptr = &greenrotation;
+                break;
+            case 2:
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("Blue: ");
+                }
+                sourceprimary = adjpolarbluepoint;
+                destprimary = othergamut.polarbluepoint;
+                rotationptr = &bluerotation;
+                break;
+            case 3:
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("Yellow: ");
+                }
+                sourceprimary = adjpolaryellowpoint;
+                destprimary = othergamut.polaryellowpoint;
+                rotationptr = &yellowrotation;
+                break;
+            case 4:
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("Magenta: ");
+                }
+                sourceprimary = adjpolarmagentapoint;
+                destprimary = othergamut.polarmagentapoint;
+                rotationptr = &magentarotation;
+                break;
+            case 5:
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("Cyan: ");
+                }
+                sourceprimary = adjpolarcyanpoint;
+                destprimary = othergamut.polarcyanpoint;
+                rotationptr = &cyanrotation;
+                break;
+            default:
+                printf("Unreachable code reached in gamutdescriptor::FindPrimaryRotations()!\n");
+                break;
         }
-        // make sure rotation would be representable, or at least smaller error
-        vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(adjpolarredpoint), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        vec3 depored = Depolarize(adjpolarredpoint);
-        double nomovedist = Distance3D(Depolarize(compressedcolor), depored);
-        vec3 rotatedcolor = vec3(adjpolarredpoint.x, adjpolarredpoint.y, othergamut.polarredpoint.z);
-        vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        double movedist = Distance3D(Depolarize(compressedrotatedcolor), depored);
-        if (movedist < nomovedist){
-            redrotation = AngleDiff(othergamut.polarredpoint.z, adjpolarredpoint.z);
+        double error;
+        // if source primary is representable in dest gamut, no rotation needed
+        if (!othergamut.IsJzCzhzInBounds(sourceprimary, error)){
             if (verbose >= VERBOSITY_SLIGHT){
-                printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
+                printf("not representable in destination gamut, ");
+            }
+            // make sure rotation would be representable, or at least smaller error
+            // TODO: Fix this. mapColor is going to give wrong results for rotated option since boundaries haven't been recomputed yet
+            vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
+            vec3 depocolor = Depolarize(sourceprimary);
+            double nomovedist = Distance3D(Depolarize(compressedcolor), depocolor);
+            vec3 rotatedcolor = vec3(sourceprimary.x, sourceprimary.y, destprimary.z);
+            vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
+            double movedist = Distance3D(Depolarize(compressedrotatedcolor), depocolor);
+            if (movedist < nomovedist){
+                *rotationptr = AngleDiff(destprimary.z, sourceprimary.z);
+                if (verbose >= VERBOSITY_SLIGHT){
+                    printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
+                }
+            }
+            else if (verbose >= VERBOSITY_SLIGHT){
+                printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
             }
         }
         else if (verbose >= VERBOSITY_SLIGHT){
-            printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
+            printf("representable in destination gamut, ");
         }
-    }
-    else if (verbose >= VERBOSITY_SLIGHT){
-        printf("representable in destination gamut, ");
-    }
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("rotation is %f\n", redrotation);
-    }
-    
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("Green: ");
-    }
-    greenrotation = 0.0;
-    // if source primary is representable in dest gamut, no rotation needed
-    if (!othergamut.IsJzCzhzInBounds(adjpolargreenpoint, error)){
         if (verbose >= VERBOSITY_SLIGHT){
-            printf("not representable in destination gamut, ");
+            printf("rotation is %f\n", *rotationptr);
         }
-        // make sure rotation would be representable, or at least smaller error
-        vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(adjpolargreenpoint), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        vec3 depogreen = Depolarize(adjpolargreenpoint);
-        double nomovedist = Distance3D(Depolarize(compressedcolor), depogreen);
-        vec3 rotatedcolor = vec3(adjpolargreenpoint.x, adjpolargreenpoint.y, othergamut.polargreenpoint.z);
-        vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        double movedist = Distance3D(Depolarize(compressedrotatedcolor), depogreen);
-        if (movedist < nomovedist){
-            greenrotation = AngleDiff(othergamut.polargreenpoint.z, adjpolargreenpoint.z);
-            if (verbose >= VERBOSITY_SLIGHT){
-                printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-            }
-        }
-        else if (verbose >= VERBOSITY_SLIGHT){
-            printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-        }
-    }
-    else if (verbose >= VERBOSITY_SLIGHT){
-        printf("representable in destination gamut, ");
-    }
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("rotation is %f\n", greenrotation);
-    }
-    
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("Blue: ");
-    }
-    bluerotation = 0.0;
-    // if source primary is representable in dest gamut, no rotation needed
-    if (!othergamut.IsJzCzhzInBounds(adjpolarbluepoint, error)){
-        if (verbose >= VERBOSITY_SLIGHT){
-            printf("not representable in destination gamut, ");
-        }
-        // make sure rotation would be representable, or at least smaller error
-        vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(adjpolarbluepoint), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        vec3 depoblue = Depolarize(adjpolarbluepoint);
-        double nomovedist = Distance3D(Depolarize(compressedcolor), depoblue);
-        vec3 rotatedcolor = vec3(adjpolarbluepoint.x, adjpolarbluepoint.y, othergamut.polarbluepoint.z);
-        vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        double movedist = Distance3D(Depolarize(compressedrotatedcolor), depoblue);
-        if (movedist < nomovedist){
-            bluerotation = AngleDiff(othergamut.polarbluepoint.z, adjpolarbluepoint.z);
-            if (verbose >= VERBOSITY_SLIGHT){
-                printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-            }
-        }
-        else if (verbose >= VERBOSITY_SLIGHT){
-            printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-        }
-    }
-        else if (verbose >= VERBOSITY_SLIGHT){
-        printf("representable in destination gamut, ");
-    }
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("rotation is %f\n", bluerotation);
-    }
-    
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("Yellow: ");
-    }
-    yellowrotation = 0.0;
-    // if source primary is representable in dest gamut, no rotation needed
-    if (!othergamut.IsJzCzhzInBounds(adjpolaryellowpoint, error)){
-        if (verbose >= VERBOSITY_SLIGHT){
-            printf("not representable in destination gamut, ");
-        }
-        // make sure rotation would be representable, or at least smaller error
-        vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(adjpolaryellowpoint), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        vec3 depoyellow = Depolarize(adjpolaryellowpoint);
-        double nomovedist = Distance3D(Depolarize(compressedcolor), depoyellow);
-        vec3 rotatedcolor = vec3(adjpolaryellowpoint.x, adjpolaryellowpoint.y, othergamut.polaryellowpoint.z);
-        vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        double movedist = Distance3D(Depolarize(compressedrotatedcolor), depoyellow);
-        if (movedist < nomovedist){
-            yellowrotation = AngleDiff(othergamut.polaryellowpoint.z, adjpolaryellowpoint.z);
-            if (verbose >= VERBOSITY_SLIGHT){
-                printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-            }
-        }
-        else if (verbose >= VERBOSITY_SLIGHT){
-            printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-        }
-    }
-    else if (verbose >= VERBOSITY_SLIGHT){
-        printf("representable in destination gamut, ");
-    }
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("rotation is %f\n", yellowrotation);
-    }
-    
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("Magenta: ");
-    }
-    magentarotation = 0.0;
-    // if source primary is representable in dest gamut, no rotation needed
-    if (!othergamut.IsJzCzhzInBounds(adjpolarmagentapoint, error)){
-        if (verbose >= VERBOSITY_SLIGHT){
-            printf("not representable in destination gamut, ");
-        }
-        // make sure rotation would be representable, or at least smaller error
-        vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(adjpolarmagentapoint), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        vec3 depomagenta = Depolarize(adjpolarmagentapoint);
-        double nomovedist = Distance3D(Depolarize(compressedcolor), depomagenta);
-        vec3 rotatedcolor = vec3(adjpolarmagentapoint.x, adjpolarmagentapoint.y, othergamut.polarmagentapoint.z);
-        vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        double movedist = Distance3D(Depolarize(compressedrotatedcolor), depomagenta);
-        if (movedist < nomovedist){
-            magentarotation = AngleDiff(othergamut.polarmagentapoint.z, adjpolarmagentapoint.z);
-            if (verbose >= VERBOSITY_SLIGHT){
-                printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-            }
-        }
-        else if (verbose >= VERBOSITY_SLIGHT){
-            printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-        }
-    }
-    else if (verbose >= VERBOSITY_SLIGHT){
-        printf("representable in destination gamut, ");
-    }
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("rotation is %f\n", magentarotation);
-    }
-    
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("Cyan: ");
-    }
-    cyanrotation = 0.0;
-    // if source primary is representable in dest gamut, no rotation needed
-    if (!othergamut.IsJzCzhzInBounds(adjpolarcyanpoint, error)){
-        if (verbose >= VERBOSITY_SLIGHT){
-            printf("not representable in destination gamut, ");
-        }
-        // make sure rotation would be representable, or at least smaller error
-        vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(adjpolarcyanpoint), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        vec3 depocyan = Depolarize(adjpolarcyanpoint);
-        double nomovedist = Distance3D(Depolarize(compressedcolor), depocyan);
-        vec3 rotatedcolor = vec3(adjpolarcyanpoint.x, adjpolarcyanpoint.y, othergamut.polarcyanpoint.z);
-        vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
-        double movedist = Distance3D(Depolarize(compressedrotatedcolor), depocyan);
-        if (movedist < nomovedist){
-            cyanrotation = AngleDiff(othergamut.polarcyanpoint.z, adjpolarcyanpoint.z);
-            if (verbose >= VERBOSITY_SLIGHT){
-                printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-            }
-        }
-        else if (verbose >= VERBOSITY_SLIGHT){
-            printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
-        }
-    }
-    else if (verbose >= VERBOSITY_SLIGHT){
-        printf("representable in destination gamut, ");
-    }
-    if (verbose >= VERBOSITY_SLIGHT){
-        printf("rotation is %f\n", cyanrotation);
-    }
+        
+        
+    } // end for i<6
     
     if (maxscale < 1.0){
         if (verbose >= VERBOSITY_SLIGHT){
@@ -1707,14 +1599,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
         printf("\nAngular distances:\nRed to yellow: %f\nYellow to green: %f\nGreen to cyan: %f\nCyan to blue: %f\nBlue to magenta: %f\nMagenta to red: %f\n", redtoyellowpolardist, yellowtogreenpolardist, greentocyanpolardist, cyantobluepolardist, bluetomagentapolardist, magentatoredpolardist);
     }
     
-    /* no... these should just be raw subtraction since we will have negative inputs
-    redtoyellowrotatediff = AngleDiff(yellowrotation, redrotation);
-    yellowtogreenrotatediff = AngleDiff(greenrotation, yellowrotation);
-    greentocyanrotatediff = AngleDiff(cyanrotation, greenrotation);
-    cyantobluerotatediff  = AngleDiff(bluerotation, cyanrotation);
-    bluetomagentarotatediff = AngleDiff(magentarotation, bluerotation);
-    magentatoredrotatediff = AngleDiff(redrotation, magentarotation);
-    */
+    // these should just be raw subtraction since we will have negative inputs
     redtoyellowrotatediff = yellowrotation - redrotation;
     yellowtogreenrotatediff = greenrotation - yellowrotation;
     greentocyanrotatediff = cyanrotation - greenrotation;
