@@ -1543,6 +1543,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                 printf("Unreachable code reached in gamutdescriptor::FindPrimaryRotations()!\n");
                 break;
         }
+        *rotationptr = 0.0; //initialize to 0 each pass
         double error;
         // if source primary is representable in dest gamut, no rotation needed
         if (!othergamut.IsJzCzhzInBounds(sourceprimary, error)){
