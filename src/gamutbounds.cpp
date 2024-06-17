@@ -1550,14 +1550,60 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
             if (verbose >= VERBOSITY_SLIGHT){
                 printf("not representable in destination gamut, ");
             }
-            // make sure rotation would be representable, or at least smaller error
-            // TODO: Fix this. mapColor is going to give wrong results for rotated option since boundaries haven't been recomputed yet
+            // We want to compare just compressing the primary/secondary verus rotating to match hue with the destination's primary/secondary and then compressing
+            
+            // We can just use mapColor() for the unrotated possibility
             vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
             vec3 depocolor = Depolarize(sourceprimary);
             double nomovedist = Distance3D(Depolarize(compressedcolor), depocolor);
+            
+            // However, we can't use mapColor() for the rotated possibility because WarpBoundaries() hasn't been called yet. (And can't be called until this is done.)
+            // But we can take advatange of the fact that primaries/secondaries lie on the source gamut boundary and therefore should be mapping onto the destination gamut boundary. So we can use getBoundary3D() as a substitute.
             vec3 rotatedcolor = vec3(sourceprimary.x, sourceprimary.y, destprimary.z);
-            vec3 compressedrotatedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(rotatedcolor), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
+            vec3 compressedrotatedcolor;
+            double maptoluma;
+            double ceilweight;
+            int floorhueindex = hueToFloorIndex(rotatedcolor.z, ceilweight);
+            int ceilhueindex = floorhueindex + 1;
+            if (ceilhueindex == HUE_STEPS){
+                ceilhueindex = 0;
+            }
+            double floorcuspluma = othergamut.cusplumalist[floorhueindex];
+            double ceilcuspluma = othergamut.cusplumalist[ceilhueindex];
+            double cuspluma = ((1.0 - ceilweight) * floorcuspluma) + (ceilweight * ceilcuspluma);
+            int boundtype;
+            switch (mapdirection){
+                case MAP_GCUSP:
+                    maptoluma = cuspluma;
+                    boundtype = BOUND_NORMAL;
+                    compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
+                    break;
+                case MAP_HLPCM:
+                    maptoluma = rotatedcolor.x;
+                    boundtype = BOUND_NORMAL;
+                    compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
+                    break;
+                case MAP_VP:
+                    //fall through
+                case MAP_VPR:
+                    // if we are above the cusp, we should end up exactly on destination's primary/secondary
+                    if (rotatedcolor.x >= destprimary.x){
+                        compressedrotatedcolor = destprimary;
+                    }
+                    // otherwise we will move horizontally
+                    else {
+                        maptoluma = rotatedcolor.x;
+                        boundtype = BOUND_NORMAL;
+                        compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
+                    }
+                    break;
+                default:
+                    printf("Unreachable code reached in gamutdescriptor::FindPrimaryRotations()!\n");
+                    break;
+            }
             double movedist = Distance3D(Depolarize(compressedrotatedcolor), depocolor);
+            
+            // which is closer?
             if (movedist < nomovedist){
                 *rotationptr = AngleDiff(destprimary.z, sourceprimary.z);
                 if (verbose >= VERBOSITY_SLIGHT){
