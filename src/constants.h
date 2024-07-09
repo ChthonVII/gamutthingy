@@ -19,8 +19,11 @@
 #define GAMUT_NTSCJ_B 2
 #define GAMUT_NTSCJ_P22 3
 #define GAMUT_NTSCJ_EBU 4
-#define GAMUT_SMPTEC 5
-#define GAMUT_EBU 6
+#define GAMUT_NTSCJ_P22_TRINITRON 5
+#define GAMUT_NTSCU_P22_TRINITRON 6
+#define GAMUT_SMPTEC_P22_TRINITRON 7
+#define GAMUT_SMPTEC 8
+#define GAMUT_EBU 9
     
 #define MAP_CLIP 0
 #define MAP_CCC_A 1
@@ -106,17 +109,20 @@ const double CAT16Matrix[3][3] = {
 
 
 
-const std::string gamutnames[7] = {
+const std::string gamutnames[10] = {
     "sRGB / bt709",
     "NTSC-J (television set receiver specification)",
     "NTSC-J (broadcast specification)",
     "NTSC-J (P22 phosphors)",
     "NTSC-J (EBU phosphors)",
+    "NTSC-J (Trinitron P22 phosphors)",
+    "NTSC-U (Trinitron P22 phosphors)",
+    "SMPTE-C (Trinitron P22 phosphors)",
     "SMPTE-C",
     "EBU (470bg)"
 };
 
-const double gamutpoints[7][4][3] = {
+const double gamutpoints[10][4][3] = {
     // srgb
     {
         {0.312713, 0.329016, 0.358271}, //white
@@ -158,6 +164,35 @@ const double gamutpoints[7][4][3] = {
         {0.657, 0.338, 0.005}, //red
         {0.297, 0.609, 0.094}, //green
         {0.148, 0.054, 0.798} //blue
+    },
+    // NTSC-J with Trinitron P22 phosphors
+    // Color.org says that, according to “reference data… provided by the manufacturers,” these are chromaticities of Trinitron computer monitor phosphors. (+/- 0.03)
+    // see: https://www.color.org/wpaper1.xalter
+    // In 1997, some visual science researchers decided to measure the properties of their 1994-model GDM-17SE1 and got values very close to that.
+    // see: https://www.scholars.northwestern.edu/en/publications/characteristics-of-the-sony-multiscan-17se-trinitron-color-graphi
+    // Having no better data source, we just **ASSUME** Sony used the same phosphors in its 1994 Trinitron televisions as its 1994 Trinitron computer monitors.
+    // Reviewing service manuals on https://crtdatabase.com/ for overlapping tubes and demodulator chips suggests that there was no change of phosphors for Trinitron televisions from at least 1986 to 1999.
+    {
+        {0.281, 0.311, 0.408}, //white 9300K+27mpcd
+        {0.621, 0.34, 0.039}, //red
+        {0.281, 0.606, 0.113}, //green
+        {0.152, 0.067, 0.781} //blue
+    },
+    // NTSC-U with Trinitron P22 phosphors
+    // same as above, just different white balance
+    {
+        {0.310063, 0.316158, 0.373779}, // white Illuminant C 
+        {0.621, 0.34, 0.039}, //red
+        {0.281, 0.606, 0.113}, //green
+        {0.152, 0.067, 0.781} //blue
+    },
+    // SMPTE-C with Trinitron P22 phosphors
+    // same as above, just different white balance
+    {
+        {0.312713, 0.329016, 0.358271}, // white D65
+        {0.621, 0.34, 0.039}, //red
+        {0.281, 0.606, 0.113}, //green
+        {0.152, 0.067, 0.781} //blue
     },
     // smptec
     {
