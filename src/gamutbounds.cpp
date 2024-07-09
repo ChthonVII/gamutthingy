@@ -1559,59 +1559,97 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
             
             // However, we can't use mapColor() for the rotated possibility because WarpBoundaries() hasn't been called yet. (And can't be called until this is done.)
             // But we can take advatange of the fact that primaries/secondaries lie on the source gamut boundary and therefore should be mapping onto the destination gamut boundary. So we can use getBoundary3D() as a substitute.
-            vec3 rotatedcolor = vec3(sourceprimary.x, sourceprimary.y, destprimary.z);
-            vec3 compressedrotatedcolor;
-            double maptoluma;
-            double ceilweight;
-            int floorhueindex = hueToFloorIndex(rotatedcolor.z, ceilweight);
-            int ceilhueindex = floorhueindex + 1;
-            if (ceilhueindex == HUE_STEPS){
-                ceilhueindex = 0;
+  
+           
+            // Check multiple angles up to full rotation
+            double maxangle = AngleDiff(destprimary.z, sourceprimary.z);
+            //bool maxanglepositive = (maxangle >= 0.0);
+            // Check roughly twice per hue step. The boundary sampling probably isn't precise enough for more accuracy.
+            // In fact, we'll probably be a little off (chroma too low) for angles within the same hue step as the destination primary. We'll just have to live with that.
+            int steps  = (std::fabs(maxangle) / HalfHuePerStep) + 0.5;
+            if (steps < 1){
+                steps = 1;
             }
-            double floorcuspluma = othergamut.cusplumalist[floorhueindex];
-            double ceilcuspluma = othergamut.cusplumalist[ceilhueindex];
-            double cuspluma = ((1.0 - ceilweight) * floorcuspluma) + (ceilweight * ceilcuspluma);
-            int boundtype;
-            switch (mapdirection){
-                case MAP_GCUSP:
-                    maptoluma = cuspluma;
-                    boundtype = BOUND_NORMAL;
-                    compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
-                    break;
-                case MAP_HLPCM:
-                    maptoluma = rotatedcolor.x;
-                    boundtype = BOUND_NORMAL;
-                    compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
-                    break;
-                case MAP_VP:
-                    //fall through
-                case MAP_VPR:
-                    // if we are above the cusp, we should end up exactly on destination's primary/secondary
-                    if (rotatedcolor.x >= destprimary.x){
-                        compressedrotatedcolor = destprimary;
-                    }
-                    // otherwise we will move horizontally
-                    else {
+            double stepsize = maxangle/steps;
+            double bestdist = nomovedist;
+            double bestangle = 0.0;
+            bool rotatebetter = false;
+            double lastdist = 0.0;
+            for (int j=1; j<=steps; j++){
+                double angletotest = j * stepsize;
+                double newz = depocolor.z + angletotest;
+                // make the final iteration hit right on the destination primary
+                if (j == steps){
+                    newz = destprimary.z;
+                    angletotest = maxangle;
+                }
+                vec3 rotatedcolor = vec3(sourceprimary.x, sourceprimary.y, newz);
+                vec3 compressedrotatedcolor;
+                double maptoluma;
+                double ceilweight;
+                int floorhueindex = hueToFloorIndex(rotatedcolor.z, ceilweight);
+                int ceilhueindex = floorhueindex + 1;
+                if (ceilhueindex == HUE_STEPS){
+                    ceilhueindex = 0;
+                }
+                double floorcuspluma = othergamut.cusplumalist[floorhueindex];
+                double ceilcuspluma = othergamut.cusplumalist[ceilhueindex];
+                double cuspluma = ((1.0 - ceilweight) * floorcuspluma) + (ceilweight * ceilcuspluma);
+                int boundtype;
+                switch (mapdirection){
+                    case MAP_GCUSP:
+                        maptoluma = cuspluma;
+                        boundtype = BOUND_NORMAL;
+                        compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
+                        break;
+                    case MAP_HLPCM:
                         maptoluma = rotatedcolor.x;
                         boundtype = BOUND_NORMAL;
                         compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
-                    }
-                    break;
-                default:
-                    printf("Unreachable code reached in gamutdescriptor::FindPrimaryRotations()!\n");
-                    break;
-            }
-            double movedist = Distance3D(Depolarize(compressedrotatedcolor), depocolor);
+                        break;
+                    case MAP_VP:
+                        //fall through
+                    case MAP_VPR:
+                        // if we are above the cusp, we should end up on the cusp
+                        // in the case of the full rotation, this means exactly on destination's primary/secondary
+                        if ( (j == steps) && (rotatedcolor.x >= destprimary.x)){
+                            compressedrotatedcolor = destprimary;
+                        }
+                        else if (rotatedcolor.x >= cuspluma){
+                            double floorcuspchroma = othergamut.cuspchromalist[floorhueindex];
+                            double ceilcuspchroma = othergamut.cuspchromalist[ceilhueindex];
+                            double cuspchroma = ((1.0 - ceilweight) * floorcuspchroma) + (ceilweight * ceilcuspchroma);
+                            compressedrotatedcolor = vec3(cuspluma, cuspchroma, rotatedcolor.z);
+                        }
+                        // otherwise we will move horizontally
+                        else {
+                            maptoluma = rotatedcolor.x;
+                            boundtype = BOUND_NORMAL;
+                            compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
+                        }
+                        break;
+                    default:
+                        printf("Unreachable code reached in gamutdescriptor::FindPrimaryRotations()!\n");
+                        break;
+                }
+                double movedist = Distance3D(Depolarize(compressedrotatedcolor), depocolor);
+                lastdist = movedist;
+                if (movedist < bestdist){
+                    bestdist = movedist;
+                    bestangle = angletotest;
+                    rotatebetter = true;
+                }
+                
+            } // end for j
             
-            // which is closer?
-            if (movedist < nomovedist){
-                *rotationptr = AngleDiff(destprimary.z, sourceprimary.z);
+            if (rotatebetter){
+                *rotationptr = bestangle;
                 if (verbose >= VERBOSITY_SLIGHT){
-                    printf("and rotation is better than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
+                    printf("and rotation is better than compression. (angle %f of %f, rotate dist %f, no rotate dist %f), ", bestangle, maxangle, bestdist, nomovedist);
                 }
             }
             else if (verbose >= VERBOSITY_SLIGHT){
-                printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", movedist, nomovedist);
+                printf("but rotation is worse than compression. (rotate dist %f, no rotate dist %f), ", lastdist, nomovedist);
             }
         }
         else if (verbose >= VERBOSITY_SLIGHT){
