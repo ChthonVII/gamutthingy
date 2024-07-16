@@ -144,6 +144,9 @@ int main(int argc, const char **argv){
     double scceiling = 1.0;
     double scexp = 1.2;
     double scmax = 1.0;
+    int crtemumode = CRT_EMU_NONE;
+    double crtblacklevel = 0.001;
+    double crtwhitelevel = 1.0;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -269,7 +272,7 @@ int main(int argc, const char **argv){
             expect  = 0;
         }
         // expecting a number
-        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20) || (expect == 23) || (expect == 24) || (expect == 25)){
+        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20) || (expect == 23) || (expect == 24) || (expect == 25) || (expect == 28) || (expect == 29)){
             char* endptr;
             errno = 0; //make sure errno is 0 before strtol()
             double input = strtod(argv[i], &endptr);
@@ -313,6 +316,12 @@ int main(int argc, const char **argv){
                         break;
                     case 26:
                         scmax = input;
+                        break;
+                    case 28:
+                        crtblacklevel = input;
+                        break;
+                    case 29:
+                        crtwhitelevel = input;
                         break;
                     default:
                         break;
@@ -475,6 +484,22 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 27){ // crt emulation mode
+            if (strcmp(argv[i], "none") == 0){
+                crtemumode = CRT_EMU_NONE;
+            }
+            else if (strcmp(argv[i], "front") == 0){
+                crtemumode = CRT_EMU_FRONT;
+            }
+            else if (strcmp(argv[i], "back") == 0){
+                scfunctiontype = CRT_EMU_BACK;
+            }
+            else {
+                printf("Invalid parameter for CRT emulation mode. Expecting \"none\", \"front\", or \"back\".\n");
+                return ERROR_BAD_PARAM_CRT_EMU_MODE;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -556,6 +581,15 @@ int main(int argc, const char **argv){
             else if ((strcmp(argv[i], "--scmax") == 0) || (strcmp(argv[i], "--scm") == 0)){
                 expect = 26;
             }
+            else if ((strcmp(argv[i], "--crtemu") == 0)){
+                expect = 27;
+            }
+            else if ((strcmp(argv[i], "--crtblack") == 0)){
+                expect = 28;
+            }
+            else if ((strcmp(argv[i], "--crtwhite") == 0)){
+                expect = 29;
+            }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
                 return ERROR_BAD_PARAM_UNKNOWN_PARAM;
@@ -567,52 +601,94 @@ int main(int argc, const char **argv){
         printf("Missing parameter. Expecting ");
         switch (expect){
             case 1:
-                printf("input file name.\n.");
+                printf("input file name.\n");
                 break;
             case 2:
-                printf("output file name.\n.");
+                printf("output file name.\n");
                 break;
             case 3:
-                printf("input color.\n.");
+                printf("input color.\n");
                 break;
             case 4:
-                printf("souce gamut name.\n.");
+                printf("souce gamut name.\n");
                 break;
             case 5:
-                printf("destination gamut name.\n.");
+                printf("destination gamut name.\n");
                 break;
             case 6:
-                printf("mapping mode.\n.");
+                printf("mapping mode.\n");
                 break;
             case 7:
-                printf("remap factor.\n.");
+                printf("remap factor.\n");
                 break;
             case 8:
-                printf("remap limit.\n.");
+                printf("remap limit.\n");
                 break;
             case 9:
-                printf("knee factor.\n.");
+                printf("knee factor.\n");
                 break;
              case 10:
-                printf("remap direction.\n.");
+                printf("remap direction.\n");
                 break;
              case 11:
-                printf("safe zone type.\n.");
+                printf("safe zone type.\n");
                 break;
             case 12:
-                printf("knee type.\n.");
+                printf("knee type.\n");
                 break;
             case 13:
-                printf("gamma function.\n.");
+                printf("gamma function.\n");
                 break;
             case 14:
-                printf("dither setting.\n.");
+                printf("dither setting.\n");
                 break;
             case 15:
-                printf("verbosity level.\n.");
+                printf("verbosity level.\n");
+                break;
+            case 16:
+                printf("chromatic adapation type.\n");
+                break;
+            case 17:
+                printf("ccc function.\n");
+                break;
+            case 18:
+                printf("ccc floor.\n");
+                break;
+            case 19:
+                printf("ccc ceiling.\n");
+                break;
+            case 20:
+                printf("ccc exponent.\n");
+                break;
+            case 21:
+                printf("Spiral CARISMA setting.\n");
+                break;
+            case 22:
+                printf("Spiral CARISMA scaling function.\n");
+                break;
+            case 23:
+                printf("Spiral CARISMA scaling function floor.\n");
+                break;
+            case 24:
+                printf("Spiral CARISMA scaling function ceiling.\n");
+                break;
+            case 25:
+                printf("Spiral CARISMA scaling function exponent.\n");
+                break;
+            case 26:
+                printf("Spiral CARISMA max rotation multiplier.\n");
+                break;
+            case 27:
+                printf("CRT emulation mode.\n");
+                break;
+            case 28:
+                printf("CRT emulation black level.\n");
+                break;
+            case 29:
+                printf("CRT emulation white level.\n");
                 break;
             default:
-                printf("oh... er... wtf error!.\n.");
+                printf("oh... er... wtf error!.\n");
         }
         return ERROR_BAD_PARAM_MISSING_VALUE;
     }
@@ -812,10 +888,43 @@ int main(int argc, const char **argv){
             }
         }
         if (spiralcarisma){
-            printf("Spiral CARISMA: true\n");
+            printf("Spiral CARISMA: true\nSpiral CARISMA scaling function type: ");
+            switch(scfunctiontype){
+                case SC_EXPONENTIAL:
+                    printf("exponential, exponent: %f\n", scexp);
+                    break;
+                case SC_CUBIC_HERMITE:
+                    printf("cubic hermite\n");
+                    break;
+                default:
+                    break;
+            };
+            printf("Spiral CARISMA scaling floor %f and ceiling %f.\n", scfloor, scceiling);
         }
         else {
             printf("Spiral CARISMA: false\n");
+        }
+        printf("CRT Emulation: ");
+        bool printcrtdetails = false;
+        switch(crtemumode){
+            case CRT_EMU_NONE:
+                printf("none\n");
+                break;
+            case CRT_EMU_FRONT:
+                printf("front (before gamut conversion)\n");
+                printcrtdetails = true;
+                break;
+            case CRT_EMU_BACK:
+                printf("back (after gamut conversion)\n");
+                printcrtdetails = true;
+                break;
+            default:
+                break;
+        };
+        if (printcrtdetails){
+            printf("CRT black level %f x100 cd/m^2\n", crtblacklevel);
+            printf("CRT white level %f x100 cd/m^2\n", crtwhitelevel);
+            // TODO: print modulator and demodulator info here
         }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
@@ -827,6 +936,9 @@ int main(int argc, const char **argv){
         return ERROR_INVERT_MATRIX_FAIL;
     }
     
+    if (crtemumode != CRT_EMU_NONE){
+        Initialize1886EOTF(crtblacklevel, crtwhitelevel, verbosity);
+    }
     
     vec3 sourcewhite = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
     vec3 sourcered = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);

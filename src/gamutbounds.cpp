@@ -31,7 +31,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     // we're doing extra math (and maybe accruing some floating point errors) in the case where no compression and unequal whitepoints and destination is not D65 -- but I don't care enough about that case to deal with it.
     needschromaticadapt = ((compressenabled && !whitepoint.isequal(D65)) || (!whitepoint.isequal(other_wp)));
     if (verbose >= VERBOSITY_SLIGHT){
-    printf("\n----------\nInitializing %s as ", gamutname.c_str());
+        printf("\n----------\nInitializing %s as ", gamutname.c_str());
         if (issourcegamut){
             printf("source gamut");
             if (needschromaticadapt){
@@ -1483,7 +1483,7 @@ vec3 gamutdescriptor::xyYhillclimb(double x, double y, int lockcolor, double &Y)
 void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double maxscale, int verbose, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype){
     
     if (verbose >= VERBOSITY_SLIGHT){
-        printf("\n----------\nFinding primary/secondary rotations for %s towards %s...\n", gamutname.c_str(), othergamut.gamutname.c_str());
+        printf("\n----------\nInitializing Spiral CARISMA...\nFinding primary/secondary rotations for %s towards %s...\n", gamutname.c_str(), othergamut.gamutname.c_str());
     }
     
     vec3 sourceprimary;

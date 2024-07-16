@@ -1,12 +1,22 @@
 #include "colormisc.h"
+#include "constants.h"
 
 #include <math.h>
 #include <numbers>
 #include <complex>
+#include <stdio.h>
 
 // constants for inverse hermite
 const std::complex<double>two_pi_i = 2.0 * std::numbers::pi_v<double> * std::complex<double>(0.0,1.0);
 const std::complex<double>cuberootrotate = exp(two_pi_i / 3.0);
+
+// globals for BT.1886 Appendix 1 EOTF function
+double CRT_EOTF_blacklevel;
+double CRT_EOTF_whitelevel;
+double CRT_EOTF_b;
+double CRT_EOTF_k;
+double CRT_EOTF_s;
+double CRT_EOTF_i;
 
 
 
@@ -66,6 +76,222 @@ double tolinear(double input){
     }
     return clampdouble(pow((input + 0.055) / 1.055, 2.4));
 }
+
+// The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
+// The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma
+// The function has been modified to handle negative inputs in the same fashion as IEC 61966-2-4 (a.k.a. xvYCC)
+// (BT.1361 does something similar.)
+// Dynamic range is restored in a post-processing step that chops off the black lift and then normalizes to 0-1.
+// Initialize1886EOTF() must be run once before this can be used.
+double tolinear1886appx1(double input){
+    
+    // Shift input by b
+    input += CRT_EOTF_b;
+    
+    // Handle negative input by flipping sign 
+    bool flipsign = false;
+    if (input < 0){
+        input *= -1.0;
+        flipsign = true;
+    }
+    
+    // The main EOTF function
+    double output;
+    if (input < (0.35 + CRT_EOTF_b)){
+        output = CRT_EOTF_k * CRT_EOTF_s * pow(input, 3.0);
+    }
+    else {
+        output = CRT_EOTF_k * pow(input, 2.6);
+    }
+    
+    // Flip sign again if input was negative
+    if (flipsign){
+        output *= -1.0;
+    }
+    
+    // Chop off the black lift and normalize to 0-1
+    output -= CRT_EOTF_blacklevel;
+    output /= (CRT_EOTF_whitelevel - CRT_EOTF_blacklevel);
+    
+    // fix floating point errors very near 0 or 1
+    if ((output != 0.0) && (fabs(output - 0.0) < 1e-6)){
+        output = 0.0;
+    }
+    else if ((output != 1.0) && (fabs(output - 1.0) < 1e-6)){
+        output = 1.0;
+    }
+    
+    return output;
+}
+
+// inverse of tolinear1886appx1()
+// Initialize1886EOTF() must be run once before this can be used.
+double togamma1886appx1(double input){
+    
+    // undo the chop and normalization post-processing
+    input *= (CRT_EOTF_whitelevel - CRT_EOTF_blacklevel);
+    input += CRT_EOTF_blacklevel;
+    
+    // Handle negative input by flipping sign 
+    bool flipsign = false;
+    if (input < 0){
+        input *= -1.0;
+        flipsign = true;
+    }
+    
+    // The main EOTF function
+    double output;
+    if (input < CRT_EOTF_i){
+        output = pow((1.0/CRT_EOTF_k) * (1.0/CRT_EOTF_s) * input, 1.0/3.0);
+    }
+    else {
+        output = pow((1.0/CRT_EOTF_k) * input, 1.0/2.6);
+    }
+    
+    // Flip sign again if input was negative
+    if (flipsign){
+        output *= -1.0;
+    }
+    
+    //unshift
+    output -= CRT_EOTF_b;
+    
+    // fix floating point errors very near 0 or 1
+    if ((output != 0.0) && (fabs(output - 0.0) < 1e-6)){
+        output = 0.0;
+    }
+    else if ((output != 1.0) && (fabs(output - 1.0) < 1e-6)){
+        output = 1.0;
+    }
+    
+    return output;
+    
+}
+
+
+// Brute force the value of "b" for the BT.1886 Appendix 1 EOTF function using binary search.
+// blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
+// whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
+double BruteForce1886B(double blacklevel, double whitelevel){
+    
+    if (blacklevel == 0.0){
+        return 0.0;
+    }
+    
+    double floor = 0.0;
+    double ceiling = 1.0;
+    double guess;
+    int iters = 0;
+    
+    while(true){
+        guess = (floor + ceiling) * 0.5;
+        double gresult = (whitelevel / pow(1.0 + guess, 2.6)) * pow(0.35 + guess, -0.4) * pow(guess, 3.0);
+        // exact hit!
+        if (gresult == blacklevel){
+            break;
+        }
+        iters++;
+        // should have converged by now
+        if (iters > 100){
+            break;
+        }
+        double error = fabs(gresult - blacklevel);
+        // wolfram alpha was giving 16 digits, so lets hope for the same
+        if (error < 1e-16){
+            break;
+        }
+        if (gresult > blacklevel){
+            ceiling = guess;
+        }
+        else {
+            floor = guess;
+        }
+    }
+    
+    return guess;
+}
+
+void Initialize1886EOTF(double blacklevel, double whitelevel, int verbosity){
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("\n----------\nInitializing CRT EOTF emulation...\n");
+    }
+    
+    if (blacklevel < 0.0){
+        printf("Negative luminosity is impossible. Setting CRT black level to 0.\n");
+        blacklevel = 0;
+    }
+    if (whitelevel < 0.0){
+        printf("Negative luminosity is impossible. Setting CRT white level to 0.\n");
+        whitelevel = 0;
+    }
+    if (blacklevel >= whitelevel){
+        printf("Black brighter than white is impossible. Setting black and white levels to defaults.\n");
+        blacklevel = 0.001;
+        whitelevel = 1.0;
+    }
+    CRT_EOTF_blacklevel = blacklevel;
+    CRT_EOTF_whitelevel = whitelevel;
+    CRT_EOTF_b = BruteForce1886B(blacklevel, whitelevel);
+    CRT_EOTF_k = whitelevel / pow(1.0 + CRT_EOTF_b, 2.6);
+    CRT_EOTF_s = pow(0.35 + CRT_EOTF_b, -0.4);
+    CRT_EOTF_i = CRT_EOTF_k * pow(0.35 + CRT_EOTF_b, 2.6);
+
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("CRT emulation EOTF constants:\nblack level: %f\nwhite level: %f\nb: %.16f\nk: %.16f\ns: %.16f\ni: %.16f\n", CRT_EOTF_blacklevel, CRT_EOTF_whitelevel, CRT_EOTF_b, CRT_EOTF_k, CRT_EOTF_s, CRT_EOTF_i);
+        
+        //screen barf a bunch of test values to graph elsewhere and make sure it's right
+        /*
+        for (int i=0; i<=2000; i++){
+            double testinput = i * 0.0005;
+            double testoutput = tolinear1886appx1(testinput);
+            printf("%f, %f\n", testinput, testoutput);
+        }
+        */
+        /*
+        printf("inverse EOTF tests:\n");
+        double testinput = 0.0;
+        double testoutput = tolinear1886appx1(testinput);
+        double retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 0.25;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 0.5;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 0.75;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 1.0;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 0.35;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 0.3501;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = 0.3499;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        testinput = -0.1;
+        testoutput = tolinear1886appx1(testinput);
+        retestotput = togamma1886appx1(testoutput);
+        printf("in %f, out %f, backwards %f\n", testinput, testoutput, retestotput);
+        */
+        
+    }
+    printf("\n----------\n\n");
+    return;
+}
+
 
 // Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
 // Answer will be in range -pi to +pi radians.

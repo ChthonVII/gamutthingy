@@ -50,4 +50,17 @@ double inversepowermap(double floor, double ceiling, double input, double power)
 //Compute the inverse of the 01 hermite cubic spline for domain = range = 0-1
 double inversehermite(double input);
 
+// some global variables for the BT.1886 EOTF that we can initialize once and then not have to recompute.
+extern double CRT_EOTF_blacklevel;
+extern double CRT_EOTF_whitelevel;
+extern double CRT_EOTF_b;
+extern double CRT_EOTF_k;
+extern double CRT_EOTF_s;
+extern double CRT_EOTF_i;
+
+void Initialize1886EOTF(double blacklevel, double whitelevel, int verbosity);
+double BruteForce1886B(double blacklevel, double whitelevel);
+double tolinear1886appx1(double input);
+double togamma1886appx1(double input);
+
 #endif
