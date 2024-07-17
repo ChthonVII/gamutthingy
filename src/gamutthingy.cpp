@@ -945,7 +945,7 @@ int main(int argc, const char **argv){
     
     crtdescriptor emulatedcrt;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, verbosity);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, 1, verbosity);
     }
     
     vec3 sourcewhite = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);

@@ -5,14 +5,19 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <numbers>
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int pverbosity){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int demodulatorindex_in, int verbositylevel){
     bool output = true;
-    verbosity = pverbosity;
+    verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
     CRT_EOTF_whitelevel = whitelevel;
     Initialize1886EOTF();
     output = InitializeNTSC1953WhiteBalanceFactors();
+    demodulatorindex = demodulatorindex_in;
+    if (demodulatorindex != CRT_DEMODULATOR_NONE){
+        InitializeDemodulator();
+    }
     return output;
 }
 
@@ -279,7 +284,79 @@ bool crtdescriptor::InitializeNTSC1953WhiteBalanceFactors(){
     return output;
 }
 
-
+void crtdescriptor::InitializeDemodulator(){
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("\n----------\nInitializing CRT demodulator matrix...\n");
+    }
+    
+    // convert angles to radians
+    double redangle = demodulatorinfo[demodulatorindex][0][0] * (std::numbers::pi_v<long double>/ 180.0); 
+    double greenangle = demodulatorinfo[demodulatorindex][0][1] * (std::numbers::pi_v<long double>/ 180.0); 
+    double blueangle = demodulatorinfo[demodulatorindex][0][2] * (std::numbers::pi_v<long double>/ 180.0); 
+    
+    // gains
+    double redgain = demodulatorinfo[demodulatorindex][1][0];
+    double greengain = demodulatorinfo[demodulatorindex][1][1];
+    double bluegain = demodulatorinfo[demodulatorindex][1][2];
+    // if gains are normalized to blue, denormalize
+    if (bluegain == 1.0){
+        redgain *= Uupscale;
+        greengain *= Uupscale;
+        bluegain *= Uupscale;
+    }
+    
+    //printf("angles: red %f, green %f, blue %f\ngains: red %f, green %f, blue %f\n", redangle, greenangle, blueangle, redgain, greengain, bluegain);
+    
+    // depolarize to get UV coordinates
+    double redx = redgain * cos(redangle);
+    double redy = redgain * sin(redangle);
+    double greenx = greengain * cos(greenangle);
+    double greeny = greengain * sin(greenangle);
+    double bluex = bluegain * cos(blueangle);
+    double bluey = bluegain * sin(blueangle);
+    
+    //printf("UV coords: red: x %f, y %f; green x %f, y %f; blue x %f y %f\n", redx, redy, greenx, greeny, bluex, bluey);
+    
+    // constant matrix
+    const double matrixB[2][2] = {
+        {(1.0 - ntsc1953_wr) / Vupscale, (-1.0 * ntsc1953_wr) / Uupscale},
+        {(-1.0 * ntsc1953_wg) / Vupscale, (-1.0 * ntsc1953_wg) / Uupscale}
+    };
+    
+    //printf("MatrixB: [[ %f, %f ], [ %f, %f ]]\n", matrixB[0][0], matrixB[0][1], matrixB[1][0], matrixB[1][1]);
+    
+    // multiply matrixB by {{y},{x}} and add  {{wr},{wg}} to recover Krr, Krg, Kgr, Kgg, Kbr, and Kbg
+    // (multiply 2x2 matrix by 1x2 matrix, maybe implement a function for this if we wind up needing to do it elsewhere)
+    double Krr = (matrixB[0][0] * redy) + (matrixB[0][1] * redx) + ntsc1953_wr;
+    double Krg = (matrixB[1][0] * redy) + (matrixB[1][1] * redx) + ntsc1953_wg;
+    double Kgr = (matrixB[0][0] * greeny) + (matrixB[0][1] * greenx) + ntsc1953_wr;
+    double Kgg = (matrixB[1][0] * greeny) + (matrixB[1][1] * greenx) + ntsc1953_wg;
+    double Kbr = (matrixB[0][0] * bluey) + (matrixB[0][1] * bluex) + ntsc1953_wr;
+    double Kbg = (matrixB[1][0] * bluey) + (matrixB[1][1] * bluex) + ntsc1953_wg;
+    // recover Krb, Kgb, and Kbb by virtue of matrixK's rows being normalized to 1.0
+    double Krb = 1.0 - (Krr + Krg);
+    double Kgb = 1.0 - (Kgr + Kgg);
+    double Kbb = 1.0 - (Kbr + Kbg);
+        
+    // copy our correction matrix
+    demodulatorMatrix[0][0] = Krr;
+    demodulatorMatrix[0][1] = Krg;
+    demodulatorMatrix[0][2] = Krb;
+    demodulatorMatrix[1][0] = Kgr;
+    demodulatorMatrix[1][1] = Kgg;
+    demodulatorMatrix[1][2] = Kgb;
+    demodulatorMatrix[2][0] = Kbr;
+    demodulatorMatrix[2][1] = Kbg;
+    demodulatorMatrix[2][2] = Kbb;
+    
+    // screen barf
+    if (verbosity >= VERBOSITY_SLIGHT){
+        print3x3matrix(demodulatorMatrix);
+        printf("\n----------\n");
+    }
+    
+    return;
+}
 
 
 
