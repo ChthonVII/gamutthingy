@@ -24,6 +24,7 @@
 #define GAMUT_SMPTEC_P22_TRINITRON 7
 #define GAMUT_SMPTEC 8
 #define GAMUT_EBU 9
+#define GAMUT_NTSC_1953 10
     
 #define MAP_CLIP 0
 #define MAP_CCC_A 1
@@ -93,6 +94,12 @@ extern const vec3 D65;
 #define LOCKGREEN 1
 #define LOCKBLUE 2
 
+#define CRT_DEMODULATOR_NONE -1
+#define CRT_DEMODULATOR_CXA1464AS 0
+#define CRT_DEMODULATOR_CXA1465AS 1
+
+
+
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
@@ -114,7 +121,7 @@ const double CAT16Matrix[3][3] = {
 
 
 
-const std::string gamutnames[10] = {
+const std::string gamutnames[11] = {
     "sRGB / bt709",
     "NTSC-J (television set receiver specification)",
     "NTSC-J (broadcast specification)",
@@ -124,10 +131,11 @@ const std::string gamutnames[10] = {
     "NTSC-U (Trinitron P22 phosphors)",
     "SMPTE-C (Trinitron P22 phosphors)",
     "SMPTE-C",
-    "EBU (470bg)"
+    "EBU (470bg)",
+    "NTSC 1953"
 };
 
-const double gamutpoints[10][4][3] = {
+const double gamutpoints[11][4][3] = {
     // srgb
     {
         {0.312713, 0.329016, 0.358271}, //white
@@ -212,8 +220,34 @@ const double gamutpoints[10][4][3] = {
         {0.64, 0.33, 0.03}, //red
         {0.29, 0.6, 0.11}, //green
         {0.15, 0.06, 0.79} //blue
+    },
+    // NTSC 1953
+    {
+        {0.310063, 0.316158, 0.373779}, //white
+        {0.67, 0.33, 0}, //red
+        {0.21, 0.71, 0.08}, //green
+        {0.14, 0.08, 0.78} //blue
     }
 };
 
+const std::string demodulatornames[2] = {
+    "CXA1464AS (JP)",
+    "CXA1465AS (US)"
+};
+
+const double demodulatorinfo[2][2][3] = {
+    // CXA1464AS (JP)
+    {
+        {98, 243, 0}, // angles (degrees)
+        {0.78, 0.31, 1.0} // gains
+
+    },
+    // CXA1465AS (US)
+    {
+        {114, 255, 0}, // angles (degrees)
+        {0.78, 0.31, 1.0} // gains
+
+    }
+};
 
 #endif
