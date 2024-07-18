@@ -94,6 +94,10 @@ extern const vec3 D65;
 #define LOCKGREEN 1
 #define LOCKBLUE 2
 
+#define CRT_MODULATOR_NONE -1
+#define CRT_MODULATOR_CXA1145 0
+#define CRT_MODULATOR_CXA1465 1
+
 #define CRT_DEMODULATOR_NONE -1
 #define CRT_DEMODULATOR_CXA1464AS 0
 #define CRT_DEMODULATOR_CXA1465AS 1
@@ -227,6 +231,27 @@ const double gamutpoints[11][4][3] = {
         {0.67, 0.33, 0}, //red
         {0.21, 0.71, 0.08}, //green
         {0.14, 0.08, 0.78} //blue
+    }
+};
+
+const std::string modulatornames[2] = {
+    "CXA1145",
+    "CXA1645"
+};
+
+const double modulatorinfo[2][3][3] = {
+    // CXA1145
+    {
+        {104, 241, 347}, // angles (degrees)
+        {3.16, 2.95, 2.24}, // ratios
+        {2.0/7.0, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.29vpp burst is really 40 IRE = 2/7vpp; assume 0.71v white is really 100 IRE = 5/7v)
+    },
+    // CXA1645
+    {
+        {104, 241, 347}, // angles (degrees)
+        {3.16, 2.95, 2.24}, // ratios
+        {0.25, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
+
     }
 };
 

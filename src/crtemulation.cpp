@@ -6,18 +6,51 @@
 #include <stdio.h>
 #include <math.h>
 #include <numbers>
+#include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int demodulatorindex_in, int verbositylevel){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int verbositylevel){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
     CRT_EOTF_whitelevel = whitelevel;
     Initialize1886EOTF();
     output = InitializeNTSC1953WhiteBalanceFactors();
+    modulatorindex = modulatorindex_in;
+    bool havemodulator = false;
+    if (modulatorindex != CRT_MODULATOR_NONE){
+        havemodulator = true;
+        output = InitializeModulator();
+    }
     demodulatorindex = demodulatorindex_in;
+    bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
+        havedemodulator = true;
         InitializeDemodulator();
     }
+    // get our modulator and demodulator into one matrix
+    if (havemodulator || havedemodulator){
+        if (havemodulator && havedemodulator){
+            mult3x3Matrices(demodulatorMatrix, modulatorMatrix, overallMatrix);
+            if (verbosity >= VERBOSITY_SLIGHT){
+                printf("\n----------\nCombined modulator and demodulator matrix...\n");
+                print3x3matrix(overallMatrix);
+                printf("\n----------\n");
+            }
+        }
+        else if (havemodulator){
+            memcpy(overallMatrix, modulatorMatrix, 9 * sizeof(double));
+        }
+        else {
+            memcpy(overallMatrix, demodulatorMatrix, 9 * sizeof(double));
+        }
+    }
+    else {
+        printf("Somehow initializing CRT emulation with no modulator or demodulator specified. This is bad and was supposed to be unreachable...\n");
+        // use an identity matrix so we're not running uninitialized
+        double identity[3][3] = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+        memcpy(overallMatrix, identity, 9 * sizeof(double));
+    }
+    
     return output;
 }
 
@@ -359,6 +392,107 @@ void crtdescriptor::InitializeDemodulator(){
 }
 
 
-
+bool crtdescriptor::InitializeModulator(){
+    
+    bool output = true;
+    
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("\n----------\nInitializing CRT modulator matrix...\n");
+    }
+    
+    // convert angles to radians
+    double redangle = modulatorinfo[modulatorindex][0][0] * (std::numbers::pi_v<long double>/ 180.0); 
+    double greenangle = modulatorinfo[modulatorindex][0][1] * (std::numbers::pi_v<long double>/ 180.0); 
+    double blueangle = modulatorinfo[modulatorindex][0][2] * (std::numbers::pi_v<long double>/ 180.0); 
+    
+    //printf("angles: red %f, green %f, blue %f\n", redangle, greenangle, blueangle);
+    
+    // get voltages
+    double burstvpp = modulatorinfo[modulatorindex][2][0];
+    double maxwhitev = modulatorinfo[modulatorindex][2][1];
+    // White voltage corresponds to 0-1 scale for Y'
+    // maxwhitev is supposed to be 100 IRE (5/7v ~= 0.71v)
+    // Burst is a sin wave centered at 0 IRE with its peak at 1/2 burstvpp.
+    // Burst's peak is supposed to be 20 IRE (1/7v ~=0.14v)
+    // If things are to spec, we multiply the color/burst ratio values by 0.2 (burst peak / maxwhitev) to get them on the same 0-1 scale as Y'.
+    // Of course, things may not be to spec, so let's calculate that multiplier.
+    double burstpeakoverwhite = burstvpp / (2.0 * maxwhitev);
+    
+    //printf("maxwhitev %f, burstvpp %f, ratio %f\n", maxwhitev, burstvpp, burstpeakoverwhite);
+    
+    // color multipliers
+    double redmult = modulatorinfo[modulatorindex][1][0] * burstpeakoverwhite;
+    double greenmult = modulatorinfo[modulatorindex][1][1] * burstpeakoverwhite;
+    double bluemult = modulatorinfo[modulatorindex][1][2] * burstpeakoverwhite;
+    
+    //printf("multipliers: red %f, green %f, blue %f\n", redmult, greenmult, bluemult);
+    
+    // create R'G'B' to Y'UV matrix
+    double RGBtoYUV[3][3] = {
+        {ntsc1953_wr, ntsc1953_wg, ntsc1953_wb}, // use the high precision NTSC 1953 white balance
+        {redmult * cos(redangle), greenmult * cos(greenangle), bluemult * cos(blueangle)},
+        {redmult * sin(redangle), greenmult * sin(greenangle), bluemult * sin(blueangle)}
+    };
+    //printf("R'G'B' to Y'UV:\n");
+    //print3x3matrix(RGBtoYUV);
+    
+    
+    // in order to get back to R'G'B', we need an idealized Y'UV to R'G'B' matrix
+    
+    // idealized R'G'B' to Y'PbPr (a.k.a. Y'(B'-Y')(R'-Y'))
+    double idealRGBtoYPbPr[3][3] = {
+        {ntsc1953_wr, ntsc1953_wg, ntsc1953_wb}, // use the high precision NTSC 1953 white balance
+        {-1.0 * ntsc1953_wr, -1.0 * ntsc1953_wg, ntsc1953_wr + ntsc1953_wg},
+        {ntsc1953_wg + ntsc1953_wb, -1.0 * ntsc1953_wg, -1.0 * ntsc1953_wb}
+    };
+    
+    // idealized Y'PbPr to Y'UV
+    double idealYPbPrtoYUV[3][3] = {
+        {1.0, 0.0, 0.0},
+        {0.0, Udownscale, 0.0},
+        {0.0, 0.0, Vdownscale}
+    };
+    
+    // idealized R'G'B' to Y'UV
+    double idealRGBtoYUV[3][3];
+    mult3x3Matrices(idealYPbPrtoYUV, idealRGBtoYPbPr, idealRGBtoYUV);
+    
+    // invert to get idealized Y'UV to R'G'B'
+    double idealYUVtoRGB[3][3];
+    output = Invert3x3Matrix(idealRGBtoYUV, idealYUVtoRGB);
+    if (!output){
+        printf("Disaster! Matrix idealRGBtoYUV is not invertible! Bad stuff will happen!\n");       
+    }
+    //printf("Ideal Y'UV to R'G'B':\n");
+    //print3x3matrix(idealYUVtoRGB);
+    
+    // multiply  the idealized Y'UV to R'G'B' matrix with the modulator's R'B'G' to Y'UV matrix to get a R'G'B' to R'G'B' matrix
+    double RGBtoRGB[3][3];
+    mult3x3Matrices(idealYUVtoRGB, RGBtoYUV, RGBtoRGB);
+    
+    // normalize to compensate rounding errors due to (typically) only two decimal places in the datasheet
+    // and copy to crtdescriptor object
+    double row0sum = RGBtoRGB[0][0] + RGBtoRGB[0][1] + RGBtoRGB[0][2];
+    double row1sum = RGBtoRGB[1][0] + RGBtoRGB[1][1] + RGBtoRGB[1][2];
+    double row2sum = RGBtoRGB[2][0] + RGBtoRGB[2][1] + RGBtoRGB[2][2];
+    modulatorMatrix[0][0] = RGBtoRGB[0][0] / row0sum;
+    modulatorMatrix[0][1] = RGBtoRGB[0][1] / row0sum;
+    modulatorMatrix[0][2] = RGBtoRGB[0][2] / row0sum;
+    modulatorMatrix[1][0] = RGBtoRGB[1][0] / row1sum;
+    modulatorMatrix[1][1] = RGBtoRGB[1][1] / row1sum;
+    modulatorMatrix[1][2] = RGBtoRGB[1][2] / row1sum;
+    modulatorMatrix[2][0] = RGBtoRGB[2][0] / row2sum;
+    modulatorMatrix[2][1] = RGBtoRGB[2][1] / row2sum;
+    modulatorMatrix[2][2] = RGBtoRGB[2][2] / row2sum;
+    
+    // screen barf
+    if (verbosity >= VERBOSITY_SLIGHT){
+        print3x3matrix(modulatorMatrix);
+        printf("\n----------\n");
+    }
+    
+    return output;
+    
+}
 
 
