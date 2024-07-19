@@ -32,7 +32,14 @@ typedef struct memo{
 memo memos[256][256][256];
 
 vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma){
-    vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
+    vec3 linearinputcolor = inputcolor;
+    if (sourcegamut.crtemumode == CRT_EMU_FRONT){
+        linearinputcolor = sourcegamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(inputcolor);
+    }
+    else if (gammamode){
+        linearinputcolor = vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z));
+    }
+    
     vec3 outcolor;
         
     if (mapmode == MAP_CLIP){
@@ -98,7 +105,10 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
     else {
         outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
     }
-    if (gammamode){
+    if (destgamut.crtemumode == CRT_EMU_BACK){
+        outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor);
+    }
+    else if (gammamode){
         outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
     }
     return outcolor;
@@ -148,6 +158,8 @@ int main(int argc, const char **argv){
     int crtemumode = CRT_EMU_NONE;
     double crtblacklevel = 0.001;
     double crtwhitelevel = 1.0;
+    int crtmodindex = CRT_MODULATOR_NONE;
+    int crtdemodindex = CRT_DEMODULATOR_NONE;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -499,10 +511,42 @@ int main(int argc, const char **argv){
                 crtemumode = CRT_EMU_FRONT;
             }
             else if (strcmp(argv[i], "back") == 0){
-                scfunctiontype = CRT_EMU_BACK;
+                crtemumode = CRT_EMU_BACK;
             }
             else {
                 printf("Invalid parameter for CRT emulation mode. Expecting \"none\", \"front\", or \"back\".\n");
+                return ERROR_BAD_PARAM_CRT_EMU_MODE;
+            }
+            expect  = 0;
+        }
+        else if (expect == 30){ // crt modulator chip
+            if (strcmp(argv[i], "none") == 0){
+                crtmodindex = CRT_MODULATOR_NONE;
+            }
+            else if (strcmp(argv[i], "CXA1145") == 0){
+                crtmodindex = CRT_MODULATOR_CXA1145;
+            }
+            else if (strcmp(argv[i], "CXA1645") == 0){
+                crtmodindex = CRT_MODULATOR_CXA1645;
+            }
+            else {
+                printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"CXA1145\", or \"CXA1645\".\n");
+                return ERROR_BAD_PARAM_CRT_EMU_MODE;
+            }
+            expect  = 0;
+        }
+        else if (expect == 31){ // crt demodulator chip
+            if (strcmp(argv[i], "none") == 0){
+                crtdemodindex = CRT_DEMODULATOR_NONE;
+            }
+            else if (strcmp(argv[i], "CXA1464AS") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA1464AS;
+            }
+            else if (strcmp(argv[i], "CXA1465AS") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA1465AS;
+            }
+            else {
+                printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"CXA1464AS\", or \"CXA1465AS\".\n");
                 return ERROR_BAD_PARAM_CRT_EMU_MODE;
             }
             expect  = 0;
@@ -596,6 +640,12 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--crtwhite") == 0)){
                 expect = 29;
+            }
+            else if ((strcmp(argv[i], "--crtmod") == 0)){
+                expect = 30;
+            }
+            else if ((strcmp(argv[i], "--crtdemod") == 0)){
+                expect = 31;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -694,6 +744,12 @@ int main(int argc, const char **argv){
             case 29:
                 printf("CRT emulation white level.\n");
                 break;
+            case 30:
+                printf("CRT emulation modulator chip ID.\n");
+                break;
+            case 31:
+                printf("CRT emulation demodulator chip ID.\n");
+                break;
             default:
                 printf("oh... er... wtf error!.\n");
         }
@@ -759,6 +815,9 @@ int main(int argc, const char **argv){
         else {
             printf("Gamma function: linear\n");
         }
+        printf("Source gamut: %s\n", gamutnames[sourcegamutindex].c_str());
+        printf("Destination gamut: %s\n", gamutnames[destgamutindex].c_str());
+        /*
         printf("Source gamut: ");
         switch(sourcegamutindex){
             case GAMUT_SRGB:
@@ -805,6 +864,7 @@ int main(int argc, const char **argv){
             default:
                 break;
         };
+        */
         printf("Gamut mapping mode: ");
         switch(mapmode){
             case MAP_CLIP:
@@ -931,7 +991,20 @@ int main(int argc, const char **argv){
         if (printcrtdetails){
             printf("CRT black level %f x100 cd/m^2\n", crtblacklevel);
             printf("CRT white level %f x100 cd/m^2\n", crtwhitelevel);
-            // TODO: print modulator and demodulator info here
+            printf("Game console R'G'B' to YIQ modulator chip: ");
+            if (crtmodindex == CRT_MODULATOR_NONE){
+                printf("none\n");
+            }
+            else {
+                 printf("%s\n", modulatornames[crtmodindex].c_str());
+            }
+            printf("CRT YIQ to R'G'B' demodulator chip: ");
+            if (crtdemodindex == CRT_DEMODULATOR_NONE){
+                printf("none\n");
+            }
+            else {
+                 printf("%s\n", demodulatornames[crtdemodindex].c_str());
+            }
         }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
@@ -944,8 +1017,16 @@ int main(int argc, const char **argv){
     }
     
     crtdescriptor emulatedcrt;
+    int sourcegamutcrtsetting = CRT_EMU_NONE;
+    int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, 1, 0, verbosity);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtmodindex, crtdemodindex, verbosity);
+        if (crtemumode == CRT_EMU_FRONT){
+            sourcegamutcrtsetting = CRT_EMU_FRONT;
+        }
+        else if (crtemumode == CRT_EMU_BACK){
+            destgamutcrtsetting = CRT_EMU_BACK;
+        }
     }
     
     vec3 sourcewhite = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
@@ -961,10 +1042,10 @@ int main(int argc, const char **argv){
     bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
     
     gamutdescriptor sourcegamut;
-    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, compressenabled);
+    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
     
     gamutdescriptor destgamut;
-    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled);
+    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled, destgamutcrtsetting, &emulatedcrt);
     
     if ((mapmode == MAP_CCC_B) || (mapmode == MAP_CCC_C)){
         destgamut.initializeMatrixChunghwa(sourcegamut, verbosity);

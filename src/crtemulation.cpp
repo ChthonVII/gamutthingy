@@ -51,6 +51,8 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulat
         memcpy(overallMatrix, identity, 9 * sizeof(double));
     }
     
+    output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
+    
     return output;
 }
 
@@ -495,4 +497,18 @@ bool crtdescriptor::InitializeModulator(){
     
 }
 
+vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
+    vec3 output = multMatrixByColor(overallMatrix, input);
+    output.x = tolinear1886appx1(output.x);
+    output.y = tolinear1886appx1(output.y);
+    output.z = tolinear1886appx1(output.z);
+    return output;
+}
 
+vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input){
+    input.x = togamma1886appx1(input.x);
+    input.y = togamma1886appx1(input.y);
+    input.z = togamma1886appx1(input.z);
+    vec3 output = multMatrixByColor(inverseOverallMatrix, input);
+    return output;
+}

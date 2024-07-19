@@ -96,7 +96,7 @@ extern const vec3 D65;
 
 #define CRT_MODULATOR_NONE -1
 #define CRT_MODULATOR_CXA1145 0
-#define CRT_MODULATOR_CXA1465 1
+#define CRT_MODULATOR_CXA1645 1
 
 #define CRT_DEMODULATOR_NONE -1
 #define CRT_DEMODULATOR_CXA1464AS 0
@@ -234,12 +234,14 @@ const double gamutpoints[11][4][3] = {
     }
 };
 
-const std::string modulatornames[2] = {
+const std::string modulatornames[4] = {
     "CXA1145",
-    "CXA1645"
+    "CXA1645",
+    "MB3514",
+    "CXA1219"
 };
 
-const double modulatorinfo[2][3][3] = {
+const double modulatorinfo[4][3][3] = {
     // CXA1145
     {
         {104, 241, 347}, // angles (degrees)
@@ -251,27 +253,108 @@ const double modulatorinfo[2][3][3] = {
         {104, 241, 347}, // angles (degrees)
         {3.16, 2.95, 2.24}, // ratios
         {0.25, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
-
+    },
+    // Fujitsu MB3514 (clone of CXA1145)
+    // Data sheet says burst is 0.57vpp. But that's insanely high.
+    // Assuming data sheet author accidentally doubled it.
+    // That would work out to theorically correct 2/7.
+    // Also, idential to the CXA145 it's cloning.
+    {
+        {104, 241, 347}, // angles (degrees)
+        {3.16, 2.95, 2.24}, // ratios
+        {2.0/7.0, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
+    },
+    // CXA1219 - Sony ~1992, CXA1229 should have same values
+    {
+        {104, 241, 347}, // angles (degrees)
+        {2.92, 2.74, 2.08}, // ratios
+        {2.0/7.0, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
     }
 };
 
-const std::string demodulatornames[2] = {
+const std::string demodulatornames[98] = {
     "CXA1464AS (JP)",
-    "CXA1465AS (US)"
+    "CXA1465AS (US)",
+    "CXA1870S (JP mode)",
+    "CXA1870S (US mode)",
+    "CXA2060BS (JP mode)",
+    "CXA2060BS (US mode)",
+    "CXA2025AS (JP mode)",
+    "CXA2025AS (US mode)",
+    "CXA1213AS"
 };
 
-const double demodulatorinfo[2][2][3] = {
+const double demodulatorinfo[9][2][3] = {
     // CXA1464AS (JP)
+    // Used in Sony Trinitron ~1993 - ~1995
     {
         {98, 243, 0}, // angles (degrees)
         {0.78, 0.31, 1.0} // gains
 
     },
+    
     // CXA1465AS (US)
+    // Used in Sony Trinitron ~1993 - ~1995
     {
         {114, 255, 0}, // angles (degrees)
         {0.78, 0.31, 1.0} // gains
 
+    },
+    
+    // CXA1870S (JP mode)
+    // Used in Sony Trinitron ~1996
+    {
+        {96, 240, 0}, // angles (degrees)
+        {0.8, 0.3, 1.0} // gains
+    },
+    
+    // CXA1870S (US mode)
+    // Used in Sony Trinitron ~1996
+    {
+        {105, 252, 0}, // angles (degrees)
+        {0.8, 0.3, 1.0} // gains
+    },
+    
+    // CXA2060BS (JP mode)
+    // Used in Sony Trinitron ~??? (TODO: tube overlap note)
+    {
+        {95, 236, 0}, // angles (degrees)
+        {0.78, 0.33, 1.0} // gains
+    },
+    
+    // CXA2060BS (US mode)
+    // Used in Sony Trinitron ~??? (TODO: tube overlap note)
+    {
+        {102, 236, 0}, // angles (degrees)
+        {0.78, 0.3, 1.0} // gains
+    },
+    
+    // CXA2061S (JP and US modes)
+    // Used in Sony Trinitron ~1997 - ~1999
+    // But datasheet doesn't state axis info! Assume similar to CXA2060BS
+    
+    // CXA2025AS (JP mode)
+    // Used in Sony Trinitron ~1997 (TODO: tube overlap note)
+    {
+        {95, 240, 0}, // angles (degrees)
+        {0.78, 0.3, 1.0} // gains
+    },
+    
+    // CXA2025AS (US mode)
+    // Used in Sony Trinitron ~1997 (TODO: tube overlap note)
+    {
+        {112, 252, 0}, // angles (degrees)
+        {0.83, 0.3, 1.0} // gains
+    },
+    
+    // CXA1213AS
+    // Used in Sony Trinitron(?) ~1992 (TODO: tube overlap note)
+    // Does not appear to have distinct JP and US modes
+    // It's possible this chip is JP or US and the other has a different chip number 
+    // Possibly buggy. Blue at a non-zero angle may mean that gains need renormalized.
+    {
+        {99, 240, 11}, // angles (degrees)
+        {0.77, 0.3, 1.0} // gains
     }
 };
 

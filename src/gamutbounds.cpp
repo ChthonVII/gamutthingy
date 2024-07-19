@@ -17,7 +17,7 @@
 const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
 const double HalfHuePerStep = HuePerStep / 2.0;
 
-bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled){
+bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled, int crtmode, crtdescriptor* crttoattach){
     verbosemode = verbose;
     gamutname = name;
     whitepoint = wp;
@@ -30,6 +30,8 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     // don't convert to D65 if both white points are equal and we're not doing compression.
     // we're doing extra math (and maybe accruing some floating point errors) in the case where no compression and unequal whitepoints and destination is not D65 -- but I don't care enough about that case to deal with it.
     needschromaticadapt = ((compressenabled && !whitepoint.isequal(D65)) || (!whitepoint.isequal(other_wp)));
+    crtemumode = crtmode;
+    attachedCRT = crttoattach;
     if (verbose >= VERBOSITY_SLIGHT){
         printf("\n----------\nInitializing %s as ", gamutname.c_str());
         if (issourcegamut){
@@ -242,15 +244,33 @@ bool gamutdescriptor::initializePolarPrimaries(bool dosc, double scfloor, double
     polarmagentapoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 1.0));
     polaryellowpoint = linearRGBtoJzCzhz(vec3(1.0, 1.0, 0.0));
         
-    // TODO: When implementing 2-step mode, use points that correspond to outputs of step 1 given primaries as input rather than the gamut primaries
-    
-    adjpolarredpoint = polarredpoint;
-    adjpolargreenpoint = polargreenpoint;
-    adjpolarbluepoint = polarbluepoint;
+    // If we're emulating a CRT, then use the CRT's outputs for the primary/secondary points.
+    if (crtemumode != CRT_EMU_NONE){
+        vec3 crtred = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(1.0, 0.0, 0.0));
+        vec3 crtgreen = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(0.0, 1.0, 0.0));
+        vec3 crtblue = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(0.0, 0.0, 1.0));
+        
+        vec3 crtcyan = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(0.0, 1.0, 1.0));
+        vec3 crtmagenta = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(1.0, 0.0, 1.0));
+        vec3 crtyellow = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(1.0, 1.0, 0.0));
+        
+        adjpolarredpoint = linearRGBtoJzCzhz(crtred);
+        adjpolargreenpoint = linearRGBtoJzCzhz(crtgreen);
+        adjpolarbluepoint = linearRGBtoJzCzhz(crtblue);
 
-    adjpolarcyanpoint = polarcyanpoint;
-    adjpolarmagentapoint = polarmagentapoint;
-    adjpolaryellowpoint = polaryellowpoint;
+        adjpolarcyanpoint = linearRGBtoJzCzhz(crtcyan);
+        adjpolarmagentapoint = linearRGBtoJzCzhz(crtmagenta);
+        adjpolaryellowpoint = linearRGBtoJzCzhz(crtyellow);
+    }
+    else {
+        adjpolarredpoint = polarredpoint;
+        adjpolargreenpoint = polargreenpoint;
+        adjpolarbluepoint = polarbluepoint;
+
+        adjpolarcyanpoint = polarcyanpoint;
+        adjpolarmagentapoint = polarmagentapoint;
+        adjpolaryellowpoint = polaryellowpoint;
+    }
     
     if (verbose >= VERBOSITY_SLIGHT){
         printf("Red: ");
@@ -885,6 +905,10 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color, double &errorsize){
         errorsize = 10000.0; // arbitrary huge number
     }
     else {
+        // if we're emulating a CRT, then define the gamut boundaries with respect to the set of outputs that the CRT emulation could produce from valid inputs
+        if (crtemumode != CRT_EMU_NONE){
+            rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
+        }
         if (rgbcolor.x > 1.0){
             isinbounds = false;
             errorsize += rgbcolor.x - 1.0;
@@ -1214,6 +1238,13 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
                 continue;
             }
         }
+        /*
+        // enable this if black spots are appearing
+        // suppress collisions with black due to floating point errors
+        if ((i == linecount -1) && (color.y > bound1.y)){
+            break;
+        }
+        */
         vec2 intersection;
         bool intersects = lineIntersection2D(focalpoint, color, bound1, bound2, intersection);
         //printf("i is %i, focalpoint %f, %f, color, %f, %f, bound1 %f, %f, bound2 %f, %f, intersects %i, at %f, %f\n", i, focalpoint.x, focalpoint.y, color.x, color.y, bound1.x, bound1.y, bound2.x, bound2.y, intersects, intersection.x, intersection.y);
@@ -1226,13 +1257,8 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
         }
     }
     // if we made it this far, we've probably had a floating point error that caused isBetween2D() to give a wrong answer
-    // which means we are probably very near one of the boundary nodes
-    // so just take the node closest to an intersection
+    // so let's try again with slowIsBetween2D()
     // (this should be rare, so we're doing a second loop rather than slow down the first.)
-    float bestdist = DBL_MAX;
-    vec2 bestpoint = vec2(0,0);
-    vec2 bestnode = vec2(0,0);
-    foundcusp = false;
     for (int i = 0; i<linecount; i++){
         vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
         vec2 bound2 = vec2(data[hueindex][i+1].x, data[hueindex][i+1].y);
@@ -1250,6 +1276,53 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
                 continue;
             }
         }
+        /*
+        // enable this if black spots are appearing
+        // suppress collisions with black due to floating point errors
+        if ((i == linecount -1) && (color.y > bound1.y)){
+            break;
+        }
+        */
+        if (slowIsBetween2D(bound1, intersections[i], bound2)){
+            return intersections[i];
+        }
+        if (breaktime){
+            break;
+        }
+    }
+    // if we made it this far, we've probably just missed a boundary node to the outside due to a floating point error
+    // so just take the intersection that falls closest to a node
+    // (this should be super rare, so we're doing a third loop rather than slow down the first two.)
+    float bestdist = DBL_MAX;
+    vec2 bestpoint = vec2(0,0);
+    vec2 bestnode = vec2(0,0);
+    foundcusp = false;
+    int besti = 0;
+    bool beforei = true;
+    for (int i = 0; i<linecount; i++){
+        vec2 bound1 = vec2(data[hueindex][i].x, data[hueindex][i].y);
+        vec2 bound2 = vec2(data[hueindex][i+1].x, data[hueindex][i+1].y);
+        bool breaktime = false;
+        if ((boundtype == BOUND_ABOVE) && data[hueindex][i].iscusp){
+            breaktime = true;
+            bound2 = fakepoints[hueindex];
+        }
+        if (!foundcusp && (boundtype == BOUND_BELOW)){
+            if (data[hueindex][i+1].iscusp){
+                foundcusp = true;
+                bound1 = ufakepoints[hueindex];
+            }
+            else {
+                continue;
+            }
+        }
+        /*
+        // enable this if black spots are appearing
+        // suppress collisions with black due to floating point errors
+        if ((i == linecount -1) && (color.y > bound1.y)){
+            break;
+        }
+        */
         vec2 intersection = intersections[i];
         vec2 diff = intersection - bound1;
         double diffdist = diff.magnitude();
@@ -1257,6 +1330,8 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
             bestdist = diffdist;
             bestnode = bound1;
             bestpoint = intersection;
+            besti = i;
+            beforei = true;
         }
         diff = bound2 - intersection;
         diffdist = diff.magnitude();
@@ -1264,18 +1339,31 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
             bestdist = diffdist;
             bestnode = bound2;
             bestpoint = intersection;
+            besti = i;
+            beforei = false;
         }
         if (breaktime){
             break;
         }
     }
-    if (bestdist > EPSILONDONTCARE){
-        // Adjusted epsilon to keep this quieter...
-        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %f, %f; focal point %f, %f; best point: %f, %f; bestnode: %f, %f.\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y, bestnode.x, bestnode.y);
+    if (bestdist > EPSILONZERO){
+        // changed back to epsilonzero b/c I think I fixed the underlying issue.
+        // let's see if it pops up again.
+        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %.10f, %.10f; focal point %f, %f; best point: %.10f, %.10f; bestnode: %.10f, %.10f; line segment %i, before %i\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y, bestnode.x, bestnode.y, besti, beforei);
         for (int i=0; i<(int)data[hueindex].size(); i++){
-            printf("\t\tnode %i: %f, %f, cusp=%i\n", i, data[hueindex][i].x, data[hueindex][i].y, data[hueindex][i].iscusp);
+            printf("\t\tnode %i: %.10f, %.10f, cusp=%i\n", i, data[hueindex][i].x, data[hueindex][i].y, data[hueindex][i].iscusp);
         }
-        printf("\t\tfakepoint: %f, %f\n", fakepoints[hueindex].x, fakepoints[hueindex].y);
+        /*
+        printf("\t\tfakepoint: %.10f, %.10f\n", fakepoints[hueindex].x, fakepoints[hueindex].y);
+        if ((besti < linecount) && !beforei){
+            vec2 bound1 = vec2(data[hueindex][besti+1].x, data[hueindex][besti+1].y);
+            vec2 bound2 = vec2(data[hueindex][besti+2].x, data[hueindex][besti+2].y);
+            vec2 intersection;
+            bool intersects = lineIntersection2D(focalpoint, color, bound1, bound2, intersection);
+            bool isbetween = isBetween2D(bound1, intersection, bound2);
+            printf("next sgement is %.10f, %.10f to %.10f, %.10f; intersects? %i, intersection %.10f, %.10f, isbetween? %i\n", bound1.x, bound1.y, bound2.x, bound2.y, intersects, intersection.x, intersection.y, isbetween);
+        }
+        */
     }
     return bestpoint;
 }
@@ -1496,7 +1584,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     printf("Red: ");
                 }
                 sourceprimary = adjpolarredpoint;
-                destprimary = othergamut.polarredpoint;
+                destprimary = othergamut.adjpolarredpoint;
                 rotationptr = &redrotation;
                 break;
             case 1:
@@ -1504,7 +1592,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     printf("Green: ");
                 }
                 sourceprimary = adjpolargreenpoint;
-                destprimary = othergamut.polargreenpoint;
+                destprimary = othergamut.adjpolargreenpoint;
                 rotationptr = &greenrotation;
                 break;
             case 2:
@@ -1512,7 +1600,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     printf("Blue: ");
                 }
                 sourceprimary = adjpolarbluepoint;
-                destprimary = othergamut.polarbluepoint;
+                destprimary = othergamut.adjpolarbluepoint;
                 rotationptr = &bluerotation;
                 break;
             case 3:
@@ -1520,7 +1608,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     printf("Yellow: ");
                 }
                 sourceprimary = adjpolaryellowpoint;
-                destprimary = othergamut.polaryellowpoint;
+                destprimary = othergamut.adjpolaryellowpoint;
                 rotationptr = &yellowrotation;
                 break;
             case 4:
@@ -1528,7 +1616,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     printf("Magenta: ");
                 }
                 sourceprimary = adjpolarmagentapoint;
-                destprimary = othergamut.polarmagentapoint;
+                destprimary = othergamut.adjpolarmagentapoint;
                 rotationptr = &magentarotation;
                 break;
             case 5:
@@ -1536,7 +1624,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     printf("Cyan: ");
                 }
                 sourceprimary = adjpolarcyanpoint;
-                destprimary = othergamut.polarcyanpoint;
+                destprimary = othergamut.adjpolarcyanpoint;
                 rotationptr = &cyanrotation;
                 break;
             default:

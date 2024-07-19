@@ -3,6 +3,7 @@
 
 #include "vec2.h"
 #include "vec3.h"
+#include "crtemulation.h"
 
 #include <vector>
 #include <string>
@@ -73,6 +74,8 @@ public:
     int impingingslicecount[HUE_STEPS];
     std::vector<warprange> impingingslices[HUE_STEPS];
     warprange selfwarp[HUE_STEPS];
+    int crtemumode;
+    crtdescriptor* attachedCRT;
     double matrixChunghwa[3][3];
     double KinoshitaS1Matrix[3][3];
     double KinoshitaS2Matrix[3][3];
@@ -132,7 +135,7 @@ public:
     double spiralcharismaexponent;
     int spiralcarismascalemode;
     
-    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled);
+    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled, int crtmode, crtdescriptor* crttoattach);
     // resizes vectors ahead of time
     void reservespace();
     void initializeMatrixP();

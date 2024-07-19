@@ -58,7 +58,12 @@ double clockwiseAngle(vec2 A, vec2 B);
 bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output);
 
 // assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
+// may fail if all 3 x values or all 3 y values are nearly the same but for floating point errors 
 bool isBetween2D(vec2 A, vec2 B, vec2 C);
+
+// assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
+// fixes the floating point issue with isBetween2D() at the cost of being slow
+bool slowIsBetween2D(vec2 A, vec2 B, vec2 C);
 
 double distance2D(vec2 A, vec2 B);
 

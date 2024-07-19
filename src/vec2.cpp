@@ -80,10 +80,24 @@ bool lineIntersection2D(vec2 A, vec2 B, vec2 C, vec2 D, vec2 &output){
 }
 
 // assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
+// may fail if all 3 x values or all 3 y values are nearly the same but for floating point errors 
 bool isBetween2D(vec2 A, vec2 B, vec2 C){
     return (
         (((A.x >= B.x) && (B.x >= C.x)) || ((A.x <= B.x) && (B.x <= C.x))) &&
         (((A.y >= B.y) && (B.y >= C.y)) || ((A.y <= B.y) && (B.y <= C.y)))
+    );
+}
+
+// assuming A, B, and C are on a line, returns true if B is between A and C; otherwise false
+// fixes the floating point issue with isBetween2D() at the cost of being slow
+bool slowIsBetween2D(vec2 A, vec2 B, vec2 C){
+    bool axisbx = (fabs(A.x - B.x) < EPSILONZERO);
+    bool bxiscx = (fabs(B.x - C.x) < EPSILONZERO);
+    bool ayisby = (fabs(A.y - B.y) < EPSILONZERO);
+    bool byiscy = (fabs(B.y - C.y) < EPSILONZERO);
+    return (
+        (((A.x >= B.x) && (B.x >= C.x)) || ((A.x <= B.x) && (B.x <= C.x)) || axisbx || bxiscx) &&
+        (((A.y >= B.y) && (B.y >= C.y)) || ((A.y <= B.y) && (B.y <= C.y)) || ayisby || byiscy)
     );
 }
 

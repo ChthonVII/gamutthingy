@@ -1,6 +1,8 @@
 #ifndef CRTEMULATION_H
 #define CRTEMULATION_H
 
+#include "vec3.h"
+
 // YIQ scaling factors
 #define Udownscale 0.492111
 #define Vdownscale 0.877283
@@ -29,6 +31,7 @@ public:
     int demodulatorindex;
     double demodulatorMatrix[3][3];
     double overallMatrix[3][3];
+    double inverseOverallMatrix[3][3];
     
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
@@ -51,6 +54,8 @@ public:
     bool InitializeModulator();
     void InitializeDemodulator();
     
+    vec3 CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input);
+    vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input);
 };
 
 
