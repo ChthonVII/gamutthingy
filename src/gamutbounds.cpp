@@ -1644,7 +1644,6 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
             vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
             vec3 depocolor = Depolarize(sourceprimary);
             double nomovedist = Distance3D(Depolarize(compressedcolor), depocolor);
-            
             // However, we can't use mapColor() for the rotated possibility because WarpBoundaries() hasn't been called yet. (And can't be called until this is done.)
             // But we can take advatange of the fact that primaries/secondaries lie on the source gamut boundary and therefore should be mapping onto the destination gamut boundary. So we can use getBoundary3D() as a substitute.
   
@@ -1665,7 +1664,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
             double lastdist = 0.0;
             for (int j=1; j<=steps; j++){
                 double angletotest = j * stepsize;
-                double newz = depocolor.z + angletotest;
+                double newz = AngleAdd(depocolor.z, angletotest);
                 // make the final iteration hit right on the destination primary
                 if (j == steps){
                     newz = destprimary.z;
@@ -1729,7 +1728,6 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                 }
                 
             } // end for j
-            
             if (rotatebetter){
                 *rotationptr = bestangle;
                 if (verbose >= VERBOSITY_SLIGHT){

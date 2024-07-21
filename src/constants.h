@@ -242,34 +242,67 @@ const std::string modulatornames[4] = {
 };
 
 const double modulatorinfo[4][3][3] = {
-    // CXA1145
+    // Sony CXA1145
+    // Used in most 1st generation and some 2nd generation Sega Genesis
+    // See this link for detailed Sega Genesis notes: https://consolemods.org/wiki/Genesis:Video_Output_Notes
+    // Used in Sega Master System II
+    // Used in NEO GEO AES (see: https://www.retrosix.wiki/cxa-video-encoder-neo-geo-aes)
+    // Reported used in Amiga consoles
+    // Reportedly used for SNK consoles (see: https://gamesx.com/wiki/doku.php?id=av:sony_cxa_series)
+    // Very common -- Safe guess for most early 90s consoles 
     {
         {104, 241, 347}, // angles (degrees)
         {3.16, 2.95, 2.24}, // ratios
         {2.0/7.0, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.29vpp burst is really 40 IRE = 2/7vpp; assume 0.71v white is really 100 IRE = 5/7v)
     },
-    // CXA1645
+    // Sony CXA1645
+    // Upgrade to CXA1145
+    // Used in some 2nd generation and all 3rd generation Sega Genesis
+    // Used in Sony Playstation 1
+    // Used in Genesis 3
+    // Used in Sega Saturn
+    // Used in NeoGeo CD/CDZ
     {
         {104, 241, 347}, // angles (degrees)
         {3.16, 2.95, 2.24}, // ratios
         {0.25, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
     },
-    // Fujitsu MB3514 (clone of CXA1145)
+    // Fujitsu MB3514
+    // Clone of CXA1145
+    // Used in some 1st and 2nd generation Sega Gensis
+    // Used in some PAL Master System II
     // Data sheet says burst is 0.57vpp. But that's insanely high.
-    // Assuming data sheet author accidentally doubled it.
-    // That would work out to theorically correct 2/7.
-    // Also, idential to the CXA145 it's cloning.
+    // Assuming data sheet author accidentally doubled vpp value mistaken thinking it was v value.
+    // That would work out to theorically correct 2/7. (Also, idential to the CXA1145.)
     {
         {104, 241, 347}, // angles (degrees)
         {3.16, 2.95, 2.24}, // ratios
         {2.0/7.0, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
     },
-    // CXA1219 - Sony ~1992, CXA1229 should have same values
+    // Sony CXA1219 ~1992
+    // CXA1229 should have same values
     {
         {104, 241, 347}, // angles (degrees)
         {2.92, 2.74, 2.08}, // ratios
         {2.0/7.0, 5.0/7.0, 0.0} // burst vpp, white v, dummy (assume 0.71v white is really 100 IRE = 5/7v)
     }
+    
+    // TODO:
+    // Samsung KA2195D - Sega Gensis 2nd generation - inferior CXA1145 clone
+    // ROHM BH7236AF - PAL megadrive II - CXA1645 clone?
+    // ES71145 ITRI clones of 1145
+    // CXA2075M upgrade to 1645
+    
+    // Master system 1  Sony V7040 https://www.smspower.org/Development/VideoOutput
+    // ROHM BA6592F very first SNES
+    // S-ENC early SNES, likely rebranded BA6592F or BA6594F
+    // S-ENC B mid SNES rebranded BA6594F
+    // S-RGB late SNES rebranded BA6595F
+    // S-RGB A last SNES rebranded BA6596F
+    // ENC-NUS early N64 rebraded BA7242F
+    // BA7232FS likely a BA6595F or BA6596F in different form factor
+    // BA6591AF likely similar to BA6592F
+
 };
 
 const std::string demodulatornames[98] = {
@@ -285,6 +318,7 @@ const std::string demodulatornames[98] = {
 };
 
 const double demodulatorinfo[9][2][3] = {
+    
     // CXA1464AS (JP)
     // Used in Sony Trinitron ~1993 - ~1995
     {
@@ -315,43 +349,62 @@ const double demodulatorinfo[9][2][3] = {
         {0.8, 0.3, 1.0} // gains
     },
     
+    // CXA2061S (JP and US modes)
+    // Used in Sony Trinitron ~1997 - ~1999
+    // But datasheet doesn't state axis info! Possibly similar to CXA2060BS below.
+    
+    // CX20192
+    // Used in Sony Trinitron "late 80's/early 90's"
+    // Can't find datasheet
+    
+    // CXA1013AS
+    // Used in Sony Trinitron ~1993
+    // Can't find datasheet
+    
+    // CXA1865S
+    // Used in Sony Trinitron
+    // Apparently an upgrade to CXA1465AS
+    // Can't find datasheet
+    
+    // Demodulators above this point were *probably* all designed with the same phosphors in mind
+    // They can all be found in a cluster of Trinitron models with overlapping tubes and/or demodulators.
+    // And those phosphors are *probably* the ones in the Trinitron P22 gamutpoints constants above.
+    // Demodulators below this point *might* be designed for use with the same phosphors,
+    // or Sony might have changed phosphors at some point -- I don't know.
+    
     // CXA2060BS (JP mode)
-    // Used in Sony Trinitron ~??? (TODO: tube overlap note)
+    // Used in Sony Trinitron ~??? (probably around 1997)
     {
         {95, 236, 0}, // angles (degrees)
         {0.78, 0.33, 1.0} // gains
     },
     
     // CXA2060BS (US mode)
-    // Used in Sony Trinitron ~??? (TODO: tube overlap note)
+    // Used in Sony Trinitron ~??? (probably around 1997)
     {
         {102, 236, 0}, // angles (degrees)
         {0.78, 0.3, 1.0} // gains
     },
     
-    // CXA2061S (JP and US modes)
-    // Used in Sony Trinitron ~1997 - ~1999
-    // But datasheet doesn't state axis info! Assume similar to CXA2060BS
-    
     // CXA2025AS (JP mode)
-    // Used in Sony Trinitron ~1997 (TODO: tube overlap note)
+    // Used in Sony Trinitron ~1997
     {
         {95, 240, 0}, // angles (degrees)
         {0.78, 0.3, 1.0} // gains
     },
     
     // CXA2025AS (US mode)
-    // Used in Sony Trinitron ~1997 (TODO: tube overlap note)
+    // Used in Sony Trinitron ~1997
     {
         {112, 252, 0}, // angles (degrees)
         {0.83, 0.3, 1.0} // gains
     },
     
     // CXA1213AS
-    // Used in Sony Trinitron(?) ~1992 (TODO: tube overlap note)
+    // Used in Sony Trinitron(?) ~1992
     // Does not appear to have distinct JP and US modes
-    // It's possible this chip is JP or US and the other has a different chip number 
-    // Possibly buggy. Blue at a non-zero angle may mean that gains need renormalized.
+    // It's possible this chip is either JP or US and there exists another chip number for the other. 
+    // TODO: Blue at a non-zero angle likely means that gains need renormalized.
     {
         {99, 240, 11}, // angles (degrees)
         {0.77, 0.3, 1.0} // gains
