@@ -1697,6 +1697,8 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                     case MAP_VP:
                         //fall through
                     case MAP_VPR:
+                        //fall through
+                    case MAP_VPRC:
                         // if we are above the cusp, we should end up on the cusp
                         // in the case of the full rotation, this means exactly on destination's primary/secondary
                         if ( (j == steps) && (rotatedcolor.x >= destprimary.x)){
@@ -2144,6 +2146,25 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
             boundtype = BOUND_BELOW;
         }
     }
+    else if (mapdirection == MAP_VPRC){
+        // inverse first step, map away from black
+        if (expand){
+            maptoluma = 0.0;
+            boundtype = BOUND_ABOVE;
+        }
+        // normal first step,
+        //  above the cusp, map horizontally using extrapolated bound
+        //  below the cusp, map towards cusp
+        else{
+            if (Jcolor.x >= cuspluma){
+                maptoluma = Jcolor.x;
+            }
+            else {
+                maptoluma = cuspluma;
+            }
+            boundtype = BOUND_BELOW;
+        }
+    }
     else {
         printf("WTF ERROR!\n");
     }
@@ -2185,7 +2206,7 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
     } // end if !skip
     
     // VP has a second step
-    if ((mapdirection == MAP_VP) || (mapdirection == MAP_VPR)){
+    if ((mapdirection == MAP_VP) || (mapdirection == MAP_VPR) || (mapdirection == MAP_VPRC)){
         
         skip = false;
         
@@ -2212,6 +2233,22 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
             if (expand){
                 maptoluma = Joutput.x;
                 boundtype = BOUND_BELOW;
+            }
+            // normal second step, map to black
+            else{
+                maptoluma = 0.0;
+                boundtype = BOUND_ABOVE;
+            }
+        }
+        else if (mapdirection == MAP_VPRC){
+             // inverse second step, horizontally above cusp, towards cusp under cusp
+            if (expand){
+                if (Joutput.x >= cuspluma){
+                    maptoluma = Joutput.x;
+                }
+                else {
+                    maptoluma = cuspluma;
+                }
             }
             // normal second step, map to black
             else{

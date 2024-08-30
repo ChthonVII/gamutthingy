@@ -365,8 +365,11 @@ int main(int argc, const char **argv){
             else if (strcmp(argv[i], "vpr") == 0){
                 mapdirection = MAP_VPR;
             }
+            else if (strcmp(argv[i], "vprc") == 0){
+                mapdirection = MAP_VPRC;
+            }
             else {
-                printf("Invalid parameter for mapping direction. Expecting \"cusp\", \"hlpcm\", \"vp\", or \"vpr\".\n");
+                printf("Invalid parameter for mapping direction. Expecting \"cusp\", \"hlpcm\", \"vp\", \"vpr\", or \"vprc\".\n");
                 return ERROR_BAD_PARAM_MAPPING_DIRECTION;
             }
             expect  = 0;
@@ -896,6 +899,9 @@ int main(int argc, const char **argv){
                     break;
                  case MAP_VPR:
                     printf("vpr\n");
+                    break;
+                case MAP_VPRC:
+                    printf("vprc\n");
                     break;
                 default:
                     break;

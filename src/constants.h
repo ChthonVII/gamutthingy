@@ -40,6 +40,7 @@
 #define MAP_HLPCM 1
 #define MAP_VP 2
 #define MAP_VPR 3
+#define MAP_VPRC 4
 
 #define RMZONE_DELTA_BASED 0
 #define RMZONE_DEST_BASED 1
