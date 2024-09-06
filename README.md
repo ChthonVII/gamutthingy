@@ -1,4 +1,7 @@
 # gamutthingy
+
+WARNING: This readme file is out of date. Please check recent commits for new and as-yet undocumented features.
+
 Converts .png images between color gamuts with chromatic adaptation and gamut compression mapping.
 
 Principally intended for creating gamut conversion LUTs for FFNx and for color correcting texture assets for Final Fantasy 7 & 8.
