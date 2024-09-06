@@ -160,6 +160,8 @@ int main(int argc, const char **argv){
     double crtwhitelevel = 1.0;
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
+    bool lutgen = false;
+    unsigned int lutsize = 128;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -347,7 +349,7 @@ int main(int argc, const char **argv){
                 };
             }
             else {
-                printf("Invalid parameter for remap factor, remap limit, or knee factor. (Malformed float.)");
+                printf("Invalid parameter for numerical value. (Malformed float.)");
                 return ERROR_BAD_PARAM_MAPPING_FLOAT;
             }
             expect = 0;
@@ -450,7 +452,7 @@ int main(int argc, const char **argv){
             }
             else {
                 printf("Invalid parameter for verbosity. (Malformed int.)");
-                return ERROR_BAD_PARAM_VERBOSITY;
+                return ERROR_BAD_PARAM_MALFORMEDINT;
             }
             expect = 0;
         }
@@ -554,6 +556,48 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 32){ // lutgen
+            if (strcmp(argv[i], "true") == 0){
+                lutgen = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                lutgen = false;
+            }
+            else {
+                printf("Invalid parameter for lutgen. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_LUTGEN;
+            }
+            expect  = 0;
+        }
+        else if (expect == 33){ // lutsize
+            char* endptr;
+            errno = 0; //make sure errno is 0 before strtol()
+            long int input = strtol(argv[i], &endptr, 0);
+            bool inputok = true;
+            // are there any chacters left in the input string?
+            if (*endptr != '\0'){
+                inputok = false;
+            }
+            // is errno set?
+            else if (errno != 0){
+                inputok = false;
+            }
+            if (inputok){
+                if (input < 2){
+                    input = 2;
+                    printf("\nWARNING: LUT size cannot be less than 2. Changing to 2.\n");
+                }
+                else if (input > 128){
+                    printf("\nWARNING: LUT size is %li. Some programs, e.g. retroarch, cannot handle extra-large LUTs.\n", input);
+                }
+                lutsize = input;
+            }
+            else {
+                printf("Invalid parameter for lutsize. (Malformed int.)");
+                return ERROR_BAD_PARAM_MALFORMEDINT;
+            }
+            expect = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -649,6 +693,12 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--crtdemod") == 0)){
                 expect = 31;
+            }
+            else if ((strcmp(argv[i], "--lutgen") == 0)){
+                expect = 32;
+            }
+            else if ((strcmp(argv[i], "--lutsize") == 0)){
+                expect = 33;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -753,15 +803,21 @@ int main(int argc, const char **argv){
             case 31:
                 printf("CRT emulation demodulator chip ID.\n");
                 break;
+            case 32:
+                printf("LUT generation mode (true/false).\n");
+                break;
+            case 33:
+                printf("LUT size (integer).\n");
+                break;
             default:
                 printf("oh... er... wtf error!.\n");
         }
         return ERROR_BAD_PARAM_MISSING_VALUE;
     }
     
-    if (filemode){
+    if (filemode || lutgen){
         bool failboat = false;
-        if (!infileset){
+        if (!infileset && !lutgen){
             printf("Input file not specified.\n");
             failboat = true;
         }
@@ -771,6 +827,16 @@ int main(int argc, const char **argv){
         }
         if (failboat){
             return ERROR_BAD_PARAM_FILE_NOT_SPECIFIED;
+        }
+        if (lutgen){
+            filemode = true; // piggyback LUT generation on the file i/o
+            if (dither){
+                printf("\nForcing dither to false because lutgen is true.\n");
+                dither = false;
+            }
+            if (gammamode){
+                printf("\nWARNING: Did you really mean to use sRGB gamma when generating a LUT?\n(You probably want linear RGB instead.)\n");
+            }
         }
     }
     else{
@@ -807,7 +873,12 @@ int main(int argc, const char **argv){
     if (verbosity >= VERBOSITY_SLIGHT){
         printf("\n\n----------\nParameters are:\n");
         if (filemode){
-            printf("Input file: %s\nOutput file: %s\n", inputfilename, outputfilename);
+            if (lutgen){
+                printf("LUT generation.\nLUT size: %i\nOutput file: %s\n", lutsize, outputfilename);
+            }
+            else {
+                printf("Input file: %s\nOutput file: %s\n", inputfilename, outputfilename);
+            }
         }
         else {
             printf("Input color: %s\n", inputcolorstring);
@@ -1133,16 +1204,24 @@ int main(int argc, const char **argv){
     }
 
     // if we didn't just return, we are in file mode
-    
+
     int result = ERROR_PNG_FAIL;
     png_image image;
+
 
     
     /* Only the image structure version number needs to be set. */
     memset(&image, 0, sizeof image);
     image.version = PNG_IMAGE_VERSION;
 
-    if (png_image_begin_read_from_file(&image, inputfilename)){
+    // we also need dimensions if we're generating a LUT
+    if (lutgen){
+        image.width = lutsize * lutsize;
+        image.height = lutsize;
+    }
+
+    // check for lutgen first to short-circuit reading from file that isn't there
+    if (lutgen || png_image_begin_read_from_file(&image, inputfilename)){
         png_bytep buffer;
 
         /* Change this to try different formats!  If you set a colormap format
@@ -1150,10 +1229,18 @@ int main(int argc, const char **argv){
         */
         image.format = PNG_FORMAT_RGBA;
 
-        buffer = (png_bytep) malloc(PNG_IMAGE_SIZE(image));  //c++ wants an explict cast
+        size_t buffsize;
+        if (lutgen){
+            buffsize = lutsize * lutsize * lutsize * 4;
+        }
+        else {
+            buffsize = PNG_IMAGE_SIZE(image);
+        }
+        buffer = (png_bytep) malloc(buffsize);  //c++ wants an explict cast
 
         if (buffer != NULL){
-            if (png_image_finish_read(&image, NULL/*background*/, buffer, 0/*row_stride*/, NULL/*colormap for PNG_FORMAT_FLAG_COLORMAP */)){
+            // check for lutgen first to short-circuit reading from file that isn't there
+            if (lutgen || png_image_finish_read(&image, NULL/*background*/, buffer, 0/*row_stride*/, NULL/*colormap for PNG_FORMAT_FLAG_COLORMAP */)){
                 
                 // ------------------------------------------------------------------------------------------------------------------------------------------
                 // Begin actual color conversion code
@@ -1162,7 +1249,12 @@ int main(int argc, const char **argv){
                 memset(&memos, 0, 256 * 256 * 256 * sizeof(memo));
                 
                 if (verbosity >= VERBOSITY_MINIMAL){
-                    printf("Doing gamut conversion on %s and saving result to %s...\n", inputfilename, outputfilename); 
+                    if (lutgen){
+                        printf("Doing gamut conversion on LUT and saving result to %s...\n", outputfilename);
+                    }
+                    else {
+                        printf("Doing gamut conversion on %s and saving result to %s...\n", inputfilename, outputfilename);
+                    }
                 }
                 
                 // iterate over every pixel
@@ -1188,10 +1280,21 @@ int main(int argc, const char **argv){
                     for (int x=0; x<width; x++){
                         
                         // read bytes from buffer
-                        png_byte redin = buffer[ ((y * width) + x) * 4];
-                        png_byte greenin = buffer[ (((y * width) + x) * 4) + 1 ];
-                        png_byte bluein = buffer[ (((y * width) + x) * 4) + 2 ];
-                        
+                        // or just make them if generating a LUT
+                        png_byte redin;
+                        png_byte greenin;
+                        png_byte bluein;
+                        if (lutgen){
+                            redin = toRGB8nodither((double)(x % lutsize) / ((double)(lutsize - 1)));
+                            greenin = toRGB8nodither((double)y / ((double)(lutsize - 1)));
+                            bluein = toRGB8nodither((double)(x / lutsize) / ((double)(lutsize - 1)));
+                        }
+                        else {
+                            redin = buffer[ ((y * width) + x) * 4];
+                            greenin = buffer[ (((y * width) + x) * 4) + 1 ];
+                            bluein = buffer[ (((y * width) + x) * 4) + 2 ];
+                        }
+
                         vec3 outcolor;
                         
                         // if we've already processed the same input color, just recall the memo
@@ -1209,7 +1312,7 @@ int main(int argc, const char **argv){
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
                             outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
-                            
+
                             /*
                             // to linear RGB
                             if (gammamode){
@@ -1279,6 +1382,10 @@ int main(int argc, const char **argv){
                         buffer[ ((y * width) + x) * 4] = redout;
                         buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
                         buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
+                        // we need to set opacity data id generating a LUT; if reading an image, leave it unchanged
+                        if (lutgen){
+                            buffer[ (((y * width) + x) * 4) + 3 ] = 255;
+                        }
                                                 
                     }
                 }
