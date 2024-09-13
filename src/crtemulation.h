@@ -32,7 +32,17 @@ public:
     double demodulatorMatrix[3][3];
     double overallMatrix[3][3];
     double inverseOverallMatrix[3][3];
-    
+
+    // variables for clamping
+    /*
+    double redclamphighfactor = 1.0;
+    double greenclamphighfactor = 1.0;
+    double blueclamphighfactor = 1.0;
+    double redclamplowfactor = 1.0;
+    double greenclamplowfactor = 1.0;
+    double blueclamplowfactor = 1.0;
+    */
+
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
     bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int verbositylevel);

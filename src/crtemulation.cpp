@@ -53,6 +53,109 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulat
     
     output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
     
+    /*
+    OR NOT!
+    The biggest practical impact is to make yellow *much* more orange. Not desirable.
+
+    // We don't really know how the output from the demodulator was clamped.
+    // The general approach here is to just pass along the out-of-bounds values until the gamut compression step.
+    // In most cases, this is better than clamping because
+    // (a) We get a range of continuous values unstead of clipping, and
+    // (b) We don't alter the hue like we would with clamping.
+    // However, really far-out outliers (which in practice means "red") cause other colors in that direction to get
+    // compressed harder than they probably should.
+    // So, as a compromise, we're going to scale down outliers to the range -0.2 to 1.2,
+    // using -0.2 to -0.1 and 1.1 to 1.2 for the compression zones.
+    // This coincides with the absolute limits of what could be modulated onto a NTSC carrier wave.
+    // This limit did not apply to the *output* of the demodulator circuit.
+    // However we might make a loosey goosey guess that demodulator output was probably not clamped to a wider range than that.
+    // So we end up with a chutto hampa solution where we probably haven't clamped realistically,
+    // but passing out-of-bounds values onward to the GMA is generally better than clamping anyway,
+    // and we've reduced the extent of the one case where maybe it's not.
+    double maxred = 0.0;
+    double minred = 0.0;
+    if (overallMatrix[0][0] > 0.0){
+        maxred += overallMatrix[0][0];
+    }
+    else {
+        minred += overallMatrix[0][0];
+    }
+    if (overallMatrix[0][1] > 0.0){
+        maxred += overallMatrix[0][1];
+    }
+    else {
+        minred += overallMatrix[0][1];
+    }
+    if (overallMatrix[0][2] > 0.0){
+        maxred += overallMatrix[0][2];
+    }
+    else {
+        minred += overallMatrix[0][2];
+    }
+    if (maxred > 1.2){
+        redclamphighfactor = 0.1 / (maxred - 1.1);
+    }
+    if (minred < -0.2){
+        redclamplowfactor = -0.1 / (minred + 0.1);
+    }
+
+
+    double maxgreen = 0.0;
+    double mingreen = 0.0;
+    if (overallMatrix[1][0] > 0.0){
+        maxgreen += overallMatrix[1][0];
+    }
+    else {
+        mingreen += overallMatrix[1][0];
+    }
+    if (overallMatrix[1][1] > 0.0){
+        maxgreen += overallMatrix[1][1];
+    }
+    else {
+        mingreen += overallMatrix[1][1];
+    }
+    if (overallMatrix[1][2] > 0.0){
+        maxgreen += overallMatrix[1][2];
+    }
+    else {
+        mingreen += overallMatrix[1][2];
+    }
+    if (maxgreen > 1.2){
+        greenclamphighfactor = 0.1 / (maxgreen - 1.1);
+    }
+    if (mingreen < -0.2){
+        greenclamplowfactor = -0.1 / (mingreen + 0.1);
+    }
+
+    double maxblue = 0.0;
+    double minblue = 0.0;
+    if (overallMatrix[2][0] > 0.0){
+        maxblue += overallMatrix[2][0];
+    }
+    else {
+        minblue += overallMatrix[2][0];
+    }
+    if (overallMatrix[2][1] > 0.0){
+        maxblue += overallMatrix[2][1];
+    }
+    else {
+        minblue += overallMatrix[2][1];
+    }
+    if (overallMatrix[2][2] > 0.0){
+        maxblue += overallMatrix[2][2];
+    }
+    else {
+        minblue += overallMatrix[2][2];
+    }
+    if (maxblue > 1.2){
+        blueclamphighfactor = 0.1 / (maxblue - 1.1);
+    }
+    if (minblue < -0.2){
+        blueclamplowfactor = -0.1 / (minblue + 0.1);
+    }
+
+    */
+
     return output;
 }
 
@@ -499,6 +602,31 @@ bool crtdescriptor::InitializeModulator(){
 
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     vec3 output = multMatrixByColor(overallMatrix, input);
+
+    /*
+    OR NOT!
+    The biggest practical impact is to make yellow *much* more orange. Not desirable.
+    // Clamp. See comment in crtdescriptor::Initialize().
+    if (output.x < -0.1){
+        output.x = -0.1 + ((output.x + 0.1) * redclamplowfactor);
+    }
+    if (output.x > 1.1){
+        output.x = 1.1 + ((output.x - 1.1) * redclamphighfactor);
+    }
+    if (output.y < -0.1){
+        output.y = -0.1 + ((output.y + 0.1) * greenclamplowfactor);
+    }
+    if (output.y > 1.1){
+        output.y = 1.1 + ((output.y - 1.1) * greenclamphighfactor);
+    }
+    if (output.z < -0.1){
+        output.z = -0.1 + ((output.z + 0.1) * blueclamplowfactor);
+    }
+    if (output.z > 1.1){
+        output.z = 1.1 + ((output.z - 1.1) * blueclamphighfactor);
+    }
+    */
+
     output.x = tolinear1886appx1(output.x);
     output.y = tolinear1886appx1(output.y);
     output.z = tolinear1886appx1(output.z);
