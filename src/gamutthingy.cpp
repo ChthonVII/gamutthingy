@@ -1281,15 +1281,11 @@ int main(int argc, const char **argv){
                         
                         // read bytes from buffer
                         // or just make them if generating a LUT
+
                         png_byte redin;
                         png_byte greenin;
                         png_byte bluein;
-                        if (lutgen){
-                            redin = toRGB8nodither((double)(x % lutsize) / ((double)(lutsize - 1)));
-                            greenin = toRGB8nodither((double)y / ((double)(lutsize - 1)));
-                            bluein = toRGB8nodither((double)(x / lutsize) / ((double)(lutsize - 1)));
-                        }
-                        else {
+                        if (!lutgen){
                             redin = buffer[ ((y * width) + x) * 4];
                             greenin = buffer[ (((y * width) + x) * 4) + 1 ];
                             bluein = buffer[ (((y * width) + x) * 4) + 2 ];
@@ -1303,57 +1299,26 @@ int main(int argc, const char **argv){
                         }
                         else {
                         
-                            // convert to double
-                            double redvalue = redin/255.0;
-                            double greenvalue = greenin/255.0;
-                            double bluevalue = bluein/255.0;
-                            // don't touch alpha value
-                            
+                            double redvalue;
+                            double greenvalue;
+                            double bluevalue;
+
+                            if (lutgen){
+                                redvalue = (double)(x % lutsize) / ((double)(lutsize - 1));
+                                greenvalue = (double)y / ((double)(lutsize - 1));
+                                bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
+                            }
+                            else {
+                                // convert to double
+                                redvalue = redin/255.0;
+                                greenvalue = greenin/255.0;
+                                bluevalue = bluein/255.0;
+                                // don't touch alpha value
+                            }
+
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
                             outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
-
-                            /*
-                            // to linear RGB
-                            if (gammamode){
-                                // The FF7 videos had banding near black when decoded with any piecewise "toe slope" gamma function, suggesting that a pure curve function was needed. May need to try this if such banding appears.
-                                redvalue = tolinear(redvalue);
-                                greenvalue = tolinear(greenvalue);
-                                bluevalue = tolinear(bluevalue);
-                            }                           
-                            
-                            vec3 linearRGB = vec3(redvalue, greenvalue, bluevalue);
-                            
-                            // if clipping, just do the matrix math
-                            // (the gamutdescriptors know if they need to do a Bradford (Von Kries) transform
-                            if (mapmode == MAP_CLIP){
-                                vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearRGB);
-                                outcolor = destgamut.XYZtoLinearRGB(tempcolor);
-                            }
-                            else if (mapmode == MAP_CCC_A){
-                                vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearRGB);
-                                outcolor = destgamut.XYZtoLinearRGB(tempcolor);
-                                double maxP = sourcegamut.linearRGBfindmaxP(linearRGB);
-                                double oldweight = 0.0;
-                                if (cccfunctiontype == CCC_EXPONENTIAL){
-                                    oldweight = powermap(cccfloor, cccceiling, maxP, cccexp);
-                                }
-                                else if (cccfunctiontype == CCC_CUBIC_HERMITE){
-                                    oldweight = cubichermitemap(cccfloor, cccceiling, maxP);
-                                }
-                                double newweight = 1.0 - oldweight;
-                                outcolor = (linearRGB * oldweight) + (outcolor * newweight);
-                            }
-                            // otherwise fire up the gamut mapping algorithm
-                            else {
-                                outcolor = mapColor(linearRGB, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
-                            }
-                            
-                            // back to sRGB
-                            if (gammamode){
-                                outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
-                            }
-                            */
                             
                             // memoize the result of the conversion so we don't need to do it again for this input color
                             if (!lutgen){
