@@ -1298,7 +1298,7 @@ int main(int argc, const char **argv){
                         vec3 outcolor;
                         
                         // if we've already processed the same input color, just recall the memo
-                        if (memos[redin][greenin][bluein].known){
+                        if (!lutgen && memos[redin][greenin][bluein].known){
                             outcolor = memos[redin][greenin][bluein].data;
                         }
                         else {
@@ -1356,9 +1356,10 @@ int main(int argc, const char **argv){
                             */
                             
                             // memoize the result of the conversion so we don't need to do it again for this input color
-                            memos[redin][greenin][bluein].known = true;
-                            memos[redin][greenin][bluein].data = outcolor;
-                                                    
+                            if (!lutgen){
+                                memos[redin][greenin][bluein].known = true;
+                                memos[redin][greenin][bluein].data = outcolor;
+                            }
                         }
 
                         png_byte redout, greenout, blueout;
