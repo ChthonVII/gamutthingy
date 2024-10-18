@@ -475,17 +475,31 @@ void crtdescriptor::InitializeDemodulator(){
     double Krb = 1.0 - (Krr + Krg);
     double Kgb = 1.0 - (Kgr + Kgg);
     double Kbb = 1.0 - (Kbr + Kbg);
-        
+
     // copy our correction matrix
-    demodulatorMatrix[0][0] = Krr;
-    demodulatorMatrix[0][1] = Krg;
-    demodulatorMatrix[0][2] = Krb;
-    demodulatorMatrix[1][0] = Kgr;
-    demodulatorMatrix[1][1] = Kgg;
-    demodulatorMatrix[1][2] = Kgb;
-    demodulatorMatrix[2][0] = Kbr;
-    demodulatorMatrix[2][1] = Kbg;
-    demodulatorMatrix[2][2] = Kbb;
+    // (or the identity matrix if dummy demodulator)
+    if (demodulatorindex == CRT_DEMODULATOR_DUMMY){
+        demodulatorMatrix[0][0] = 1.0;
+        demodulatorMatrix[0][1] = 0.0;
+        demodulatorMatrix[0][2] = 0.0;
+        demodulatorMatrix[1][0] = 0.0;
+        demodulatorMatrix[1][1] = 1.0;
+        demodulatorMatrix[1][2] = 0.0;
+        demodulatorMatrix[2][0] = 0.0;
+        demodulatorMatrix[2][1] = 0.0;
+        demodulatorMatrix[2][2] = 1.0;
+    }
+    else {
+        demodulatorMatrix[0][0] = Krr;
+        demodulatorMatrix[0][1] = Krg;
+        demodulatorMatrix[0][2] = Krb;
+        demodulatorMatrix[1][0] = Kgr;
+        demodulatorMatrix[1][1] = Kgg;
+        demodulatorMatrix[1][2] = Kgb;
+        demodulatorMatrix[2][0] = Kbr;
+        demodulatorMatrix[2][1] = Kbg;
+        demodulatorMatrix[2][2] = Kbb;
+    }
     
     // screen barf
     if (verbosity >= VERBOSITY_SLIGHT){

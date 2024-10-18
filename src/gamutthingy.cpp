@@ -555,8 +555,26 @@ int main(int argc, const char **argv){
             expect  = 0;
         }
         else if (expect == 31){ // crt demodulator chip
+
+            /*
+                #define CRT_DEMODULATOR_NONE -1
+                #define CRT_DEMODULATOR_DUMMY 0
+                #define CRT_DEMODULATOR_CXA1464AS 1
+                #define CRT_DEMODULATOR_CXA1465AS 2
+                #define CRT_DEMODULATOR_CXA1870S_JP 3
+                #define CRT_DEMODULATOR_CXA1870S_US 4
+                #define CRT_DEMODULATOR_CXA2060BS_JP 5
+                #define CRT_DEMODULATOR_CXA2060BS_US 6
+                #define CRT_DEMODULATOR_CXA2025AS_JP 7
+                #define CRT_DEMODULATOR_CXA2025AS_US 8
+                #define CRT_DEMODULATOR_CXA1213AS 9
+             */
+
             if (strcmp(argv[i], "none") == 0){
                 crtdemodindex = CRT_DEMODULATOR_NONE;
+            }
+            else if (strcmp(argv[i], "dummy") == 0){
+                crtdemodindex = CRT_DEMODULATOR_DUMMY;
             }
             else if (strcmp(argv[i], "CXA1464AS") == 0){
                 crtdemodindex = CRT_DEMODULATOR_CXA1464AS;
@@ -564,8 +582,31 @@ int main(int argc, const char **argv){
             else if (strcmp(argv[i], "CXA1465AS") == 0){
                 crtdemodindex = CRT_DEMODULATOR_CXA1465AS;
             }
+            else if (strcmp(argv[i], "CXA1870S_JP") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA1870S_JP;
+            }
+            else if (strcmp(argv[i], "CXA1870S_US") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA1870S_US;
+            }
+            else if (strcmp(argv[i], "CXA2060BS_JP") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA2060BS_JP;
+            }
+            else if (strcmp(argv[i], "CXA2060BS_US") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA2060BS_US;
+            }
+            else if (strcmp(argv[i], "CXA2025AS_JP") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA2025AS_JP;
+            }
+            else if (strcmp(argv[i], "CXA2025AS_US") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA2025AS_JP;
+            }
+            /* skip this for now b/c the gains are wrong and need math
+            else if (strcmp(argv[i], "CXA1213AS") == 0){
+                crtdemodindex = CRT_DEMODULATOR_CXA1213AS;
+            }
+            */
             else {
-                printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"CXA1464AS\", or \"CXA1465AS\".\n");
+                printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"dummy\", \"CXA1464AS\", \"CXA1465AS\", \"CXA1870S_JP\", \"CXA1870S_US\", \"CXA2060BS_JP\", \"CXA2060BS_US\", \"CXA2025AS_JP\", or \"CXA2025AS_US\".\n");
                 return ERROR_BAD_PARAM_CRT_EMU_MODE;
             }
             expect  = 0;

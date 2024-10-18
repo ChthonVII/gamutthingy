@@ -102,8 +102,16 @@ extern const vec3 D65;
 #define CRT_MODULATOR_CXA1645 1
 
 #define CRT_DEMODULATOR_NONE -1
-#define CRT_DEMODULATOR_CXA1464AS 0
-#define CRT_DEMODULATOR_CXA1465AS 1
+#define CRT_DEMODULATOR_DUMMY 0
+#define CRT_DEMODULATOR_CXA1464AS 1
+#define CRT_DEMODULATOR_CXA1465AS 2
+#define CRT_DEMODULATOR_CXA1870S_JP 3
+#define CRT_DEMODULATOR_CXA1870S_US 4
+#define CRT_DEMODULATOR_CXA2060BS_JP 5
+#define CRT_DEMODULATOR_CXA2060BS_US 6
+#define CRT_DEMODULATOR_CXA2025AS_JP 7
+#define CRT_DEMODULATOR_CXA2025AS_US 8
+#define CRT_DEMODULATOR_CXA1213AS 9
 
 
 
@@ -308,7 +316,8 @@ const double modulatorinfo[4][3][3] = {
 
 };
 
-const std::string demodulatornames[98] = {
+const std::string demodulatornames[10] = {
+    "Dummy/PAL/SMPTE-C",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
     "CXA1870S (JP mode)",
@@ -320,8 +329,16 @@ const std::string demodulatornames[98] = {
     "CXA1213AS"
 };
 
-const double demodulatorinfo[9][2][3] = {
+const double demodulatorinfo[10][2][3] = {
     
+    // Dummy -- No color correction!
+    // Use this for content in the PAL or SMPTE-C that did not use color correction.
+    {
+        {90, 225, 0}, // angles (degrees)
+        {0.57, 0.34, 1.0} // gains
+
+    },
+
     // CXA1464AS (JP)
     // Used in Sony Trinitron ~1993 - ~1995
     {
