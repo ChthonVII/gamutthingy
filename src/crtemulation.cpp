@@ -600,6 +600,22 @@ bool crtdescriptor::InitializeModulator(){
     
 }
 
+vec3 crtdescriptor::tolinear1886appx1vec3(vec3 input){
+    vec3 output;
+    output.x = tolinear1886appx1(input.x);
+    output.y = tolinear1886appx1(input.y);
+    output.z = tolinear1886appx1(input.z);
+    return output;
+}
+
+vec3 crtdescriptor::togamma1886appx1vec3(vec3 input){
+    vec3 output;
+    output.x = togamma1886appx1(input.x);
+    output.y = togamma1886appx1(input.y);
+    output.z = togamma1886appx1(input.z);
+    return output;
+}
+
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     vec3 output = multMatrixByColor(overallMatrix, input);
 

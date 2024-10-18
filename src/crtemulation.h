@@ -58,7 +58,8 @@ public:
     void BruteForce1886B();
     double tolinear1886appx1(double input);
     double togamma1886appx1(double input);
-    
+    vec3 tolinear1886appx1vec3(vec3 input);
+    vec3 togamma1886appx1vec3(vec3 input);
     
     bool InitializeNTSC1953WhiteBalanceFactors();
     bool InitializeModulator();

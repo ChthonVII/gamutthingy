@@ -31,15 +31,28 @@ typedef struct memo{
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
 
-vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma){
+vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode){
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
-        linearinputcolor = sourcegamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(inputcolor);
+        if (eilutmode){
+            linearinputcolor = sourcegamut.attachedCRT->tolinear1886appx1vec3(inputcolor);
+        }
+        else {
+            linearinputcolor = sourcegamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(inputcolor);
+        }
     }
     else if (gammamode){
         linearinputcolor = vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z));
     }
     
+    // Expanded intermediate LUTs expressly contain a ton of out-of-bounds colors
+    // XYZtoJzazbz() will force colors to black if luminosity is negative at that point.
+    // CUSP and VPR-alike GMA algorithms will pull down stuff that's above 1.0 luminosity.
+    // But desaturation-only algorithms (HLPCM) must have luminosity clamped.
+    if (eilutmode && (mapdirection == MAP_HLPCM)){
+        linearinputcolor = sourcegamut.ClampLuminosity(linearinputcolor);
+    }
+
     vec3 outcolor;
         
     if (mapmode == MAP_CLIP){
@@ -161,6 +174,7 @@ int main(int argc, const char **argv){
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     bool lutgen = false;
+    bool eilut = false;
     unsigned int lutsize = 128;
     
     int expect = 0;
@@ -598,6 +612,19 @@ int main(int argc, const char **argv){
             }
             expect = 0;
         }
+        else if (expect == 34){ // eilut
+            if (strcmp(argv[i], "true") == 0){
+                eilut = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                eilut = false;
+            }
+            else {
+                printf("Invalid parameter for eilut. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_EILUT;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -699,6 +726,9 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--lutsize") == 0)){
                 expect = 33;
+            }
+            else if ((strcmp(argv[i], "--eilut") == 0)){
+                expect = 34;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -809,12 +839,20 @@ int main(int argc, const char **argv){
             case 33:
                 printf("LUT size (integer).\n");
                 break;
+            case 34:
+                printf("expanded intermediate LUT mode (true/false).\n");
+                break;
             default:
                 printf("oh... er... wtf error!.\n");
         }
         return ERROR_BAD_PARAM_MISSING_VALUE;
     }
     
+    if (eilut && !lutgen){
+        printf("\nForcing eilut to false because lutgen is false.\n");
+        eilut = false;
+    }
+
     if (filemode || lutgen){
         bool failboat = false;
         if (!infileset && !lutgen){
@@ -835,7 +873,7 @@ int main(int argc, const char **argv){
                 dither = false;
             }
             if (gammamode){
-                printf("\nWARNING: Did you really mean to use sRGB gamma when generating a LUT?\n(You probably want linear RGB instead.)\n");
+                printf("\nNOTE: You are saving a LUT using sRGB gamma. The program using this LUT will have to linearize values before interpolating. Are you sure this is what you want?\n");
             }
         }
     }
@@ -875,6 +913,12 @@ int main(int argc, const char **argv){
         if (filemode){
             if (lutgen){
                 printf("LUT generation.\nLUT size: %i\nOutput file: %s\n", lutsize, outputfilename);
+                if (eilut){
+                    printf("LUT type: Expanded intermediate LUT\n");
+                }
+                else {
+                    printf("LUT type: Normal LUT\n");
+                }
             }
             else {
                 printf("Input file: %s\nOutput file: %s\n", inputfilename, outputfilename);
@@ -1159,7 +1203,7 @@ int main(int argc, const char **argv){
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
+        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false);
         /*
         vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
         vec3 outcolor;
@@ -1279,8 +1323,7 @@ int main(int argc, const char **argv){
                     }
                     for (int x=0; x<width; x++){
                         
-                        // read bytes from buffer
-                        // or just make them if generating a LUT
+                        // read bytes from buffer (unless doing LUT)
 
                         png_byte redin;
                         png_byte greenin;
@@ -1307,6 +1350,13 @@ int main(int argc, const char **argv){
                                 redvalue = (double)(x % lutsize) / ((double)(lutsize - 1));
                                 greenvalue = (double)y / ((double)(lutsize - 1));
                                 bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
+
+                                // expanded intermediate LUT uses range of -0.5 to 1.5
+                                if (eilut){
+                                    redvalue = (redvalue * 2.0) - 0.5;
+                                    greenvalue = (greenvalue * 2.0) - 0.5;
+                                    bluevalue = (bluevalue * 2.0) - 0.5;
+                                }
                             }
                             else {
                                 // convert to double
@@ -1318,8 +1368,15 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
-                            
+                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut);
+
+                            // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
+                            /*
+                            if ((redvalue < 0.0) || (greenvalue < 0.0) || (bluevalue < 0.0) || (redvalue > 1.0) || (greenvalue > 1.0) || (bluevalue > 1.0)){
+                                outcolor = vec3(1.0, 1.0, 1.0);
+                            }
+                            */
+
                             // memoize the result of the conversion so we don't need to do it again for this input color
                             if (!lutgen){
                                 memos[redin][greenin][bluein].known = true;

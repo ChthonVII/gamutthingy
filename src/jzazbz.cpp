@@ -3,6 +3,8 @@
 #include <math.h>
 #include "matrix.h"
 
+//#include <stdio.h>
+
 // we also need inverses of the constant matrices
 double InverseJzazbzLMSMatrix[3][3]; // gets initialized by initializeInverseMatrices()
 double InverseJzazbzIabMatrix[3][3]; // gets initialized by initializeInverseMatrices()
@@ -39,6 +41,12 @@ vec3 XYZtoJzazbz(vec3 input){
     
     vec3 LMS = multMatrixByColor(JzazbzLMSMatrix, XYZprimeD65);
     
+    // Expanded intermediate LUTs expressly contain out-of-bounds colors that neede to be bypassed.
+    if ((LMS.x < 0.0) || (LMS.y < 0.0) || (LMS.z < 0.0)){
+        //printf("Yeah, gonna crash. %10f, %10f, %10f\n", LMS.x, LMS.y, LMS.z);
+        return vec3(0.0, 0.0, 0.0);
+    }
+
     vec3 LMSprime = {PQ(LMS.x), PQ(LMS.y), PQ(LMS.z)};
     
     vec3 Izazbz = multMatrixByColor(JzazbzIabMatrix, LMSprime);

@@ -149,14 +149,23 @@ public:
     bool initializePolarPrimaries(bool dosc, double scfloor, double scceil, double scexp, int scmode, int verbose);
     void initializeMatrixChunghwa(gamutdescriptor &othergamut, int verbose);
     bool initializeKinoshitaStuff(gamutdescriptor &othergamut, int verbose);
+
+    // returns luminosity of linearRGB input
+    // returns luma of R'G'B' input
+    double GetLuminosity(vec3 input);
+    // Clamp the luminosity of a linearRGB input to the range 0-1
+    vec3 ClampLuminosity(vec3 input);
+
     // checks if the supplied JzCzhz color is within this gamut.
     // if not, also sets errorsize to the sum of linear rgb over/underruns.
     // (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
     bool IsJzCzhzInBounds(vec3 color, double &errorsize);
+
     // Populates the gamut boundary descriptor using the algorithm from
     // Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. (https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694)
     void FindBoundaries();
-    // Samples the gamut boundaries for one hue slice 
+
+    // Samples the gamut boundaries for one hue slice
     void ProcessSlice(int huestep, double maxluma, double maxchroma);
     
     // Precomputes which slices will rotate into which other slices over which chroma ranges under spiral carisma,

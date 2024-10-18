@@ -889,6 +889,43 @@ void gamutdescriptor::WarpBoundaries(){
     return;
 }
 
+// returns luminosity of linearRGB input
+// returns luma of R'G'B' input
+double gamutdescriptor::GetLuminosity(vec3 input){
+    if (needschromaticadapt){
+        return (input.x * matrixNPMadaptToD65[1][0]) + (input.y * matrixNPMadaptToD65[1][1]) + (input.z * matrixNPMadaptToD65[1][2]);
+    }
+    else {
+        return (input.x * matrixNPM[1][0]) + (input.y * matrixNPM[1][1]) + (input.z * matrixNPM[1][2]);
+    }
+}
+
+// Clamp the luminosity of a linearRGB input to the range 0-1
+vec3 gamutdescriptor::ClampLuminosity(vec3 input){
+    vec3 XYZ = linearRGBtoXYZ(input);
+    // clamp above
+    if (XYZ.y > 1.0){
+        XYZ.y = 1.0;
+        // if not perfectly neutral, make it a bit smaller to avoid later floating point errors putting us out of bounds again
+        if ((input.x != input.y) || (input.y != input.z)){
+            XYZ.y -= EPSILONZERO;
+        }
+        return XYZtoLinearRGB(XYZ);
+    }
+
+    // clmap below
+    else if (XYZ.y <= 0.0){
+        XYZ.y = 0.0;
+        // if not perfectly neutral, make it a bit bigger to avoid later floating point errors putting us out of bounds again
+        if ((input.x != input.y) || (input.y != input.z)){
+            XYZ.y += EPSILONZERO;
+        }
+        return XYZtoLinearRGB(XYZ);
+    }
+    return input;
+}
+
+
 // checks if the supplied JzCzhz color is within this gamut.
 // if not, also sets errorsize to the sum of linear rgb over/underruns.
 // (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
@@ -1194,7 +1231,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
             }
             */
             // just use the line from 0,0 to cusp, because "in bounds" will be defined by that later
-            if (lineIntersection2D(vec2(0.0, 0.0), vec2(data[huestep][i].x, data[huestep][i].y), vec2(0.0, 1.5 * maxluma), vec2(1.0, 1.5 * maxluma), ufakepoints[huestep])){
+            if (lineIntersection2D(vec2(0.0, 0.0), vec2(data[huestep][i].x, data[huestep][i].y), vec2(0.0, 2.0 * maxluma), vec2(1.0, 2.0 * maxluma), ufakepoints[huestep])){
                 foundpoint = true;
                 break;
             }
@@ -1212,6 +1249,10 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
 // boundtype is used for the VP gamut mapping algorithm
 // BOUND_ABOVE extends the just-above-the-cusp segment indefinitely to the right and ignores the below-the-cusp segments
 vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int hueindex, int boundtype){
+
+    if ((color.x == 0.0) && (color.y == 0.0)){
+        return color;
+    }
 
     vec2 focalpoint = vec2(0.0, focalpointluma);
     int linecount = data[hueindex].size() - 1;
@@ -1349,7 +1390,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
     if (bestdist > EPSILONZERO){
         // changed back to epsilonzero b/c I think I fixed the underlying issue.
         // let's see if it pops up again.
-        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %.10f, %.10f; focal point %f, %f; best point: %.10f, %.10f; bestnode: %.10f, %.10f; line segment %i, before %i\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y, bestnode.x, bestnode.y, besti, beforei);
+        printf("Something went really wrong in gamutdescriptor::getBoundary(). bestdist is %f, boundtype is %i, color: %.10f, %.10f; focal point %f, %f; best point: %.10f, %.10f; bestnode: %.10f, %.10f; line segment %i, before %i, truly zero? %i\nboundary nodes:\n", bestdist, boundtype, color.x, color.y, focalpoint.x, focalpoint.y, bestpoint.x, bestpoint.y, bestnode.x, bestnode.y, besti, beforei, ((color.x == 0.0) && (color.y == 0.0)));
         for (int i=0; i<(int)data[hueindex].size(); i++){
             printf("\t\tnode %i: %.10f, %.10f, cusp=%i\n", i, data[hueindex][i].x, data[hueindex][i].y, data[hueindex][i].iscusp);
         }
