@@ -169,8 +169,8 @@ int main(int argc, const char **argv){
     double scexp = 1.2;
     double scmax = 1.0;
     int crtemumode = CRT_EMU_NONE;
-    double crtblacklevel = 0.001;
-    double crtwhitelevel = 1.0;
+    double crtblacklevel = 0.0001;
+    double crtwhitelevel = 1.71;
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     bool lutgen = false;
