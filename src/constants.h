@@ -113,7 +113,11 @@ extern const vec3 D65;
 #define CRT_DEMODULATOR_CXA2025AS_US 8
 #define CRT_DEMODULATOR_CXA1213AS 9
 
-
+// YIQ scaling factors
+#define Udownscale 0.492111
+#define Vdownscale 0.877283
+#define Uupscale (1.0/Udownscale)
+#define Vupscale (1.0/Vdownscale)
 
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.

@@ -2,12 +2,14 @@
 #define CRTEMULATION_H
 
 #include "vec3.h"
+#include "constants.h"
 
 // YIQ scaling factors
-#define Udownscale 0.492111
-#define Vdownscale 0.877283
-#define Uupscale (1.0/Udownscale)
-#define Vupscale (1.0/Vdownscale)
+// moved to constants.h
+//#define Udownscale 0.492111
+//#define Vdownscale 0.877283
+//#define Uupscale (1.0/Udownscale)
+//#define Vupscale (1.0/Vdownscale)
 
 class crtdescriptor{
 public:
