@@ -1751,9 +1751,14 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                             double cuspchroma = ((1.0 - ceilweight) * floorcuspchroma) + (ceilweight * ceilcuspchroma);
                             compressedrotatedcolor = vec3(cuspluma, cuspchroma, rotatedcolor.z);
                         }
-                        // otherwise we will move horizontally
+                        // otherwise we will move horizontally (or towards cusp for VPRC
                         else {
-                            maptoluma = rotatedcolor.x;
+                            if (mapdirection == MAP_VPRC){
+                                maptoluma = cuspluma;
+                            }
+                            else {
+                                maptoluma = rotatedcolor.x;
+                            }
                             boundtype = BOUND_NORMAL;
                             compressedrotatedcolor = othergamut.getBoundary3D(rotatedcolor, maptoluma, floorhueindex, boundtype , false);
                         }
