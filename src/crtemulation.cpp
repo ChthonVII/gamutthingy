@@ -633,29 +633,15 @@ vec3 crtdescriptor::togamma1886appx1vec3(vec3 input){
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     vec3 output = multMatrixByColor(overallMatrix, input);
 
-    /*
-    OR NOT!
-    The biggest practical impact is to make yellow *much* more orange. Not desirable.
-    // Clamp. See comment in crtdescriptor::Initialize().
-    if (output.x < -0.1){
-        output.x = -0.1 + ((output.x + 0.1) * redclamplowfactor);
-    }
-    if (output.x > 1.1){
-        output.x = 1.1 + ((output.x - 1.1) * redclamphighfactor);
-    }
-    if (output.y < -0.1){
-        output.y = -0.1 + ((output.y + 0.1) * greenclamplowfactor);
-    }
-    if (output.y > 1.1){
-        output.y = 1.1 + ((output.y - 1.1) * greenclamphighfactor);
-    }
-    if (output.z < -0.1){
-        output.z = -0.1 + ((output.z + 0.1) * blueclamplowfactor);
-    }
-    if (output.z > 1.1){
-        output.z = 1.1 + ((output.z - 1.1) * blueclamphighfactor);
-    }
-    */
+    // We do need to clamp low values.
+    // Even if the CRT jungle chip isn't actively clamping, at some point there are just zero volts driving the electron gun.
+    // Additionally, the Jzazbz PQ function is going to return NAN given inputs that are too negative.
+    // Somewhat arbitrarily setting the maximum negative value at slightly more than the gap between US NTSC black and blanking (7.5/92.5).
+    // With this clamp in place, the only problematic input observed so far is the NES's 0xD "super black"
+    // (Which gets forced to black in XYZtoJzazbz(), which is the right result.)
+    if (output.x < -0.085) output.x = -0.085;
+    if (output.y < -0.085) output.y = -0.085;
+    if (output.z < -0.085) output.z = -0.085;
 
     output.x = tolinear1886appx1(output.x);
     output.y = tolinear1886appx1(output.y);

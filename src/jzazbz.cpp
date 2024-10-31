@@ -54,7 +54,7 @@ vec3 XYZtoJzazbz(vec3 input){
     double Jz = (((1.0 + Jzazbz_d) * Izazbz.x) / (1.0 + (Jzazbz_d * Izazbz.x))) - Jzazbz_d0;
     
     vec3 output = {Jz, Izazbz.y, Izazbz.z};
-        
+
     return output;
     
 }

@@ -3,6 +3,7 @@
 #include <string>
 #include <errno.h>
 #include <math.h>
+#include <fstream>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -16,6 +17,7 @@
 #include "gamutbounds.h"
 #include "colormisc.h"
 #include "crtemulation.h"
+#include "nes.h"
 
 void printhelp(){
     printf("Usage is:\n\n`--help` or `-h`: Displays help.\n\n`--color` or `-c`: Specifies a single color to convert. A message containing the result will be printed to stdout. Should be a \"0x\" prefixed hexadecimal representation of an RGB8 color. For example: `0xFABF00`.\n\n`--infile` or `-i`: Specifies an input file. Should be a .png image.\n\n`--outfile` or `-o`: Specifies an input file. Should be a .png image.\n\n`--gamma` or `-g`: Specifies the gamma function (and inverse) to be applied to the input and output. Possible values are `srgb` (default) and `linear`. LUTs for FFNx should be created using linear RGB. Images should generally be converted using the sRGB gamma function.\n\n`--source-gamut` or `-s`: Specifies the source gamut. Possible values are:\n\t`srgb`: The sRGB gamut used by (SDR) modern computer monitors. Identical to the bt709 gamut used for modern HD video.\n\t`ntscj`: alias for `ntscjr`.\n\t`ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets, official specification. (whitepoint 9300K+27mpcd) Default.\n\t`ntscjp22`: NTSC-J gamut as derived from average measurements conducted on Japanese CRT television sets with typical P22 phosphors. (whitepoint 9300K+27mpcd) Deviates significantly from the specification, which was usually compensated for by a \"color correction circuit.\" See readme for details.\n\t`ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts, official specification. (whitepoint 9300K+8mpcd)\n\t`smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.\n\t`ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).\n\n`--dest-gamut` or `-d`: Specifies the destination gamut. Possible values are the same as for source gamut. Default is `srgb`.\n\n`--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing white points. Possible values are `bradford` and `cat16` (default).\n\n`--map-mode` or `-m`: Specifies gamut mapping mode. Possible values are:\n\t`clip`: No gamut mapping is performed and linear RGB output is simply clipped to 0, 1. Detail in the out-of-bounds range will be lost.\n\t`compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving some of the out-of-bounds detail. Default.\n\t`expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. (Also, reverses the order of the steps in the `vp` and `vpr` algorithms.) The only use for this is to prepare an image for a \"roundtrip\" conversion. For example, if you want to display a sRGB image as-is in FFNx's NTSC-J mode, you would convert from sRGB to NTSC-J using `expand` in preparation for FFNx doing the inverse operation.\n\n`--gamut-mapping-algorithm` or `--gma`: Specifies which gamut mapping algorithm to use. (Does nothing if `--map-mode clip`.) Possible values are:\n\t`cusp`: The CUSP algorithm, but with tunable compression parameters. See readme for details.\n\t`hlpcm`: The HLPCM algorithm, but with tunable compression parameters. See readme for details.\n\t`vp`: The VP algorithm, but with linear light scaling and tunable compression parameters. See readme for details.\n\t`vpr`: VPR algorithm, a modification of VP created for gamutthingy. The modifications are explained in the readme. Default.\n\n`--safe-zone-type` or `-z`: Specifies how the outer zone subject to remapping and the inner \"safe zone\" exempt from remapping are defined. Possible values are:\n\t`const-fidelity`: The zones are defined relative to the distance from the \"center of gravity\" to the destination gamut boundary. Yields consistent colorimetric fidelity, with variable detail preservation.\n\t`const-detail`: The remapping zone is defined relative to the difference between the distances from the \"center of gravity\" to the source and destination gamut boundaries. As implemented here, an overriding minimum size for the \"safe zone\" (relative to the destination gamut boundary) may also be enforced. Yields consistent detail preservation, with variable colorimetric fidelity (setting aside the override option). Default.\n\n`--remap-factor` or `--rf`: Specifies the size of the remapping zone relative to the difference between the distances from the \"center of gravity\" to the source and destination gamut boundaries. (Does nothing if `--safe-zone-type const-fidelity`.) Default 0.4.\n\n`--remap-limit` or `--rl`: Specifies the size of the safe zone (exempt from remapping) relative to the distance from the \"center of gravity\" to the destination gamut boundary. If `--safe-zone-type const-detail`, this serves as a minimum size limit when application of `--remap-factor` would lead to a smaller safe zone. Default 0.9.\n\n`--knee` or `-k`: Specifies the type of knee function used for compression, `hard` or `soft`. Default `soft`.\n\n`--knee-factor` or `--kf`: Specifies the width of the soft knee relative to the size of the remapping zone. (Does nothing if `--knee hard`.) Note that the soft knee is centered at the knee point, so half the width extends into the safe zone, thus expanding the area that is remapped. Default 0.4.\n\n`--dither` or `--di`: Specifies whether to apply dithering to the ouput, `true` or `false`. Uses Martin Roberts' quasirandom dithering algorithm. Dithering should be used for images in general, but should not be used for LUTs.  Default `true`.\n\n`--verbosity` or `-v`: Specify verbosity level. Integers 0-5. Default 2.\n");
@@ -31,7 +33,7 @@ typedef struct memo{
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
 
-vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode){
+vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode){
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
         if (eilutmode){
@@ -49,7 +51,8 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
     // XYZtoJzazbz() will force colors to black if luminosity is negative at that point.
     // CUSP and VPR-alike GMA algorithms will pull down stuff that's above 1.0 luminosity.
     // But desaturation-only algorithms (HLPCM) must have luminosity clamped.
-    if (eilutmode && (mapdirection == MAP_HLPCM)){
+    // NES may also have out-of-bounds luminosity
+    if ((eilutmode || nesmode) && (mapdirection == MAP_HLPCM)){
         linearinputcolor = sourcegamut.ClampLuminosity(linearinputcolor);
     }
 
@@ -116,7 +119,7 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
         
     }
     else {
-        outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma);
+        outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, nesmode);
     }
     if (destgamut.crtemumode == CRT_EMU_BACK){
         outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor);
@@ -176,6 +179,12 @@ int main(int argc, const char **argv){
     bool lutgen = false;
     bool eilut = false;
     unsigned int lutsize = 128;
+    bool nesmode = false;
+    bool nesispal = false;
+    bool nescbc = true;
+    double nesskew26A = 4.5;
+    double nesboost48C = 1.0;
+    double nesskewstep = 2.5;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -307,7 +316,7 @@ int main(int argc, const char **argv){
             expect  = 0;
         }
         // expecting a number
-        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20) || (expect == 23) || (expect == 24) || (expect == 25) || (expect == 28) || (expect == 29)){
+        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20) || (expect == 23) || (expect == 24) || (expect == 25) || (expect == 28) || (expect == 29) || (expect == 38) || (expect == 39) || (expect == 40)){
             char* endptr;
             errno = 0; //make sure errno is 0 before strtol()
             double input = strtod(argv[i], &endptr);
@@ -357,6 +366,15 @@ int main(int argc, const char **argv){
                         break;
                     case 29:
                         crtwhitelevel = input;
+                        break;
+                    case 38:
+                        nesskew26A = input;
+                        break;
+                    case 39:
+                        nesboost48C = input;
+                        break;
+                    case 40:
+                        nesskewstep = input;
                         break;
                     default:
                         break;
@@ -666,6 +684,45 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 35){ // nespalgen
+            if (strcmp(argv[i], "true") == 0){
+                nesmode = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                nesmode = false;
+            }
+            else {
+                printf("Invalid parameter for nespalgen. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_NES;
+            }
+            expect  = 0;
+        }
+        else if (expect == 36){ // nespalmode
+            if (strcmp(argv[i], "true") == 0){
+                nesispal = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                nesispal = false;
+            }
+            else {
+                printf("Invalid parameter for nespalmode. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_NESPAL;
+            }
+            expect  = 0;
+        }
+        else if (expect == 37){ // nesburstnorm
+            if (strcmp(argv[i], "true") == 0){
+                nescbc = true;
+            }
+            else if (strcmp(argv[i], "false") == 0){
+                nescbc = false;
+            }
+            else {
+                printf("Invalid parameter for nesburstnorm. Expecting \"true\" or \"false\".\n");
+                return ERROR_BAD_PARAM_NESBURST;
+            }
+            expect  = 0;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -770,6 +827,24 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--eilut") == 0)){
                 expect = 34;
+            }
+            else if ((strcmp(argv[i], "--nespalgen") == 0)){
+                expect = 35;
+            }
+            else if ((strcmp(argv[i], "--nespalmode") == 0)){
+                expect = 36;
+            }
+            else if ((strcmp(argv[i], "--nesburstnorm") == 0)){
+                expect = 37;
+            }
+            else if ((strcmp(argv[i], "--nesskew26a") == 0)){
+                expect = 38;
+            }
+            else if ((strcmp(argv[i], "--nesboost48c") == 0)){
+                expect = 39;
+            }
+            else if ((strcmp(argv[i], "--nesperlumaskew") == 0)){
+                expect = 40;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -883,20 +958,51 @@ int main(int argc, const char **argv){
             case 34:
                 printf("expanded intermediate LUT mode (true/false).\n");
                 break;
+            case 35:
+                printf("NES palette generation mode (true/false).\n");
+                break;
+            case 36:
+                printf("NES simulate PAL phase alternation (true/false).\n");
+                break;
+            case 37:
+                printf("NES normalize chroma to colorburst (true/false).\n");
+                break;
+            case 38:
+                printf("NES phase skew for hues 0x2, 0x6, and 0xA.\n");
+                break;
+            case 39:
+                printf("NES luma boost for hues 0x4, 0x8, and 0xC.\n");
+                break;
+            case 40:
+                printf("NES luma-dependent phase skew.\n");
+                break;
             default:
                 printf("oh... er... wtf error!.\n");
         }
         return ERROR_BAD_PARAM_MISSING_VALUE;
     }
     
+    if (nesmode && lutgen){
+        printf("\nForcing lutgen to false because nespalgen is true.\n");
+        lutgen = false;
+    }
+    if (nesmode && filemode){
+        printf("\nIgnoring input file because nespalgen is true.\n");
+        filemode = false;
+    }
+    if (nesmode && spiralcarisma){
+        printf("\nForcing spiral-carisma to false because nespalgen is true.\n");
+        spiralcarisma = false;
+    }
+
     if (eilut && !lutgen){
         printf("\nForcing eilut to false because lutgen is false.\n");
         eilut = false;
     }
 
-    if (filemode || lutgen){
+    if (filemode || lutgen || nesmode){
         bool failboat = false;
-        if (!infileset && !lutgen){
+        if (!infileset && !lutgen && !nesmode){
             printf("Input file not specified.\n");
             failboat = true;
         }
@@ -916,6 +1022,10 @@ int main(int argc, const char **argv){
             if (gammamode){
                 printf("\nNOTE: You are saving a LUT using sRGB gamma. The program using this LUT will have to linearize values before interpolating. Are you sure this is what you want?\n");
             }
+        }
+        if (nesmode && dither){
+            printf("\nForcing dither to false because nespalgen is true.\n");
+            dither = false;
         }
     }
     else{
@@ -964,6 +1074,9 @@ int main(int argc, const char **argv){
             else {
                 printf("Input file: %s\nOutput file: %s\n", inputfilename, outputfilename);
             }
+        }
+        else if (nesmode){
+            printf("NES palette generation.\nOutput file: %s\n", outputfilename);
         }
         else {
             printf("Input color: %s\n", inputcolorstring);
@@ -1168,6 +1281,13 @@ int main(int argc, const char **argv){
                  printf("%s\n", demodulatornames[crtdemodindex].c_str());
             }
         }
+        if (nesmode){
+            printf("NES simulate PAL phase alternation: %i\n", nesispal);
+            printf("NES normalize chroma to colorburst: %i\n", nescbc);
+            printf("NES phase skew for hues 0x2, 0x6, and 0xA: %f degrees\n", nesskew26A);
+            printf("NES luma boost for hues 0x4, 0x8, and 0xC: %f IRE\n", nesboost48C);
+            printf("NES phase skew per luma step: %f degrees\n", nesskewstep);
+        }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
     }
@@ -1238,13 +1358,14 @@ int main(int argc, const char **argv){
         }
     }
     
+
     // this mode converts a single color and printfs the result
-    if (!filemode){
+    if (!filemode && !nesmode){
         int redout;
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false);
+        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false);
         /*
         vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
         vec3 outcolor;
@@ -1285,6 +1406,41 @@ int main(int argc, const char **argv){
         else {
             printf("%02X%02X%02X", redout, greenout, blueout);
         }
+        return RETURN_SUCCESS;
+    }
+    else if (nesmode){
+
+        printf("Generating NES palette and saving result to %s...\n", outputfilename);
+
+        std::ofstream palfile(outputfilename, std::ios::out | std::ios::binary);
+        if (!palfile.is_open()){
+            printf("Unable to open %s for writing.\n", outputfilename);
+            return ERROR_PNG_OPEN_FAIL;
+        }
+
+        nesppusimulation nessim;
+        nessim.Initialize(verbosity, nesispal, nescbc, nesskew26A, nesboost48C, nesskewstep);
+        for (int emp=0; emp<8; emp++){
+            for (int luma=0; luma<4; luma++){
+                for (int hue=0; hue < 16; hue++){
+                    vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
+                    vec3 outcolor = processcolor(nesrgb, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true);
+                    // for now screen barf
+                    //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
+                    //nesrgb.printout();
+                    //outcolor.printout();
+                    unsigned char redout = toRGB8nodither(outcolor.x);
+                    unsigned char greenout = toRGB8nodither(outcolor.y);
+                    unsigned char blueout = toRGB8nodither(outcolor.z);
+                    palfile.write(reinterpret_cast<const char*>(&redout), 1);
+                    palfile.write(reinterpret_cast<const char*>(&greenout), 1);
+                    palfile.write(reinterpret_cast<const char*>(&blueout), 1);
+                }
+            }
+        }
+        palfile.flush();
+        palfile.close();
+        printf("done.\n");
         return RETURN_SUCCESS;
     }
 
@@ -1409,7 +1565,7 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut);
+                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, false);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*

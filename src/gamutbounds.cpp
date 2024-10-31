@@ -1682,7 +1682,7 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
             // We want to compare just compressing the primary/secondary verus rotating to match hue with the destination's primary/secondary and then compressing
             
             // We can just use mapColor() for the unrotated possibility
-            vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false));
+            vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false, false));
             vec3 depocolor = Depolarize(sourceprimary);
             double nomovedist = Distance3D(Depolarize(compressedcolor), depocolor);
             // However, we can't use mapColor() for the rotated possibility because WarpBoundaries() hasn't been called yet. (And can't be called until this is done.)
@@ -2112,7 +2112,7 @@ int hueToFloorIndex(double hue, double &excess){
 // mapdirection: which gamut mapping algorithm to use MAP_GCUSP (actually just CUSP), MAP_HLPCM, or MAP_VP
 // safezonetype: whether to use the traditional relative-to-destination-gamut approach (RMZONE_DEST_BASED) or Su, Tao, & Kim's relative-to-difference-between-gamuts approach (RMZONE_DELTA_BASED)
 //  if RMZONE_DEST_BASED, then remapfactor does nothing
-vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype, bool dospiralcarisma){
+vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype, bool dospiralcarisma, bool nesmode){
     
     // skip the easy black and white cases with no computation
     if (color.isequal(vec3(0.0, 0.0, 0.0)) || color.isequal(vec3(1.0, 1.0, 1.0))){
@@ -2219,7 +2219,14 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
         vec2 maptopoint = vec2(0.0, maptoluma);
         
         // find the boundaries
-        vec3 sourceboundary3D = sourcegamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype, dospiralcarisma);
+        vec3 sourceboundary3D;
+        // NES palette is so sparse that every color is on the boundary
+        if (nesmode){
+            sourceboundary3D = Jcolor;
+        }
+        else {
+            sourceboundary3D = sourcegamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype, dospiralcarisma);
+        }
         vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
         vec3 destboundary3D = destgamut.getBoundary3D(Jcolor, maptoluma, floorhueindex, boundtype , false);
         vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
@@ -2307,7 +2314,14 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
             vec2 maptopoint = vec2(0.0, maptoluma);
             
             // find the boundaries (again)
-            vec3 sourceboundary3D = sourcegamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype, dospiralcarisma);
+            // NES palette is so sparse that every color is on the boundary
+            vec3 sourceboundary3D;
+            if (nesmode){
+                sourceboundary3D = Joutput;
+            }
+            else {
+                sourceboundary3D = sourcegamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype, dospiralcarisma);
+            }
             vec2 sourceboundary = vec2(sourceboundary3D.y, sourceboundary3D.x); // chroma is x; luma is y
             vec3 destboundary3D = destgamut.getBoundary3D(Joutput, maptoluma, floorhueindex, boundtype, false);
             vec2 destboundary = vec2(destboundary3D.y, destboundary3D.x); // chroma is x; luma is y
