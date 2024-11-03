@@ -218,7 +218,7 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
         voltage_buffer[wave_phase] = encode_composite(emphasis, luma, hue, wave_phase, false);
         // in PAL mode, we also want the next line with reversed phase
         if (palmode){
-            int next_phase = (wave_phase + 4) % 12;
+            int next_phase = (wave_phase + 2) % 12;
             voltage_buffer_b[next_phase] = encode_composite(emphasis, luma, hue, next_phase, true);
         }
     }
@@ -291,7 +291,8 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
         // due to the way the waveform is encoded, the hue is off by an additional 1/2 of a sample
 
 
-        // colorburst is at hue 0x8.
+        // colorburst is at hue 0x8 for NTSC models, 7.5 for PAL
+        double colorburst_phase = palmode ? 7.5 : 8.0;
 
         // TODO: TEST for a sign flip error
         // The phase shift for hues 0x2, 0x6, and 0xA moves blue towards magenta, red towards yellow, and green towards cyan.
@@ -300,9 +301,9 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
         // 2x due to integral of sin(2*PI*x)^2
         double saturation_correction = docolorburstampcorrection ? 2.0 * colorburst_amp_correction : 2.0;
 
-        U_decode[i] = saturation_correction * sin((((2.0 * std::numbers::pi_v<long double>) / 12.0) * (i - 1.0 - 8.0 - 0.5)) - phaseskew_pt1 + phaseskew_pt2);
+        U_decode[i] = saturation_correction * sin((((2.0 * std::numbers::pi_v<long double>) / 12.0) * (i - 1.0 - colorburst_phase - 0.5)) - phaseskew_pt1 + phaseskew_pt2);
 
-        V_decode[i] = saturation_correction * cos((((2.0 * std::numbers::pi_v<long double>) / 12.0) * (i - 1.0 - 8.0 - 0.5)) - phaseskew_pt1 + phaseskew_pt2);
+        V_decode[i] = saturation_correction * cos((((2.0 * std::numbers::pi_v<long double>) / 12.0) * (i - 1.0 - colorburst_phase - 0.5)) - phaseskew_pt1 + phaseskew_pt2);
 
         U_buffer[i] = U_comb[i] * U_decode[i];
         V_buffer[i] = V_comb[i] * V_decode[i];
