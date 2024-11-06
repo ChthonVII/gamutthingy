@@ -6,6 +6,16 @@
 #include <math.h> // for sin/cos
 #include <stdio.h> // for printf
 
+/*
+ * Simulates the PPU of a NES/Famicom for purposes of palette generation.
+ * Based very heavily on:
+ * https://github.com/Gumball2415/palgen-persune/blob/main/palgen_persune.py
+ * and
+ * view-source:http://drag.wootest.net/misc/palgen.html
+ * For info on the default values, see
+ * https://forums.nesdev.org/viewtopic.php?p=296732#p296732
+ */
+
 // signal LUTs
 // voltage highs and lows
 // from https://forums.nesdev.org/viewtopic.php?p=159266#p159266
@@ -62,6 +72,11 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, bool cbcorrectio
     return output;
 }
 
+// Initialize an idealized YUV to R'G'B' matrix.
+// We need R'G'B' output from the NES simulation b/c the color correction built into the TV's demodulation
+// is represented as a R'G'B' to R'G'B' matrix in crt.cpp.
+// An idealized matrix might not be the best choice.
+// TODO: Consider implementing less accurate matrices that might have actually been used.
 bool nesppusimulation::InitializeYUVtoRGBMatrix(){
 
 
@@ -138,6 +153,7 @@ bool nesppusimulation::InitializeYUVtoRGBMatrix(){
 
 }
 
+// Compute the reversed phase for the next line in PAL mode
 int nesppusimulation::pal_phase(int hue){
     if ((hue >= 1) && (hue <= 12)){
         return (-1 * (hue - 5)) % 12;
@@ -145,6 +161,7 @@ int nesppusimulation::pal_phase(int hue){
     return hue;
 }
 
+// Is this hue active for this phase?
 bool nesppusimulation::in_color_phase(int hue, int phase, bool pal){
     if (pal){
         return ((pal_phase(hue) + phase) % 12) < 6;
@@ -152,6 +169,8 @@ bool nesppusimulation::in_color_phase(int hue, int phase, bool pal){
     return ((hue + phase) % 12) < 6;
 }
 
+// Compute composite signal amplitude for a given NES hue/luma/emphasis triad and phase.
+// If backwards == true, behave as reversed-phase PAL line.
 double nesppusimulation::encode_composite(int emphasis, int luma, int hue, int wave_phase, bool backwards){
 
     int luma_index = luma;
@@ -191,7 +210,10 @@ double nesppusimulation::encode_composite(int emphasis, int luma, int hue, int w
 
 }
 
+// Convert NES hue/luma/emphasis triad to YUV
 vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
+    // Don't really need all these arrays; they arose from porting from python.
+    // Keeping them for clarity's sake since the memory cos tis negligible.
     double voltage_buffer[12];
     double voltage_buffer_b[12];
     double voltage_bandpass[12];
@@ -214,9 +236,10 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
     memset(&U_comb, 0, 12 * sizeof(double));
     memset(&V_comb, 0, 12 * sizeof(double));
 
+    // put the composite signal into voltage_buffer
     for (int wave_phase=0; wave_phase<12; wave_phase++){
         voltage_buffer[wave_phase] = encode_composite(emphasis, luma, hue, wave_phase, false);
-        // in PAL mode, we also want the next line with reversed phase
+        // in PAL mode, we also want the next line with reversed phase into voltage_buffer_b
         if (palmode){
             int next_phase = (wave_phase + 2) % 12;
             voltage_buffer_b[next_phase] = encode_composite(emphasis, luma, hue, next_phase, true);
@@ -287,14 +310,13 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
     for (int i=0; i<12; i++){
 
         // Not really clear on what palgen_persune.py is doing here with the backwards stuff, but porting it faithfully
+        // As per palgen_persune.py:
         // subcarrier generation is 180 degrees offset
         // due to the way the waveform is encoded, the hue is off by an additional 1/2 of a sample
-
 
         // colorburst is at hue 0x8 for NTSC models, 7.5 for PAL
         double colorburst_phase = palmode ? 7.5 : 8.0;
 
-        // TODO: TEST for a sign flip error
         // The phase shift for hues 0x2, 0x6, and 0xA moves blue towards magenta, red towards yellow, and green towards cyan.
         // The phase shift per luma step moves blue towards cyan, red towards magenta, and green towards yellow (and also moves everything else in that same direction).
 
@@ -341,6 +363,7 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
 
 }
 
+// Convert NES hue/luma/emphasis triad to R'G'B'
 vec3 nesppusimulation::NEStoRGB(int hue, int luma, int emphasis){
 
     vec3 yuv = NEStoYUV(hue, luma, emphasis);
