@@ -144,8 +144,9 @@ bool nesppusimulation::InitializeYUVtoRGBMatrix(){
     memcpy(&idealizedYUVtoRGBMatrix, matrixYUVtoRGB, 9 * sizeof(double));
 
     if (verbosity >= VERBOSITY_SLIGHT){
-        printf("\n----------\nIdealized YUV to RGB matrix is:\n");
+        printf("\nIdealized YUV to RGB matrix is:\n");
         print3x3matrix(idealizedYUVtoRGBMatrix);
+        printf("\n----------\n\n");
     }
 
 

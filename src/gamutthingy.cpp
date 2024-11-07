@@ -185,6 +185,8 @@ int main(int argc, const char **argv){
     double nesskew26A = 4.5;
     double nesboost48C = 1.0;
     double nesskewstep = 2.5;
+    bool neswritehtml = false;
+    char* neshtmlfilename;
     
     int expect = 0;
     for (int i=1; i<argc; i++){
@@ -723,6 +725,11 @@ int main(int argc, const char **argv){
             }
             expect  = 0;
         }
+        else if (expect == 41){ // expecting html output filename for NES mode
+            neshtmlfilename = const_cast<char*>(argv[i]);
+            expect  = 0;
+            neswritehtml = true;
+        }
         else {
             if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
                 filemode = true;
@@ -845,6 +852,9 @@ int main(int argc, const char **argv){
             }
             else if ((strcmp(argv[i], "--nesperlumaskew") == 0)){
                 expect = 40;
+            }
+            else if ((strcmp(argv[i], "--neshtmloutputfile") == 0)){
+                expect = 41;
             }
             else {
                 printf("Invalid parameter: ||%s||\n", argv[i]);
@@ -976,6 +986,9 @@ int main(int argc, const char **argv){
             case 40:
                 printf("NES luma-dependent phase skew.\n");
                 break;
+            case 41:
+                printf("NES html output file name.\n");
+                break;
             default:
                 printf("oh... er... wtf error!.\n");
         }
@@ -993,6 +1006,21 @@ int main(int argc, const char **argv){
     if (nesmode && spiralcarisma){
         printf("\nForcing spiral-carisma to false because nespalgen is true.\n");
         spiralcarisma = false;
+    }
+    if (!nesmode && neswritehtml){
+        neswritehtml = false;
+    }
+    if (nesmode && (crtemumode != CRT_EMU_FRONT)){
+        printf("\nForcing crtemu to front because nespalgen is true.\n");
+        crtemumode = CRT_EMU_FRONT;
+        if (crtdemodindex == CRT_DEMODULATOR_NONE){
+            printf("\nForcing crt demodulator to dummy because none specifed.\n");
+            crtdemodindex = CRT_DEMODULATOR_DUMMY;
+        }
+    }
+    if (nesmode && (crtmodindex != CRT_MODULATOR_NONE)){
+        printf("\nForcing crt modulator to none because nespalgen is true.\n");
+        crtmodindex = CRT_MODULATOR_NONE;
     }
 
     if (eilut && !lutgen){
@@ -1058,7 +1086,7 @@ int main(int argc, const char **argv){
         inputcolor.z = (input & 0x000000FF) / 255.0;
     }
     
-    //TODO: screen barf params in verbos emode
+    //TODO: screen barf params in verbose mode
     if (verbosity >= VERBOSITY_SLIGHT){
         printf("\n\n----------\nParameters are:\n");
         if (filemode){
@@ -1077,6 +1105,9 @@ int main(int argc, const char **argv){
         }
         else if (nesmode){
             printf("NES palette generation.\nOutput file: %s\n", outputfilename);
+            if (neswritehtml){
+                printf("HTML output file: %s\n", neshtmlfilename);
+            }
         }
         else {
             printf("Input color: %s\n", inputcolorstring);
@@ -1410,6 +1441,8 @@ int main(int argc, const char **argv){
     }
     else if (nesmode){
 
+        nesppusimulation nessim;
+        nessim.Initialize(verbosity, nesispal, nescbc, nesskew26A, nesboost48C, nesskewstep);
         printf("Generating NES palette and saving result to %s...\n", outputfilename);
 
         std::ofstream palfile(outputfilename, std::ios::out | std::ios::binary);
@@ -1417,11 +1450,115 @@ int main(int argc, const char **argv){
             printf("Unable to open %s for writing.\n", outputfilename);
             return ERROR_PNG_OPEN_FAIL;
         }
+        std::ofstream htmlfile;
+        if (neswritehtml){
+            printf("and saving result as html to %s...\n", neshtmlfilename);
+            htmlfile.open(neshtmlfilename, std::ios::out);
+            if (!htmlfile.is_open()){
+                printf("Unable to open %s for writing.\n", neshtmlfilename);
+                return ERROR_PNG_OPEN_FAIL;
+            }
+            htmlfile << "<html>\n\t<head>\n\t\t<title>NES Palette</title>\n\t<head>\n\t<body>\n\t\t<div style=\"margin-left:auto; margin-right:auto; margin-top: 1em; margin-bottom: 1em; width:60%;\">\n";
 
-        nesppusimulation nessim;
-        nessim.Initialize(verbosity, nesispal, nescbc, nesskew26A, nesboost48C, nesskewstep);
+            htmlfile << "\t\t\tPalette saved to: " << outputfilename << "<BR>\n";
+
+            htmlfile << "\t\t\tParameters:<BR>\n";
+
+            htmlfile << "\t\t\tNES simulate PAL phase alternation: " << (nesispal ? "true" : "false") << "<BR>\n";
+            htmlfile << "\t\t\tNES normalize chroma to colorburst: " << (nescbc ? "true" : "false") << "<BR>\n";
+            htmlfile << "\t\t\tNES phase skew for hues 0x2, 0x6, and 0xA: " << nesskew26A << " degrees<BR>\n";
+            htmlfile << "\t\t\tNES luma boost for hues 0x4, 0x8, and 0xC: " << nesboost48C << " IRE<BR>\n";
+            htmlfile << "\t\t\tNES phase skew per luma step: " << nesskewstep << " degrees<BR>\n";
+
+            htmlfile << "\t\t\tCRT YIQ to R'G'B' demodulator chip: ";
+            if (crtdemodindex == CRT_DEMODULATOR_NONE){
+                htmlfile << "none<BR>\n";
+            }
+            else {
+                 htmlfile << demodulatornames[crtdemodindex] << "<BR>\n";
+            }
+
+            htmlfile << "\t\t\tCRT bt1886 Appendix1 EOTF function calibrated to:<BR>\n";
+            htmlfile << "\t\t\tCRT black level: " << crtblacklevel << " x100 cd/m^2<BR>\n";
+            htmlfile << "\t\t\tCRT white level: " << crtwhitelevel << " x100 cd/m^2<BR>\n";
+
+            htmlfile << "\t\t\tSource gamut: " << gamutnames[sourcegamutindex] << "<BR>\n";
+
+            htmlfile << "\t\t\tDestination gamut: " << gamutnames[destgamutindex] << "<BR>\n";
+
+            if (sourcegamut.needschromaticadapt || destgamut.needschromaticadapt){
+                htmlfile << "\t\t\tChromatic adapation type: ";
+                switch(adapttype){
+                    case ADAPT_BRADFORD:
+                        htmlfile << "Bradford";
+                        break;
+                    case ADAPT_CAT16:
+                        htmlfile << "CAT16";
+                        break;
+                    default:
+                    break;
+                };
+                htmlfile << "<BR>\n";
+            }
+
+
+            htmlfile << "\t\t\tGamut mapping mode: ";
+            switch(mapmode){
+                case MAP_CLIP:
+                    htmlfile << "clip";
+                    break;
+                case MAP_CCC_A:
+                    htmlfile << "pseudo color correction circuit A"; // this should be disabled and unreachable
+                    break;
+                case MAP_COMPRESS:
+                    htmlfile << "compress";
+                    break;
+                case MAP_EXPAND:
+                    htmlfile << "expand";
+                    break;
+                default:
+                    break;
+            };
+            htmlfile << "<BR>\n";
+
+            if (mapmode >= MAP_FIRST_COMPRESS){
+                htmlfile << "\t\t\tGamut mapping algorithm: ";
+                switch(mapdirection){
+                    case MAP_GCUSP:
+                        htmlfile << "CUSP";
+                        break;
+                    case MAP_HLPCM:
+                        htmlfile << "HLPCM";
+                        break;
+                    case MAP_VP:
+                        htmlfile << "VP";
+                        break;
+                    case MAP_VPR:
+                        htmlfile << "VPR";
+                        break;
+                    case MAP_VPRC:
+                        htmlfile << "VPRC";
+                        break;
+                    default:
+                        break;
+                };
+                htmlfile << "<BR>\n";
+            }
+
+            htmlfile << "\t\t\tOutput gamma function: " << (gammamode ? "sRGB" : "linear RGB") << "<BR>\n";
+
+            htmlfile << "\t\t</div>\n\t\t<table style=\"margin-left:auto; margin-right:auto; border:0px; border-collapse: collapse;\">\n";
+        }
+
+
         for (int emp=0; emp<8; emp++){
+            if (neswritehtml){
+                    htmlfile << "\t\t\t<tr>\n\t\t\t\t<td colspan=\"16\" style=\"text-align:left; background-color: #ddd; color:#000; padding-top: 1em;\">Emphasis 0x" << emp << "</td>\n\t\t\t</tr>\n";
+                }
             for (int luma=0; luma<4; luma++){
+                if (neswritehtml){
+                    htmlfile << "\t\t\t<tr>\n";
+                }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
                     vec3 outcolor = processcolor(nesrgb, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true);
@@ -1435,12 +1572,36 @@ int main(int argc, const char **argv){
                     palfile.write(reinterpret_cast<const char*>(&redout), 1);
                     palfile.write(reinterpret_cast<const char*>(&greenout), 1);
                     palfile.write(reinterpret_cast<const char*>(&blueout), 1);
+                    if (neswritehtml){
+                        bool useblack = (0.5 <= (outcolor.x * 0.212649342720653) + (outcolor.y * 0.715169135705904) + (outcolor.z * 0.0721815215734433));
+                        char thiscolorstring[7];
+                        sprintf(thiscolorstring, "%02X%02X%02X", redout, greenout, blueout);
+                        char indexstring[3];
+                        sprintf(indexstring, "%X%X", luma, hue);
+                        htmlfile << "\t\t\t\t<td style=\"border:0px; padding:1em; background-color:#" << thiscolorstring << ";text-align:center; color:";
+                        if (useblack){
+                            htmlfile << "#000";
+                        }
+                        else {
+                            htmlfile << "#fff";
+                        }
+                        htmlfile << "\">$" << indexstring << "<BR>" << thiscolorstring << "</td>\n";
+                    }
+                }
+                if (neswritehtml){
+                    htmlfile << "\t\t\t</tr>\n";
                 }
             }
         }
         palfile.flush();
         palfile.close();
+        if (neswritehtml){
+            htmlfile << "</table>\n\t</body>\n</html>";
+            htmlfile.flush();
+            htmlfile.close();
+        }
         printf("done.\n");
+
         return RETURN_SUCCESS;
     }
 
