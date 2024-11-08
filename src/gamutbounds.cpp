@@ -1004,15 +1004,6 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         double rowluma = row * lumastep;
         for (int col = 1; col < CHROMA_STEPS; col++){
             vec3 color = vec3(rowluma, col * chromastep, hue);
-            /*
-            vec3 rgbcolor = JzCzhzToLinearRGB(color);
-            bool isinbounds = true;
-            // inverse PQ function can generate NaN :( Let's assume all NaNs are out of bounds
-            if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0)){
-                isinbounds = false;
-            }
-            grid[row][col].inbounds = isinbounds;
-            */
             double dummy;
             grid[row][col].inbounds = IsJzCzhzInBounds(color, dummy);
             
@@ -1035,14 +1026,6 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 for (int finestep = 1; finestep<FINE_CHROMA_STEPS; finestep++){
                     double finex = (col * chromastep) + (finestep * finechromastep);
                     vec3 color = vec3(rowluma, finex, hue);
-                    /*
-                    vec3 rgbcolor = JzCzhzToLinearRGB(color);
-                    bool isinbounds = true;
-                    // inverse PQ function can generate NaN :( Let's assume all NaNs are out of bounds
-                    if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0)){
-                        isinbounds = false;
-                    }
-                    */
                     double dummy;
                     bool isinbounds = IsJzCzhzInBounds(color, dummy);
                     // we found the boundary point
@@ -1217,19 +1200,6 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     foundpoint = false;
     for (i=0; i<pointcount; i++){
         if (data[huestep][i].iscusp){
-            /*
-            bool breakout = false;
-            for (int j = i+1; j < pointcount; j++){
-                if ((data[huestep][i].y - data[huestep][j].y >= lumastep) && lineIntersection2D(vec2(data[huestep][j].x, data[huestep][j].y), vec2(data[huestep][i].x, data[huestep][i].y), vec2(0.0, 1.5 * maxluma), vec2(1.0, 1.5 * maxluma), ufakepoints[huestep])){
-                    foundpoint = true;
-                    breakout = true;
-                    break;
-                }
-                if (breakout){
-                    break;
-                }
-            }
-            */
             // just use the line from 0,0 to cusp, because "in bounds" will be defined by that later
             if (lineIntersection2D(vec2(0.0, 0.0), vec2(data[huestep][i].x, data[huestep][i].y), vec2(0.0, 2.0 * maxluma), vec2(1.0, 2.0 * maxluma), ufakepoints[huestep])){
                 foundpoint = true;
@@ -2015,82 +1985,6 @@ double gamutdescriptor::FindHueRotation(vec3 input){
     return maxrotation * scalefactor;
     
 }
-
-// This function is dead. It belonged to an attempted fix for VP's step3 issues that didn't work out well
-// Returns a vector representing the direction from the cusp to the just-above-the-cusp boundary node at the given hue.
-// hueindexA and hueindexB are the indices for the adjacent sampled hue slices
-/*
-vec2 gamutdescriptor::getLACSlope(int hueindexA, int hueindexB, double hue){
-    
-    double hueA = hueindexA * HuePerStep;
-    double hueB = hueindexB * HuePerStep;
-    
-    vec2 cuspA;
-    vec2 cuspB;
-    // todo: just store the whole cusp and refactor the cusp luma stuff 
-    int nodecount = data[hueindexA].size();
-    for (int i = 1; i< nodecount; i++){
-        if (data[hueindexA][i].iscusp){
-            cuspA = vec2(data[hueindexA][i].x, data[hueindexA][i].y);
-            break;
-        }
-    }
-    nodecount = data[hueindexB].size();
-    for (int i = 1; i< nodecount; i++){
-        if (data[hueindexB][i].iscusp){
-            cuspB = vec2(data[hueindexB][i].x, data[hueindexB][i].y);
-            break;
-        }
-    }
-    vec2 otherA = fakepoints[hueindexA];
-    vec2 otherB = fakepoints[hueindexB];
-    vec3 cuspA3D = vec3(cuspA.y, cuspA.x, hueA); // y is luma; x is chroma; J is luma, C is chroma
-    vec3 otherA3D = vec3(otherA.y, otherA.x, hueA);  // y is luma; x is chroma; J is luma, C is chroma
-    vec3 cuspB3D = vec3(cuspB.y, cuspB.x, hueB);  // y is luma; x is chroma; J is luma, C is chroma
-    vec3 otherB3D = vec3(otherB.y, otherB.x, hueB); // y is luma; x is chroma; J is luma, C is chroma
-    
-    vec3 cuspA3Dcarto = Depolarize(cuspA3D);
-    vec3 otherA3Dcarto = Depolarize(otherA3D);
-    vec3 cuspB3Dcarto = Depolarize(cuspB3D);
-    vec3 otherB3Dcarto = Depolarize(otherB3D);
-    vec3 cuspAtoB = cuspB3Dcarto - cuspA3Dcarto;
-    vec3 otherAtoB = otherB3Dcarto - otherA3Dcarto;
-    
-    vec3 cartcolor = Depolarize(vec3(0.0, 1.0, hue));
-    vec3 cartblack = Depolarize(vec3(0.0, 0.0, hue));
-    vec3 cartgray = Depolarize(vec3(1.0, 0.0, hue));
-    plane hueplane;
-    hueplane.initialize(cartblack, cartcolor, cartgray);
-    
-    vec3 tweenbound;
-    
-    if (!linePlaneIntersection(tweenbound, cuspA3Dcarto, cuspAtoB, hueplane.normal, hueplane.point)){
-        printf("Something went very wrong in getLACSlope() spot1 - %f, %f, %f and %f, %f, %f and hue = %f; carto are %f, %f, %f and %f, %f, %f; and diff is %f, %f, %f\n", cuspA3D.x, cuspA3D.y, cuspA3D.z, cuspB3D.x, cuspB3D.y, cuspB3D.z, hue, cuspA3Dcarto.x, cuspA3Dcarto.y, cuspA3Dcarto.z, cuspB3Dcarto.x, cuspB3Dcarto.y, cuspB3Dcarto.z, cuspAtoB.x, cuspAtoB.y, cuspAtoB.z);
-    }
-    vec3 tweencusp = Polarize(tweenbound);
-    
-    vec3 tweenother;
-    // diff might be zero if this node is black or white; need to bypass that case because NAN
-    if ((otherA3D.x == otherB3D.x) && (otherA3D.y == otherB3D.y)){
-        tweenother = otherA3D;
-    }
-    else{
-        if (!linePlaneIntersection(tweenbound, otherA3Dcarto, otherAtoB, hueplane.normal, hueplane.point)){
-            printf("Something went very wrong in getLACSlope() spot2 - %f, %f, %f and %f, %f, %f and hue = %f; carto are %f, %f, %f and %f, %f, %f; and diff is %f, %f, %f\n", otherA3D.x, otherA3D.y, otherA3D.z, otherB3D.x, otherB3D.y, otherB3D.z, hue, otherA3Dcarto.x, otherA3Dcarto.y, otherA3Dcarto.z, otherB3Dcarto.x, otherB3Dcarto.y, otherB3Dcarto.z, otherAtoB.x, otherAtoB.y, otherAtoB.z);
-        }
-        tweenother = Polarize(tweenbound);
-    }
-    vec2 tweencusp2D = vec2(tweencusp.y, tweencusp.x);  // y is luma; x is chroma; J is luma, C is chroma
-    vec2 tweenother2D = vec2(tweenother.y, tweenother.x);  // y is luma; x is chroma; J is luma, C is chroma
-    
-    //vec2 output = tweenother2D - tweencusp2D;
-    vec2 output =  tweencusp2D - tweenother2D;
-    
-    output.normalize();
-    
-    return output;
-}
-*/
 
 // returns the index of the adjacent sampled hue slice "below" hue,
 // and stores how far hue is towards the next slice (on a 0 to 1 scale) to excess

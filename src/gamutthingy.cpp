@@ -620,11 +620,9 @@ int main(int argc, const char **argv){
             else if (strcmp(argv[i], "CXA2025AS_US") == 0){
                 crtdemodindex = CRT_DEMODULATOR_CXA2025AS_JP;
             }
-            ///* //skip this for now b/c the gains are wrong and need math
             else if (strcmp(argv[i], "CXA1213AS") == 0){
                 crtdemodindex = CRT_DEMODULATOR_CXA1213AS;
             }
-            //*/
             else {
                 printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"dummy\", \"CXA1464AS\", \"CXA1465AS\", \"CXA1870S_JP\", \"CXA1870S_US\", \"CXA2060BS_JP\", \"CXA2060BS_US\", \"CXA2025AS_JP\", or \"CXA2025AS_US\".\n");
                 return ERROR_BAD_PARAM_CRT_EMU_MODE;
@@ -1120,54 +1118,7 @@ int main(int argc, const char **argv){
         }
         printf("Source gamut: %s\n", gamutnames[sourcegamutindex].c_str());
         printf("Destination gamut: %s\n", gamutnames[destgamutindex].c_str());
-        /*
-        printf("Source gamut: ");
-        switch(sourcegamutindex){
-            case GAMUT_SRGB:
-                printf("srgb\n");
-                break;
-            case GAMUT_NTSCJ_R:
-                printf("ntscjr (ntscj)\n");
-                break;
-            case GAMUT_NTSCJ_B:
-                printf("ntscjb\n");
-                break;
-            case GAMUT_NTSCJ_P22:
-                printf("ntscj p22\n");
-                break;
-            case GAMUT_SMPTEC:
-                printf("smptec\n");
-                break;
-            case GAMUT_EBU:
-                printf("ebu\n");
-                break;
-            default:
-                break;
-        };
-        printf("Destination gamut: ");
-        switch(destgamutindex){
-            case GAMUT_SRGB:
-                printf("srgb\n");
-                break;
-            case GAMUT_NTSCJ_R:
-                printf("ntscjr (ntscj)\n");
-                break;
-            case GAMUT_NTSCJ_B:
-                printf("ntscjb\n");
-                break;
-            case GAMUT_NTSCJ_P22:
-                printf("ntscj p22\n");
-                break;
-            case GAMUT_SMPTEC:
-                printf("smptec\n");
-                break;
-            case GAMUT_EBU:
-                printf("ebu\n");
-                break;
-            default:
-                break;
-        };
-        */
+
         printf("Gamut mapping mode: ");
         switch(mapmode){
             case MAP_CLIP:
@@ -1397,37 +1348,7 @@ int main(int argc, const char **argv){
         int blueout;
         
         vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false);
-        /*
-        vec3 linearinputcolor = (gammamode) ? vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z)) : inputcolor;
-        vec3 outcolor;
-        
-        if (mapmode == MAP_CLIP){
-            vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
-            outcolor = destgamut.XYZtoLinearRGB(tempcolor);
-        }
-        else if (mapmode == MAP_CCC_A){
-            // take weighted average of corrected and uncorrected color
-            // based on YPrPgPb-space proximity to primary/secondary colors
-            vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
-            outcolor = destgamut.XYZtoLinearRGB(tempcolor);
-            double maxP = sourcegamut.linearRGBfindmaxP(linearinputcolor);
-            double oldweight = 0.0;
-            if (cccfunctiontype == CCC_EXPONENTIAL){
-                oldweight = powermap(cccfloor, cccceiling, maxP, cccexp);
-            }
-            else if (cccfunctiontype == CCC_CUBIC_HERMITE){
-                oldweight = cubichermitemap(cccfloor, cccceiling, maxP);
-            }
-            double newweight = 1.0 - oldweight;
-            outcolor = (linearinputcolor * oldweight) + (outcolor * newweight);
-        }
-        else {
-            outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype);
-        }
-        if (gammamode){
-            outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
-        }
-        */
+
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
         blueout = toRGB8nodither(outcolor.z);
@@ -1784,13 +1705,13 @@ int main(int argc, const char **argv){
                 }
 
                 else {
-                    fprintf(stderr, "ntscjpng: write %s: %s\n", outputfilename, image.message);
+                    fprintf(stderr, "gamutthingy: write %s: %s\n", outputfilename, image.message);
                     result = ERROR_PNG_WRITE_FAIL;
                 }
             }
 
             else {
-                fprintf(stderr, "ntscjpng: read %s: %s\n", inputfilename, image.message);
+                fprintf(stderr, "gamutthingy: read %s: %s\n", inputfilename, image.message);
                 result = ERROR_PNG_READ_FAIL;
             }
 
@@ -1799,7 +1720,7 @@ int main(int argc, const char **argv){
         }
 
         else {
-            fprintf(stderr, "ntscjpng: out of memory: %lu bytes\n", (unsigned long)PNG_IMAGE_SIZE(image));
+            fprintf(stderr, "gamutthingy: out of memory: %lu bytes\n", (unsigned long)PNG_IMAGE_SIZE(image));
             result = ERROR_PNG_MEM_FAIL;
 
             /* This is the only place where a 'free' is required; libpng does
@@ -1813,7 +1734,7 @@ int main(int argc, const char **argv){
 
     else {
         /* Failed to read the input file argument: */
-        fprintf(stderr, "ntscjpng: %s: %s\n", inputfilename, image.message);
+        fprintf(stderr, "gamutthingy: %s: %s\n", inputfilename, image.message);
         result = ERROR_PNG_OPEN_FAIL;
     }
    
