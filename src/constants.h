@@ -431,11 +431,9 @@ const double demodulatorinfo[10][2][3] = {
     // Used in Sony Trinitron(?) ~1992
     // Does not appear to have distinct JP and US modes
     // It's possible this chip is either JP or US and there exists another chip number for the other. 
-    // TODO: Blue at a non-zero angle likely means that gains need renormalized.
-    // radius of ellipse at theta is (a*b)/sqrt((a*sin(theta))^2 + (b*cos(theta))^2)
-    // where a is radius along axis away from which angle is measured, b is other radius, and theta is angle
-    // works out to 1.95598949838 at 11 degrees off blue
-    // so I think multiply by that over Uupscale should get us to 1.0 blue multiplier... I think...
+    // Theoretially, blue at a non-zero angle should mean that gains need renormalized,
+    // but I suspect they were not in practice.
+    // (0.77, 0.3, 1.0 is more similar to other chips than 0.74, 0.28, 0.96
     {
         {99, 240, 11}, // angles (degrees)
         {0.77, 0.3, 1.0} // gains

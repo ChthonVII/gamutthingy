@@ -620,11 +620,11 @@ int main(int argc, const char **argv){
             else if (strcmp(argv[i], "CXA2025AS_US") == 0){
                 crtdemodindex = CRT_DEMODULATOR_CXA2025AS_JP;
             }
-            /* skip this for now b/c the gains are wrong and need math
+            ///* //skip this for now b/c the gains are wrong and need math
             else if (strcmp(argv[i], "CXA1213AS") == 0){
                 crtdemodindex = CRT_DEMODULATOR_CXA1213AS;
             }
-            */
+            //*/
             else {
                 printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"dummy\", \"CXA1464AS\", \"CXA1465AS\", \"CXA1870S_JP\", \"CXA1870S_US\", \"CXA2060BS_JP\", \"CXA2060BS_US\", \"CXA2025AS_JP\", or \"CXA2025AS_US\".\n");
                 return ERROR_BAD_PARAM_CRT_EMU_MODE;

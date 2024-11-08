@@ -436,11 +436,34 @@ void crtdescriptor::InitializeDemodulator(){
     double redgain = demodulatorinfo[demodulatorindex][1][0];
     double greengain = demodulatorinfo[demodulatorindex][1][1];
     double bluegain = demodulatorinfo[demodulatorindex][1][2];
-    // if gains are normalized to blue, denormalize
-    if (bluegain == 1.0){
-        redgain *= Uupscale;
-        greengain *= Uupscale;
-        bluegain *= Uupscale;
+    // gains are probably normalized to blue, probably to 1.0.
+    // if blue is near 2.03, then it's not normalized. Let's guess 1.8 for a good cutoff.
+    if (bluegain < 1.8){
+        if (bluegain != 1.0){
+            printf("B-Y gain is %f rather than 1.0. Nevertheless assuming gains are normalized to blue.\n", bluegain);
+        }
+        double normfactor = Uupscale;
+
+        /*  // While adjusting the normalization factor when blue's angle is non-zero is theoretically correct,
+            // the red/green gains shown in the datasheets are closer to other chips if NOT scaled,
+            // and the resulting matrix is closer to other chips if NOT scaled.
+            // So we will not scale?...
+        // compute a different normalization factor if blue angle isn't zero
+        if (blueangle != 0.0){
+            // Y'UV upscale factors form an ellipse with Uupscale on one axis and Vupscale on the other
+            // radius of ellipse at theta is (a*b)/sqrt((a*sin(theta))^2 + (b*cos(theta))^2)
+            double Aupscale = (Uupscale * Vupscale) / sqrt((Uupscale * Uupscale * sin(blueangle) * sin(blueangle)) + (Vupscale * Vupscale * cos(blueangle) * cos(blueangle)));
+            // compute factor such that denormalized blue gain is the upscale factor at that angle
+            normfactor = Aupscale / bluegain;
+        }
+        */
+
+        redgain *= normfactor;
+        greengain *= normfactor;
+        bluegain *= normfactor;
+    }
+    else {
+        printf("B-Y gain is %f. Assuming gains are not normalized.\n", bluegain);
     }
     
     //printf("angles: red %f, green %f, blue %f\ngains: red %f, green %f, blue %f\n", redangle, greenangle, blueangle, redgain, greengain, bluegain);
