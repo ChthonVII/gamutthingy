@@ -476,7 +476,10 @@ void crtdescriptor::InitializeDemodulator(){
         if (dorenorm){
             // Y'UV upscale factors form an ellipse with Uupscale on one axis and Vupscale on the other
             // radius of ellipse at theta is (a*b)/sqrt((a*sin(theta))^2 + (b*cos(theta))^2)
-            double Aupscale = (Uupscale * Vupscale) / sqrt((Uupscale * Uupscale * sin(blueangle) * sin(blueangle)) + (Vupscale * Vupscale * cos(blueangle) * cos(blueangle)));
+            double Aupscale = Uupscale;
+            if (weirdangle){
+                Aupscale = (Uupscale * Vupscale) / sqrt((Uupscale * Uupscale * sin(blueangle) * sin(blueangle)) + (Vupscale * Vupscale * cos(blueangle) * cos(blueangle)));
+            }
             // compute factor such that denormalized blue gain is the upscale factor at that angle
             normfactor = Aupscale / bluegain;
         }
