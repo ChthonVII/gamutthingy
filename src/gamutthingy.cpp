@@ -30,9 +30,11 @@ typedef struct memo{
     vec3 data;
 } memo;
     
+// keep memos so we don't have to process the same color over and over in file mode
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
 
+// Do the full conversion process on a given color
 vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode){
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
@@ -130,9 +132,50 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
     return outcolor;
 }
 
+// structs for holding our ever-growing list of parameters
+typedef struct boolparam{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    bool* vartobind; // pointer to variable whose value to set
+} boolparam;
+
+typedef struct stringparam{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    char** vartobind;    // pointer to variable whose value to set
+    bool* flagtobind; // pointer to flag to set when this variable is set
+} stringparam;
+
+typedef struct paramvalue{
+    std::string valuestring; // parameter value's text
+    int value;              // the value--p;.
+} paramvalue;
+
+typedef struct selectparam{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    int* vartobind; // pointer to variable whose value to set
+    const paramvalue* valuetable; // pointer to table of possible values
+    int tablesize; // number of items in the table
+} selectparam;
+
+typedef struct floatparam{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    double* vartobind; // pointer to variable whose value to set
+} floatparam;
+
+typedef struct intparam{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    int* vartobind; // pointer to variable whose value to set
+} intparam;
+
+
 int main(int argc, const char **argv){
     
-    // parameter processing -------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------
+    // parameter processing
     
     if ((argc < 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)){
         printhelp();
@@ -142,7 +185,9 @@ int main(int argc, const char **argv){
     // defaults
     bool filemode = true;
     bool gammamode = true;
+    int gammamodealias = 1;
     bool softkneemode = true;
+    int softkneemodealias = 1;
     bool dither = true;
     int mapdirection = MAP_VPR;
     int mapmode = MAP_COMPRESS;
@@ -178,7 +223,7 @@ int main(int argc, const char **argv){
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     bool lutgen = false;
     bool eilut = false;
-    unsigned int lutsize = 128;
+    int lutsize = 128;
     bool nesmode = false;
     bool nesispal = false;
     bool nescbc = true;
@@ -188,817 +233,866 @@ int main(int argc, const char **argv){
     bool neswritehtml = false;
     char* neshtmlfilename;
     
-    int expect = 0;
+    const boolparam params_bool[9] = {
+        {
+            "--dither",         //std::string paramstring; // parameter's text
+            "Dithering",        //std::string prettyname; // name for pretty printing
+            &dither             //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--di",             //std::string paramstring; // parameter's text
+            "Dithering",        //std::string prettyname; // name for pretty printing
+            &dither             //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--spiral-carisma",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA",           //std::string prettyname; // name for pretty printing
+            &spiralcarisma             //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--sc",                     //std::string paramstring; // parameter's text
+            "Spiral CARISMA",           //std::string prettyname; // name for pretty printing
+            &spiralcarisma             //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--lutgen",                     //std::string paramstring; // parameter's text
+            "LUT Generation",           //std::string prettyname; // name for pretty printing
+            &lutgen                  //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--eilut",                     //std::string paramstring; // parameter's text
+            "Expanded Intermediate LUT Generation",           //std::string prettyname; // name for pretty printing
+            &eilut                  //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nespalgen",                     //std::string paramstring; // parameter's text
+            "NES Palette Generation",           //std::string prettyname; // name for pretty printing
+            &nesmode                 //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nespalmode",                     //std::string paramstring; // parameter's text
+            "NES simulation PAL mode",           //std::string prettyname; // name for pretty printing
+            &nesispal                 //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nesburstnorm",                     //std::string paramstring; // parameter's text
+            "NES simulation normalize chroma to colorburst",           //std::string prettyname; // name for pretty printing
+            &nescbc                //bool* vartobind; // pointer to variable whose value to set
+        }
+    };
+
+    const stringparam params_string[7] = {
+        {
+            "--infile",             //std::string paramstring; // parameter's text
+            "Input Filename",       //std::string prettyname; // name for pretty printing
+            &inputfilename,         //char** vartobind;    // pointer to variable whose value to set
+            &infileset              //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
+        {
+            "-i",             //std::string paramstring; // parameter's text
+            "Input Filename",       //std::string prettyname; // name for pretty printing
+            &inputfilename,         //char** vartobind;    // pointer to variable whose value to set
+            &infileset              //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
+        {
+            "--outfile",             //std::string paramstring; // parameter's text
+            "Output Filename",       //std::string prettyname; // name for pretty printing
+            &outputfilename,         //char** vartobind;    // pointer to variable whose value to set
+            &outfileset              //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
+        {
+            "-o",             //std::string paramstring; // parameter's text
+            "Output Filename",       //std::string prettyname; // name for pretty printing
+            &outputfilename,         //char** vartobind;    // pointer to variable whose value to set
+            &outfileset              //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
+        {
+            "--neshtmloutputfile",             //std::string paramstring; // parameter's text
+            "NES Palette HTML Output Filename",       //std::string prettyname; // name for pretty printing
+            &neshtmlfilename,         //char** vartobind;    // pointer to variable whose value to set
+            &neswritehtml              //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
+        {
+            "--color",             //std::string paramstring; // parameter's text
+            "Input Color",       //std::string prettyname; // name for pretty printing
+            &inputcolorstring,         //char** vartobind;    // pointer to variable whose value to set
+            &incolorset             //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
+        {
+            "-c",             //std::string paramstring; // parameter's text
+            "Input Color",       //std::string prettyname; // name for pretty printing
+            &inputcolorstring,         //char** vartobind;    // pointer to variable whose value to set
+            &incolorset             //bool* flagtobind; // pointer to flag to set when this variable is set
+        }
+
+    };
+
+    const paramvalue gamutlist[12] = {
+        {
+            "srgb",
+            GAMUT_SRGB
+        },
+        {
+            "ntscj",
+            GAMUT_NTSCJ_R
+        },
+        {
+            "ntscjr",
+            GAMUT_NTSCJ_R
+        },
+        {
+            "ntscjb",
+            GAMUT_NTSCJ_B
+        },
+        {
+            "ntscjp22",
+            GAMUT_NTSCJ_P22
+        },
+        {
+            "ntscjebu",
+            GAMUT_NTSCJ_EBU
+        },
+        {
+            "ntscjp22trinitron",
+            GAMUT_NTSCJ_P22_TRINITRON
+        },
+        {
+            "ntscup22trinitron",
+            GAMUT_NTSCU_P22_TRINITRON
+        },
+        {
+            "smptecp22trinitron",
+            GAMUT_SMPTEC_P22_TRINITRON
+        },
+        {
+            "smptec",
+            GAMUT_SMPTEC
+        },
+        {
+            "ebu",
+            GAMUT_EBU
+        },
+        {
+            "ntsc1953",
+            GAMUT_NTSC_1953
+        }
+    };
+
+    const paramvalue mapmodelist[3] = {
+        {
+            "clip",
+            MAP_CLIP
+        },
+        {
+            "compress",
+            MAP_COMPRESS
+        },
+        {
+            "expand",
+            MAP_EXPAND
+        }
+        // Intentionally omitting ccca/cccb/cccc/cccd/ccce derived from patent filings
+        // because they suck and there's no evidence they were ever used for CRTs (or anything else).
+        // Leaving them on the backend in case they ever prove useful in the future.
+    };
+
+    const paramvalue gmalist[5] = {
+        {
+            "cusp",
+            MAP_GCUSP
+        },
+        {
+            "hlpcm",
+            MAP_HLPCM
+        },
+        {
+            "vp",
+            MAP_VP
+        },
+        {
+            "vpr",
+            MAP_VPR
+        },
+        {
+            "vprc",
+            MAP_VPRC
+        }
+    };
+
+    const paramvalue safezonelist[2] = {
+        {
+            "const-detail",
+            RMZONE_DELTA_BASED
+        },
+        {
+            "const-fidelity",
+            RMZONE_DEST_BASED
+        },
+    };
+
+    const paramvalue kneetypelist[2] = {
+        {
+            "hard",
+            0
+        },
+        {
+            "soft",
+            1
+        },
+    };
+
+    const paramvalue gammatypelist[2] = {
+        {
+            "linear",
+            0
+        },
+        {
+            "srgb",
+            1
+        },
+    };
+
+    const paramvalue adapttypelist[2] = {
+        {
+            "bradford",
+            ADAPT_BRADFORD
+        },
+        {
+            "cat16",
+            ADAPT_CAT16
+        },
+    };
+
+    const paramvalue scfunclist[2] = {
+        {
+            "exponential",
+            SC_EXPONENTIAL
+        },
+        {
+            "cubichermite",
+            SC_CUBIC_HERMITE
+        },
+    };
+
+    const paramvalue crtmodelist[3] = {
+        {
+            "none",
+            CRT_EMU_NONE
+        },
+        {
+            "front",
+            CRT_EMU_FRONT
+        },
+        {
+            "back",
+            CRT_EMU_BACK
+        }
+    };
+
+    const paramvalue crtmodulatorlist[3] = {
+        {
+            "none",
+            CRT_MODULATOR_NONE
+        },
+        {
+            "CXA1145",
+            CRT_MODULATOR_CXA1145
+        },
+        {
+            "CXA1645",
+            CRT_MODULATOR_CXA1645
+        }
+    };
+
+    const paramvalue crtdemodulatorlist[11] = {
+        {
+            "none",
+            CRT_DEMODULATOR_NONE
+        },
+        {
+            "dummy",
+            CRT_DEMODULATOR_DUMMY
+        },
+        {
+            "CXA1464AS",
+            CRT_DEMODULATOR_CXA1464AS
+        },
+        {
+            "CXA1465AS",
+            CRT_DEMODULATOR_CXA1465AS
+        },
+        {
+            "CXA1870S_JP",
+            CRT_DEMODULATOR_CXA1870S_JP
+        },
+        {
+            "CXA1870S_US",
+            CRT_DEMODULATOR_CXA1870S_US
+        },
+        {
+            "CXA2060BS_JP",
+            CRT_DEMODULATOR_CXA2060BS_JP
+        },
+        {
+            "CXA2060BS_US",
+            CRT_DEMODULATOR_CXA2060BS_US
+        },
+        {
+            "CXA2025AS_JP",
+            CRT_DEMODULATOR_CXA2025AS_JP
+        },
+        {
+            "CXA2025AS_US",
+            CRT_DEMODULATOR_CXA2025AS_US
+        },
+        {
+            "CXA1213AS",
+            CRT_DEMODULATOR_CXA1213AS
+        }
+    };
+
+    const selectparam params_select[21] = {
+        {
+            "--source-gamut",            //std::string paramstring; // parameter's text
+            "Source Gamut",             //std::string prettyname; // name for pretty printing
+            &sourcegamutindex,          //int* vartobind; // pointer to variable whose value to set
+            gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gamutlist)/sizeof(gamutlist[0])     //int tablesize; // number of items in the table
+        },
+        {
+            "-s",            //std::string paramstring; // parameter's text
+            "Source Gamut",             //std::string prettyname; // name for pretty printing
+            &sourcegamutindex,          //int* vartobind; // pointer to variable whose value to set
+            gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gamutlist)/sizeof(gamutlist[0]) //int tablesize; // number of items in the table
+        },
+        {
+            "--dest-gamut",            //std::string paramstring; // parameter's text
+            "Destination Gamut",             //std::string prettyname; // name for pretty printing
+            &destgamutindex,          //int* vartobind; // pointer to variable whose value to set
+            gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gamutlist)/sizeof(gamutlist[0]) //int tablesize; // number of items in the table
+        },
+        {
+            "-d",            //std::string paramstring; // parameter's text
+            "Destination Gamut",             //std::string prettyname; // name for pretty printing
+            &destgamutindex,          //int* vartobind; // pointer to variable whose value to set
+            gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gamutlist)/sizeof(gamutlist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--map-mode",            //std::string paramstring; // parameter's text
+            "Map Mode",             //std::string prettyname; // name for pretty printing
+            &mapmode,          //int* vartobind; // pointer to variable whose value to set
+            mapmodelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(mapmodelist)/sizeof(mapmodelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "-m",            //std::string paramstring; // parameter's text
+            "Map Mode",             //std::string prettyname; // name for pretty printing
+            &mapmode,          //int* vartobind; // pointer to variable whose value to set
+            mapmodelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(mapmodelist)/sizeof(mapmodelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--gamut-mapping-algorithm",            //std::string paramstring; // parameter's text
+            "Gamut Mapping Algorithm",             //std::string prettyname; // name for pretty printing
+            &mapdirection,          //int* vartobind; // pointer to variable whose value to set
+            gmalist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gmalist)/sizeof(gmalist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--gma",            //std::string paramstring; // parameter's text
+            "Gamut Mapping Algorithm",             //std::string prettyname; // name for pretty printing
+            &mapdirection,          //int* vartobind; // pointer to variable whose value to set
+            gmalist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gmalist)/sizeof(gmalist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--safe-zone-type",            //std::string paramstring; // parameter's text
+            "Gamut Compression Safe Zone Type",             //std::string prettyname; // name for pretty printing
+            &safezonetype,          //int* vartobind; // pointer to variable whose value to set
+            safezonelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(safezonelist)/sizeof(safezonelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "-z",            //std::string paramstring; // parameter's text
+            "Gamut Compression Safe Zone Type",             //std::string prettyname; // name for pretty printing
+            &safezonetype,          //int* vartobind; // pointer to variable whose value to set
+            safezonelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(safezonelist)/sizeof(safezonelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--knee",            //std::string paramstring; // parameter's text
+            "Gamut Compression Knee Type",             //std::string prettyname; // name for pretty printing
+            &softkneemodealias,          //int* vartobind; // pointer to variable whose value to set
+            kneetypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(kneetypelist)/sizeof(kneetypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "-k",            //std::string paramstring; // parameter's text
+            "Gamut Compression Knee Type",             //std::string prettyname; // name for pretty printing
+            &softkneemodealias,          //int* vartobind; // pointer to variable whose value to set
+            kneetypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(kneetypelist)/sizeof(kneetypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--gamma",            //std::string paramstring; // parameter's text
+            "Input/Output Gamma Function",             //std::string prettyname; // name for pretty printing
+            &gammamodealias,          //int* vartobind; // pointer to variable whose value to set
+            gammatypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gammatypelist)/sizeof(gammatypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "-g",            //std::string paramstring; // parameter's text
+            "Input/Output Gamma Function",             //std::string prettyname; // name for pretty printing
+            &gammamodealias,          //int* vartobind; // pointer to variable whose value to set
+            gammatypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gammatypelist)/sizeof(gammatypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--adapt",            //std::string paramstring; // parameter's text
+            "Chromatic Adaptation Algorithm",             //std::string prettyname; // name for pretty printing
+            &adapttype,          //int* vartobind; // pointer to variable whose value to set
+            adapttypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(adapttypelist)/sizeof(adapttypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "-a",            //std::string paramstring; // parameter's text
+            "Chromatic Adaptation Algorithm",             //std::string prettyname; // name for pretty printing
+            &adapttype,          //int* vartobind; // pointer to variable whose value to set
+            adapttypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(adapttypelist)/sizeof(adapttypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--scfunction",            //std::string paramstring; // parameter's text
+            "Spiral CARISMA Interpolation Function",             //std::string prettyname; // name for pretty printing
+            &scfunctiontype,          //int* vartobind; // pointer to variable whose value to set
+            scfunclist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(scfunclist)/sizeof(scfunclist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--scf",            //std::string paramstring; // parameter's text
+            "Spiral CARISMA Interpolation Function",             //std::string prettyname; // name for pretty printing
+            &scfunctiontype,          //int* vartobind; // pointer to variable whose value to set
+            scfunclist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(scfunclist)/sizeof(scfunclist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--crtemu",            //std::string paramstring; // parameter's text
+            "CRT Emulation Mode",             //std::string prettyname; // name for pretty printing
+            &crtemumode,          //int* vartobind; // pointer to variable whose value to set
+            crtmodelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(crtmodelist)/sizeof(crtmodelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--crtmod",            //std::string paramstring; // parameter's text
+            "Game Console Modulator Chip",             //std::string prettyname; // name for pretty printing
+            &crtmodindex,          //int* vartobind; // pointer to variable whose value to set
+            crtmodulatorlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(crtmodulatorlist)/sizeof(crtmodulatorlist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--crtdemod",            //std::string paramstring; // parameter's text
+            "CRT Demodulator Chip",             //std::string prettyname; // name for pretty printing
+            &crtdemodindex,          //int* vartobind; // pointer to variable whose value to set
+            crtdemodulatorlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(crtdemodulatorlist)/sizeof(crtdemodulatorlist[0])  //int tablesize; // number of items in the table
+        }
+    };
+
+
+    const floatparam params_float[19] = {
+        {
+            "--remap-factor",         //std::string paramstring; // parameter's text
+            "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
+            &remapfactor            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--rf",         //std::string paramstring; // parameter's text
+            "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
+            &remapfactor            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--remap-limit",         //std::string paramstring; // parameter's text
+            "Gamut Compression Remap Limit",        //std::string prettyname; // name for pretty printing
+            &remaplimit            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--rl",         //std::string paramstring; // parameter's text
+            "Gamut Compression Remap Limit",        //std::string prettyname; // name for pretty printing
+            &remaplimit            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--knee-factor",         //std::string paramstring; // parameter's text
+            "Gamut Compression Knee Factor",        //std::string prettyname; // name for pretty printing
+            &kneefactor            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--kf",         //std::string paramstring; // parameter's text
+            "Gamut Compression Knee Factor",        //std::string prettyname; // name for pretty printing
+            &kneefactor            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scfloor",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA interpolation floor",        //std::string prettyname; // name for pretty printing
+            &scfloor             //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scfl",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA interpolation floor",        //std::string prettyname; // name for pretty printing
+            &scfloor             //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scceiling",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA interpolation ceiling",        //std::string prettyname; // name for pretty printing
+            &scceiling            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--sccl",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA interpolation ceiling",        //std::string prettyname; // name for pretty printing
+            &scceiling            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scexponent",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA interpolation exponent",        //std::string prettyname; // name for pretty printing
+            &scexp            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scxp",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA interpolation exponent",        //std::string prettyname; // name for pretty printing
+            &scexp            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scmax",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA Max Strength",        //std::string prettyname; // name for pretty printing
+            &scmax            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--scm",         //std::string paramstring; // parameter's text
+            "Spiral CARISMA Max Strength",        //std::string prettyname; // name for pretty printing
+            &scmax            //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtblack",         //std::string paramstring; // parameter's text
+            "CRT Black Level (100x cd/m^2)",        //std::string prettyname; // name for pretty printing
+            &crtblacklevel           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtwhite",         //std::string paramstring; // parameter's text
+            "CRT White Level (100x cd/m^2)",        //std::string prettyname; // name for pretty printing
+            &crtwhitelevel           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nesskew26a",         //std::string paramstring; // parameter's text
+            "NES hue 2/6/A phase skew (degrees)",        //std::string prettyname; // name for pretty printing
+            &nesskew26A           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nesboost48c",         //std::string paramstring; // parameter's text
+            "NES hue 4/8/C luma boost (IRE)",        //std::string prettyname; // name for pretty printing
+            &nesboost48C           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nesperlumaskew",         //std::string paramstring; // parameter's text
+            "NES per luma phase skew (degrees)",        //std::string prettyname; // name for pretty printing
+            &nesskewstep           //double* vartobind; // pointer to variable whose value to set
+        }
+
+
+        // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
+        // because they suck and there's no evidence they were ever used for CRTs (or anything else).
+        // Leaving them on the backend in case they ever prove useful in the future.
+    };
+
+    const intparam params_int[3] = {
+        {
+            "--verbosity",         //std::string paramstring; // parameter's text
+            "Verbosity",        //std::string prettyname; // name for pretty printing
+            &verbosity            //int* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "-v",         //std::string paramstring; // parameter's text
+            "Verbosity",        //std::string prettyname; // name for pretty printing
+            &verbosity            //int* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--lutsize",         //std::string paramstring; // parameter's text
+            "LUT Size",        //std::string prettyname; // name for pretty printing
+            &lutsize            //int* vartobind; // pointer to variable whose value to set
+        },
+    };
+
+    int nextparamtype = 0;
+    int listsize = 0;
+    int lastj = 0;
+    bool* nextboolptr = nullptr;
+    char** nextstringptr = nullptr;
+    int* nextintptr = nullptr;
+    const paramvalue* nexttable = nullptr;
+    int nexttablesize = 0;
+    double* nextfloatptr = nullptr;
+    bool selectfound = false;
+    bool breakout = false;
     for (int i=1; i<argc; i++){
-        //printf("processing: %s expect is %i\n", argv[i], expect);
-        if (expect == 1){ // expecting input filename
-            inputfilename = const_cast<char*>(argv[i]);
-            expect  = 0;
-            infileset = true;
-        }
-        else if (expect == 2){ // expecting output filename
-            outputfilename = const_cast<char*>(argv[i]);
-            expect  = 0;
-            outfileset = true;
-        }
-        else if (expect == 3){ // expecting a color
-            inputcolorstring = const_cast<char*>(argv[i]);
-            expect  = 0;
-            incolorset = true;
-        }
-        else if (expect == 4){ // expecting source gamut
-            if ((strcmp(argv[i], "srgb") == 0)){
-                sourcegamutindex = GAMUT_SRGB;
-            }
-            else if ((strcmp(argv[i], "ntscj") == 0) || (strcmp(argv[i], "ntscjr") == 0)){
-                sourcegamutindex = GAMUT_NTSCJ_R;
-            }
-            else if (strcmp(argv[i], "ntscjb") == 0){
-                sourcegamutindex = GAMUT_NTSCJ_B;
-            }
-            else if (/*(strcmp(argv[i], "ntscj") == 0) ||*/ (strcmp(argv[i], "ntscjp22") == 0)){
-                sourcegamutindex = GAMUT_NTSCJ_P22;
-            }
-            else if (strcmp(argv[i], "ntscjebu") == 0){
-                sourcegamutindex = GAMUT_NTSCJ_EBU;
-            }
-            else if ((strcmp(argv[i], "ntscjp22trinitron") == 0)){
-                sourcegamutindex = GAMUT_NTSCJ_P22_TRINITRON;
-            }
-            else if ((strcmp(argv[i], "ntscup22trinitron") == 0)){
-                sourcegamutindex = GAMUT_NTSCU_P22_TRINITRON;
-            }
-            else if ((strcmp(argv[i], "smptecp22trinitron") == 0)){
-                sourcegamutindex = GAMUT_SMPTEC_P22_TRINITRON;
-            }
-            else if (strcmp(argv[i], "smptec") == 0){
-                sourcegamutindex = GAMUT_SMPTEC;
-            }
-            else if (strcmp(argv[i], "ebu") == 0){
-                sourcegamutindex = GAMUT_EBU;
-            }
-            else if (strcmp(argv[i], "ntsc1953") == 0){
-                sourcegamutindex = GAMUT_NTSC_1953;
-            }
-            else {
-                printf("Invalid parameter for source gamut. Expecting \"srgb\", \"ntsc1953\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"ntscjp22\", \"ntscjebu\", \"ntscjp22trinitron\", \"ntscup22trinitron\", \"smptecp22trinitron\", \"smptec\", or \"ebu\".\n");
-                return ERROR_BAD_PARAM_SOURCE_GAMUT;
-            }
-            expect  = 0;
-        }
-        else if (expect == 5){ // expecting source gamut
-            if (strcmp(argv[i], "srgb") == 0){
-                destgamutindex = GAMUT_SRGB;
-            }
-            else if ((strcmp(argv[i], "ntscj") == 0) || (strcmp(argv[i], "ntscjr") == 0)){
-                destgamutindex = GAMUT_NTSCJ_R;
-            }
-            else if (strcmp(argv[i], "ntscjb") == 0){
-                destgamutindex = GAMUT_NTSCJ_B;
-            }
-            else if (/*(strcmp(argv[i], "ntscj") == 0) ||*/ (strcmp(argv[i], "ntscjp22") == 0)){
-                destgamutindex = GAMUT_NTSCJ_P22;
-            }
-            else if (strcmp(argv[i], "ntscjebu") == 0){
-                destgamutindex = GAMUT_NTSCJ_EBU;
-            }
-            else if ((strcmp(argv[i], "ntscjp22trinitron") == 0)){
-                destgamutindex = GAMUT_NTSCJ_P22_TRINITRON;
-            }
-            else if ((strcmp(argv[i], "ntscup22trinitron") == 0)){
-                destgamutindex = GAMUT_NTSCU_P22_TRINITRON;
-            }
-            else if ((strcmp(argv[i], "smptecp22trinitron") == 0)){
-                destgamutindex = GAMUT_SMPTEC_P22_TRINITRON;
-            }
-            else if (strcmp(argv[i], "smptec") == 0){
-                destgamutindex = GAMUT_SMPTEC;
-            }
-            else if (strcmp(argv[i], "ebu") == 0){
-                destgamutindex = GAMUT_EBU;
-            }
-            else if (strcmp(argv[i], "ntsc1953") == 0){
-                destgamutindex = GAMUT_NTSC_1953;
-            }
-            else {
-                printf("Invalid parameter for destination gamut. Expecting \"srgb\", \"ntsc1953\", \"ntscj\", \"ntscjr\", \"ntscjb\", \"ntscjp22\", \"ntscjebu\", \"ntscjp22trinitron\", \"ntscup22trinitron\", \"smptecp22trinitron\", \"smptec\", or \"ebu\".\n");
-                return ERROR_BAD_PARAM_DEST_GAMUT;
-            }
-            expect  = 0;
-        }
-        else if (expect == 6){ // expecting map mode
-            if (strcmp(argv[i], "clip") == 0){
-                mapmode = MAP_CLIP;
-            }
-            else if (strcmp(argv[i], "compress") == 0){
-                mapmode = MAP_COMPRESS;
-            }
-            else if (strcmp(argv[i], "expand") == 0){
-                mapmode = MAP_EXPAND;
-            }
-            else if (strcmp(argv[i], "ccca") == 0){
-                mapmode = MAP_CCC_A;
-            }
-            else if (strcmp(argv[i], "cccb") == 0){
-                mapmode = MAP_CCC_B;
-            }
-            else if (strcmp(argv[i], "cccc") == 0){
-                mapmode = MAP_CCC_C;
-            }
-            else if (strcmp(argv[i], "cccd") == 0){
-                mapmode = MAP_CCC_D;
-            }
-            else if (strcmp(argv[i], "ccce") == 0){
-                mapmode = MAP_CCC_E;
-            }
-            else {
-                printf("Invalid parameter for mapping mode. Expecting \"clip\", \"compress\", \"expand\", or \"ccca\".\n");
-                return ERROR_BAD_PARAM_MAPPING_MODE;
-            }
-            expect  = 0;
-        }
-        // expecting a number
-        else if ((expect == 7) || (expect == 8) || (expect == 9) || (expect == 18) || (expect == 19) || (expect == 20) || (expect == 23) || (expect == 24) || (expect == 25) || (expect == 28) || (expect == 29) || (expect == 38) || (expect == 39) || (expect == 40)){
-            char* endptr;
-            errno = 0; //make sure errno is 0 before strtol()
-            double input = strtod(argv[i], &endptr);
-            bool inputok = true;
-            // are there any chacters left in the input string?
-            if (*endptr != '\0'){
-                inputok = false;
-            }
-            // is errno set?
-            else if (errno != 0){
-                inputok = false;
-            }
-            if (inputok){
-                switch (expect){
-                    case 7:
-                        remapfactor = input;
-                        break;
-                    case 8:
-                        remaplimit = input;
-                        break;
-                    case 9:
-                        kneefactor = input;
-                        break;
-                    case 18:
-                        cccfloor = input;
-                        break;
-                    case 19:
-                        cccceiling = input;
-                        break;
-                    case 20:
-                        cccexp = input;
-                        break;
-                    case 23:
-                        scfloor = input;
-                        break;
-                    case 24:
-                        scceiling = input;
-                        break;
-                    case 25:
-                        scexp = input;
-                        break;
-                    case 26:
-                        scmax = input;
-                        break;
-                    case 28:
-                        crtblacklevel = input;
-                        break;
-                    case 29:
-                        crtwhitelevel = input;
-                        break;
-                    case 38:
-                        nesskew26A = input;
-                        break;
-                    case 39:
-                        nesboost48C = input;
-                        break;
-                    case 40:
-                        nesskewstep = input;
-                        break;
-                    default:
-                        break;
-                };
-            }
-            else {
-                printf("Invalid parameter for numerical value. (Malformed float.)");
-                return ERROR_BAD_PARAM_MAPPING_FLOAT;
-            }
-            expect = 0;
-        }
-        else if (expect == 10){ // expecting map direction
-            if (strcmp(argv[i], "cusp") == 0){
-                mapdirection = MAP_GCUSP;
-            }
-            else if (strcmp(argv[i], "hlpcm") == 0){
-                mapdirection = MAP_HLPCM;
-            }
-            else if (strcmp(argv[i], "vp") == 0){
-                mapdirection = MAP_VP;
-            }
-            else if (strcmp(argv[i], "vpr") == 0){
-                mapdirection = MAP_VPR;
-            }
-            else if (strcmp(argv[i], "vprc") == 0){
-                mapdirection = MAP_VPRC;
-            }
-            else {
-                printf("Invalid parameter for mapping direction. Expecting \"cusp\", \"hlpcm\", \"vp\", \"vpr\", or \"vprc\".\n");
-                return ERROR_BAD_PARAM_MAPPING_DIRECTION;
-            }
-            expect  = 0;
-        }
-        else if (expect == 11){ // safe zone type
-            if (strcmp(argv[i], "const-detail") == 0){
-                safezonetype = RMZONE_DELTA_BASED;
-            }
-            else if (strcmp(argv[i], "const-fidelity") == 0){
-                safezonetype = RMZONE_DEST_BASED;
-            }
-            else {
-                printf("Invalid parameter for safe zone type. Expecting \"const-detail\" or \"const-fidelity\".\n");
-                return ERROR_BAD_PARAM_ZONE_TYPE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 12){ // knee type
-            if (strcmp(argv[i], "hard") == 0){
-                softkneemode = false;
-            }
-            else if (strcmp(argv[i], "soft") == 0){
-                softkneemode = true;
-            }
-            else {
-                printf("Invalid parameter for knee type. Expecting \"soft\" or \"hard\".\n");
-                return ERROR_BAD_PARAM_KNEE_TYPE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 13){ // gamma type
-            if (strcmp(argv[i], "srgb") == 0){
-                gammamode = true;
-            }
-            else if (strcmp(argv[i], "linear") == 0){
-                gammamode = false;
-            }
-            else {
-                printf("Invalid parameter for gamma function. Expecting \"srgb\" or \"linear\".\n");
-                return ERROR_BAD_PARAM_GAMMA_TYPE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 14){ // dither
-            if (strcmp(argv[i], "true") == 0){
-                dither = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                dither = false;
-            }
-            else {
-                printf("Invalid parameter for dither. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_DITHER;
-            }
-            expect  = 0;
-        }
-        else if (expect == 15){ //verbosity
-            char* endptr;
-            errno = 0; //make sure errno is 0 before strtol()
-            long int input = strtol(argv[i], &endptr, 0);
-            bool inputok = true;
-            // are there any chacters left in the input string?
-            if (*endptr != '\0'){
-                inputok = false;
-            }
-            // is errno set?
-            else if (errno != 0){
-                inputok = false;
-            }
-            if (inputok){
-                if (input < VERBOSITY_SILENT){
-                    input = VERBOSITY_SILENT;
-                }
-                if (input > VERBOSITY_EXTREME){
-                    input = VERBOSITY_EXTREME;
-                }
-                verbosity = input;
-            }
-            else {
-                printf("Invalid parameter for verbosity. (Malformed int.)");
-                return ERROR_BAD_PARAM_MALFORMEDINT;
-            }
-            expect = 0;
-        }
-        else if (expect == 16){ // adapt type
-            if (strcmp(argv[i], "bradford") == 0){
-                adapttype = ADAPT_BRADFORD;
-            }
-            else if (strcmp(argv[i], "cat16") == 0){
-                adapttype = ADAPT_CAT16;
-            }
-            else {
-                printf("Invalid parameter for chomatic adapation type. Expecting \"bradford\" or \"cat16\".\n");
-                return ERROR_BAD_PARAM_ADAPT_TYPE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 17){ // ccc fucntion type
-            if (strcmp(argv[i], "exponential") == 0){
-                cccfunctiontype = CCC_EXPONENTIAL;
-            }
-            else if (strcmp(argv[i], "cubichermite") == 0){
-                cccfunctiontype = CCC_CUBIC_HERMITE;
-            }
-            else {
-                printf("Invalid parameter for ccc function type. Expecting \"exponential\" or \"cubichermite\".\n");
-                return ERROR_BAD_PARAM_CCC_FUNCTION_TYPE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 21){ // spiralcarisma
-            if (strcmp(argv[i], "true") == 0){
-                spiralcarisma = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                spiralcarisma = false;
-            }
-            else {
-                printf("Invalid parameter for spiralcarisma. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_DITHER;
-            }
-            expect  = 0;
-        }
-        else if (expect == 22){ // sc fucntion type
-            if (strcmp(argv[i], "exponential") == 0){
-                scfunctiontype = SC_EXPONENTIAL;
-            }
-            else if (strcmp(argv[i], "cubichermite") == 0){
-                scfunctiontype = SC_CUBIC_HERMITE;
-            }
-            else {
-                printf("Invalid parameter for sc function type. Expecting \"exponential\" or \"cubichermite\".\n");
-                return ERROR_BAD_PARAM_SC_FUNCTION_TYPE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 27){ // crt emulation mode
-            if (strcmp(argv[i], "none") == 0){
-                crtemumode = CRT_EMU_NONE;
-            }
-            else if (strcmp(argv[i], "front") == 0){
-                crtemumode = CRT_EMU_FRONT;
-            }
-            else if (strcmp(argv[i], "back") == 0){
-                crtemumode = CRT_EMU_BACK;
-            }
-            else {
-                printf("Invalid parameter for CRT emulation mode. Expecting \"none\", \"front\", or \"back\".\n");
-                return ERROR_BAD_PARAM_CRT_EMU_MODE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 30){ // crt modulator chip
-            if (strcmp(argv[i], "none") == 0){
-                crtmodindex = CRT_MODULATOR_NONE;
-            }
-            else if (strcmp(argv[i], "CXA1145") == 0){
-                crtmodindex = CRT_MODULATOR_CXA1145;
-            }
-            else if (strcmp(argv[i], "CXA1645") == 0){
-                crtmodindex = CRT_MODULATOR_CXA1645;
-            }
-            else {
-                printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"CXA1145\", or \"CXA1645\".\n");
-                return ERROR_BAD_PARAM_CRT_EMU_MODE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 31){ // crt demodulator chip
+        switch (nextparamtype){
+            // expecting a parameter switch
+            case 0:
+                // rest temp vars
+                listsize = 0;
+                lastj = 0;
+                nextboolptr = nullptr;
+                nextstringptr = nullptr;
+                nextintptr = nullptr;
+                nexttable = nullptr;
+                nexttablesize = 0;
+                nextfloatptr = nullptr;
+                selectfound = false;
+                breakout = false;
 
-            /*
-                #define CRT_DEMODULATOR_NONE -1
-                #define CRT_DEMODULATOR_DUMMY 0
-                #define CRT_DEMODULATOR_CXA1464AS 1
-                #define CRT_DEMODULATOR_CXA1465AS 2
-                #define CRT_DEMODULATOR_CXA1870S_JP 3
-                #define CRT_DEMODULATOR_CXA1870S_US 4
-                #define CRT_DEMODULATOR_CXA2060BS_JP 5
-                #define CRT_DEMODULATOR_CXA2060BS_US 6
-                #define CRT_DEMODULATOR_CXA2025AS_JP 7
-                #define CRT_DEMODULATOR_CXA2025AS_US 8
-                #define CRT_DEMODULATOR_CXA1213AS 9
-             */
+                // iterate over each param type and check them
+                listsize = sizeof(params_bool)/sizeof(params_bool[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i], params_bool[j].paramstring.c_str()) == 0){
+                        nextboolptr = params_bool[j].vartobind;
+                        nextparamtype = 1;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
+                }
+                if (breakout){break;}
 
-            if (strcmp(argv[i], "none") == 0){
-                crtdemodindex = CRT_DEMODULATOR_NONE;
-            }
-            else if (strcmp(argv[i], "dummy") == 0){
-                crtdemodindex = CRT_DEMODULATOR_DUMMY;
-            }
-            else if (strcmp(argv[i], "CXA1464AS") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA1464AS;
-            }
-            else if (strcmp(argv[i], "CXA1465AS") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA1465AS;
-            }
-            else if (strcmp(argv[i], "CXA1870S_JP") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA1870S_JP;
-            }
-            else if (strcmp(argv[i], "CXA1870S_US") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA1870S_US;
-            }
-            else if (strcmp(argv[i], "CXA2060BS_JP") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA2060BS_JP;
-            }
-            else if (strcmp(argv[i], "CXA2060BS_US") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA2060BS_US;
-            }
-            else if (strcmp(argv[i], "CXA2025AS_JP") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA2025AS_JP;
-            }
-            else if (strcmp(argv[i], "CXA2025AS_US") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA2025AS_JP;
-            }
-            else if (strcmp(argv[i], "CXA1213AS") == 0){
-                crtdemodindex = CRT_DEMODULATOR_CXA1213AS;
-            }
-            else {
-                printf("Invalid parameter for CRT emulation modulator chip ID. Expecting \"none\", \"dummy\", \"CXA1464AS\", \"CXA1465AS\", \"CXA1870S_JP\", \"CXA1870S_US\", \"CXA2060BS_JP\", \"CXA2060BS_US\", \"CXA2025AS_JP\", or \"CXA2025AS_US\".\n");
-                return ERROR_BAD_PARAM_CRT_EMU_MODE;
-            }
-            expect  = 0;
-        }
-        else if (expect == 32){ // lutgen
-            if (strcmp(argv[i], "true") == 0){
-                lutgen = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                lutgen = false;
-            }
-            else {
-                printf("Invalid parameter for lutgen. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_LUTGEN;
-            }
-            expect  = 0;
-        }
-        else if (expect == 33){ // lutsize
-            char* endptr;
-            errno = 0; //make sure errno is 0 before strtol()
-            long int input = strtol(argv[i], &endptr, 0);
-            bool inputok = true;
-            // are there any chacters left in the input string?
-            if (*endptr != '\0'){
-                inputok = false;
-            }
-            // is errno set?
-            else if (errno != 0){
-                inputok = false;
-            }
-            if (inputok){
-                if (input < 2){
-                    input = 2;
-                    printf("\nWARNING: LUT size cannot be less than 2. Changing to 2.\n");
+                listsize = sizeof(params_string)/sizeof(params_string[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i],params_string[j].paramstring.c_str()) == 0){
+                        nextstringptr = params_string[j].vartobind;
+                        nextboolptr = params_string[j].flagtobind;
+                        nextparamtype = 2;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
                 }
-                else if (input > 128){
-                    printf("\nWARNING: LUT size is %li. Some programs, e.g. retroarch, cannot handle extra-large LUTs.\n", input);
+                if (breakout){break;}
+
+                listsize = sizeof(params_select)/sizeof(params_select[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i],params_select[j].paramstring.c_str()) == 0){
+                        nextintptr = params_select[j].vartobind;
+                        nexttable = params_select[j].valuetable;
+                        nexttablesize = params_select[j].tablesize;
+                        nextparamtype = 3;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
                 }
-                lutsize = input;
-            }
-            else {
-                printf("Invalid parameter for lutsize. (Malformed int.)");
-                return ERROR_BAD_PARAM_MALFORMEDINT;
-            }
-            expect = 0;
-        }
-        else if (expect == 34){ // eilut
-            if (strcmp(argv[i], "true") == 0){
-                eilut = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                eilut = false;
-            }
-            else {
-                printf("Invalid parameter for eilut. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_EILUT;
-            }
-            expect  = 0;
-        }
-        else if (expect == 35){ // nespalgen
-            if (strcmp(argv[i], "true") == 0){
-                nesmode = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                nesmode = false;
-            }
-            else {
-                printf("Invalid parameter for nespalgen. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_NES;
-            }
-            expect  = 0;
-        }
-        else if (expect == 36){ // nespalmode
-            if (strcmp(argv[i], "true") == 0){
-                nesispal = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                nesispal = false;
-            }
-            else {
-                printf("Invalid parameter for nespalmode. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_NESPAL;
-            }
-            expect  = 0;
-        }
-        else if (expect == 37){ // nesburstnorm
-            if (strcmp(argv[i], "true") == 0){
-                nescbc = true;
-            }
-            else if (strcmp(argv[i], "false") == 0){
-                nescbc = false;
-            }
-            else {
-                printf("Invalid parameter for nesburstnorm. Expecting \"true\" or \"false\".\n");
-                return ERROR_BAD_PARAM_NESBURST;
-            }
-            expect  = 0;
-        }
-        else if (expect == 41){ // expecting html output filename for NES mode
-            neshtmlfilename = const_cast<char*>(argv[i]);
-            expect  = 0;
-            neswritehtml = true;
-        }
-        else {
-            if ((strcmp(argv[i], "--infile") == 0) || (strcmp(argv[i], "-i") == 0)){
-                filemode = true;
-                expect = 1;
-            }
-            else if ((strcmp(argv[i], "--outfile") == 0) || (strcmp(argv[i], "-o") == 0)){
-                expect = 2;
-            }
-            else if ((strcmp(argv[i], "--color") == 0) || (strcmp(argv[i], "-c") == 0)){
-                filemode = false;
-                expect = 3;
-            }
-            else if ((strcmp(argv[i], "--gamma") == 0) || (strcmp(argv[i], "-g") == 0)){
-                expect = 13;
-            }
-            else if ((strcmp(argv[i], "--source-gamut") == 0) || (strcmp(argv[i], "-s") == 0)){
-                expect = 4;
-            }
-            else if ((strcmp(argv[i], "--dest-gamut") == 0) || (strcmp(argv[i], "-d") == 0)){
-                expect = 5;
-            }
-            else if ((strcmp(argv[i], "--map-mode") == 0) || (strcmp(argv[i], "-m") == 0)){
-                expect = 6;
-            }
-            else if ((strcmp(argv[i], "--remap-factor") == 0) || (strcmp(argv[i], "--rf") == 0)){
-                expect = 7;
-            }
-            else if ((strcmp(argv[i], "--remap-limit") == 0) || (strcmp(argv[i], "--rl") == 0)){
-                expect = 8;
-            }
-            else if ((strcmp(argv[i], "--knee-factor") == 0) || (strcmp(argv[i], "--kf") == 0)){
-                expect = 9;
-            }
-            else if ((strcmp(argv[i], "--knee") == 0) || (strcmp(argv[i], "-k") == 0)){
-                expect = 12;
-            }
-            else if ((strcmp(argv[i], "--gamut-mapping-algorithm") == 0) || (strcmp(argv[i], "--gma") == 0)){
-                expect = 10;
-            }
-            else if ((strcmp(argv[i], "--safe-zone-type") == 0) || (strcmp(argv[i], "-z") == 0)){
-                expect = 11;
-            }
-            else if ((strcmp(argv[i], "--dither") == 0) || (strcmp(argv[i], "--di") == 0)){
-                expect = 14;
-            }
-            else if ((strcmp(argv[i], "--verbosity") == 0) || (strcmp(argv[i], "-v") == 0)){
-                expect = 15;
-            }
-            else if ((strcmp(argv[i], "--adapt") == 0) || (strcmp(argv[i], "-a") == 0)){
-                expect = 16;
-            }
-            else if ((strcmp(argv[i], "--cccfunction") == 0) || (strcmp(argv[i], "--cccf") == 0)){
-                expect = 17;
-            }
-            else if ((strcmp(argv[i], "--cccfloor") == 0) || (strcmp(argv[i], "--cccfl") == 0)){
-                expect = 18;
-            }
-            else if ((strcmp(argv[i], "--cccceiling") == 0) || (strcmp(argv[i], "--ccccl") == 0)){
-                expect = 19;
-            }
-            else if ((strcmp(argv[i], "--cccexponent") == 0) || (strcmp(argv[i], "--cccxp") == 0)){
-                expect = 20;
-            }
-            else if ((strcmp(argv[i], "--spiral-carisma") == 0) || (strcmp(argv[i], "--sc") == 0)){
-                expect = 21;
-            }
-            else if ((strcmp(argv[i], "--scfunction") == 0) || (strcmp(argv[i], "--scf") == 0)){
-                expect = 22;
-            }
-            else if ((strcmp(argv[i], "--scfloor") == 0) || (strcmp(argv[i], "--scfl") == 0)){
-                expect = 23;
-            }
-            else if ((strcmp(argv[i], "--scceiling") == 0) || (strcmp(argv[i], "--sccl") == 0)){
-                expect = 24;
-            }
-            else if ((strcmp(argv[i], "--scexponent") == 0) || (strcmp(argv[i], "--scxp") == 0)){
-                expect = 25;
-            }
-            else if ((strcmp(argv[i], "--scmax") == 0) || (strcmp(argv[i], "--scm") == 0)){
-                expect = 26;
-            }
-            else if ((strcmp(argv[i], "--crtemu") == 0)){
-                expect = 27;
-            }
-            else if ((strcmp(argv[i], "--crtblack") == 0)){
-                expect = 28;
-            }
-            else if ((strcmp(argv[i], "--crtwhite") == 0)){
-                expect = 29;
-            }
-            else if ((strcmp(argv[i], "--crtmod") == 0)){
-                expect = 30;
-            }
-            else if ((strcmp(argv[i], "--crtdemod") == 0)){
-                expect = 31;
-            }
-            else if ((strcmp(argv[i], "--lutgen") == 0)){
-                expect = 32;
-            }
-            else if ((strcmp(argv[i], "--lutsize") == 0)){
-                expect = 33;
-            }
-            else if ((strcmp(argv[i], "--eilut") == 0)){
-                expect = 34;
-            }
-            else if ((strcmp(argv[i], "--nespalgen") == 0)){
-                expect = 35;
-            }
-            else if ((strcmp(argv[i], "--nespalmode") == 0)){
-                expect = 36;
-            }
-            else if ((strcmp(argv[i], "--nesburstnorm") == 0)){
-                expect = 37;
-            }
-            else if ((strcmp(argv[i], "--nesskew26a") == 0)){
-                expect = 38;
-            }
-            else if ((strcmp(argv[i], "--nesboost48c") == 0)){
-                expect = 39;
-            }
-            else if ((strcmp(argv[i], "--nesperlumaskew") == 0)){
-                expect = 40;
-            }
-            else if ((strcmp(argv[i], "--neshtmloutputfile") == 0)){
-                expect = 41;
-            }
-            else {
-                printf("Invalid parameter: ||%s||\n", argv[i]);
+                if (breakout){break;}
+
+                listsize = sizeof(params_int)/sizeof(params_int[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i], params_int[j].paramstring.c_str()) == 0){
+                        nextintptr = params_int[j].vartobind;
+                        nextparamtype = 4;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
+                }
+                if (breakout){break;}
+
+                listsize = sizeof(params_float)/sizeof(params_float[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i], params_float[j].paramstring.c_str()) == 0){
+                        nextfloatptr = params_float[j].vartobind;
+                        nextparamtype = 5;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
+                }
+                if (breakout){break;}
+
+                // if we have not broken out by here, we have an unknown parameter
+                printf("Invalid parameter: \"%s\"\n", argv[i]);
                 return ERROR_BAD_PARAM_UNKNOWN_PARAM;
-            }
-        }
-    }
-    
-    if (expect > 0){
-        printf("Missing parameter. Expecting ");
-        switch (expect){
+
+                break;
+            // expecting a bool param
             case 1:
-                printf("input file name.\n");
+                if (strcmp(argv[i], "true") == 0){
+                    *nextboolptr = true;
+                }
+                else if (strcmp(argv[i], "false") == 0){
+                    *nextboolptr = false;
+                }
+                else {
+                    printf("Invalid value for parameter %s (%s). Expecting \"true\" or \"false\".\n", params_bool[lastj].paramstring.c_str(), params_bool[lastj].prettyname.c_str());
+                    return ERROR_BAD_PARAM_BOOL;
+                }
+                nextparamtype = 0;
+                break;
+            // expecting a string param
+            case 2:
+                *nextstringptr = const_cast<char*>(argv[i]);
+                if (nextboolptr != nullptr){
+                    *nextboolptr = true;
+                }
+                nextparamtype = 0;
+                break;
+            // expecting to select a string from a table
+            case 3:
+                selectfound = false;
+                for (int listindex=0; listindex<nexttablesize; listindex++){
+                    if (strcmp(argv[i], nexttable[listindex].valuestring.c_str()) == 0){
+                        *nextintptr = nexttable[listindex].value;
+                        selectfound = true;
+                        break;
+                    }
+                }
+                if (!selectfound){
+                    printf("Invalid value for parameter %s (%s). Expecting ", params_select[lastj].paramstring.c_str(), params_select[lastj].prettyname.c_str());
+                    for (int listindex=0; listindex<nexttablesize; listindex++){
+                        if (listindex == nexttablesize - 1){
+                            printf(" or \"%s\".\n", nexttable[listindex].valuestring.c_str());
+                        }
+                        else {
+                            printf(" \"%s\",", nexttable[listindex].valuestring.c_str());
+                        }
+                    }
+                    return ERROR_BAD_PARAM_SELECT;
+                }
+                nextparamtype = 0;
+                break;
+            // expecting a int param
+            case 4:
+                {
+                    char* endptr;
+                    errno = 0; //make sure errno is 0 before strtol()
+                    long int input = strtol(argv[i], &endptr, 0);
+                    bool inputok = true;
+                    // are there any chacters left in the input string?
+                    if (*endptr != '\0'){
+                        inputok = false;
+                    }
+                    // is errno set?
+                    else if (errno != 0){
+                        inputok = false;
+                    }
+                    if (inputok){
+                        *nextintptr = input;
+                    }
+                    else {
+                        printf("Invalid value for parameter %s (%s). Expecting integer numerical value.", params_int[lastj].paramstring.c_str(), params_int[lastj].prettyname.c_str());
+                        return ERROR_BAD_PARAM_INT;
+                    }
+                    nextparamtype = 0;
+                    break;
+                }
+            // expecting an int param
+            case 5:
+                {
+                    char* endptr;
+                    errno = 0; //make sure errno is 0 before strtol()
+                    double input = strtod(argv[i], &endptr);
+                    bool inputok = true;
+                    // are there any chacters left in the input string?
+                    if (*endptr != '\0'){
+                        inputok = false;
+                    }
+                    // is errno set?
+                    else if (errno != 0){
+                        inputok = false;
+                    }
+                    if (inputok){
+                        *nextfloatptr = input;
+                    }
+                    else {
+                        printf("Invalid value for parameter %s (%s). Expecting floating-point numerical value.", params_float[lastj].paramstring.c_str(), params_float[lastj].prettyname.c_str());
+                        return ERROR_BAD_PARAM_FLOAT;
+                    }
+                    nextparamtype = 0;
+                    break;
+                }
+            default:
+                break;
+        };
+    } // end for (int i=1; i<argc; i++)
+
+    // if we reached the end of the parameter list and didn't end on nextparamtype == 0, then we're missing the final parameter.
+    if (nextparamtype != 0){
+        switch (nextparamtype){
+            case 1:
+                printf("Missing value for parameter %s (%s). Expecting \"true\" or \"false\".\n", params_bool[lastj].paramstring.c_str(), params_bool[lastj].prettyname.c_str());
                 break;
             case 2:
-                printf("output file name.\n");
+                printf("Missing value for parameter %s (%s). Expecting text string.\n", params_string[lastj].paramstring.c_str(), params_string[lastj].prettyname.c_str());
                 break;
             case 3:
-                printf("input color.\n");
+                printf("Missing value for parameter %s (%s). Expecting ", params_select[lastj].paramstring.c_str(), params_select[lastj].prettyname.c_str());
+                for (int listindex=0; listindex<nexttablesize; listindex++){
+                    if (listindex == nexttablesize - 1){
+                        printf(" or \"%s\".\n", nexttable[listindex].valuestring.c_str());
+                    }
+                    else {
+                        printf(" \"%s\",", nexttable[listindex].valuestring.c_str());
+                    }
+                }
                 break;
             case 4:
-                printf("souce gamut name.\n");
+                printf("Missing value for parameter %s (%s). Expecting integer numerical value.\n", params_int[lastj].paramstring.c_str(), params_int[lastj].prettyname.c_str());
                 break;
             case 5:
-                printf("destination gamut name.\n");
-                break;
-            case 6:
-                printf("mapping mode.\n");
-                break;
-            case 7:
-                printf("remap factor.\n");
-                break;
-            case 8:
-                printf("remap limit.\n");
-                break;
-            case 9:
-                printf("knee factor.\n");
-                break;
-             case 10:
-                printf("remap direction.\n");
-                break;
-             case 11:
-                printf("safe zone type.\n");
-                break;
-            case 12:
-                printf("knee type.\n");
-                break;
-            case 13:
-                printf("gamma function.\n");
-                break;
-            case 14:
-                printf("dither setting.\n");
-                break;
-            case 15:
-                printf("verbosity level.\n");
-                break;
-            case 16:
-                printf("chromatic adapation type.\n");
-                break;
-            case 17:
-                printf("ccc function.\n");
-                break;
-            case 18:
-                printf("ccc floor.\n");
-                break;
-            case 19:
-                printf("ccc ceiling.\n");
-                break;
-            case 20:
-                printf("ccc exponent.\n");
-                break;
-            case 21:
-                printf("Spiral CARISMA setting.\n");
-                break;
-            case 22:
-                printf("Spiral CARISMA scaling function.\n");
-                break;
-            case 23:
-                printf("Spiral CARISMA scaling function floor.\n");
-                break;
-            case 24:
-                printf("Spiral CARISMA scaling function ceiling.\n");
-                break;
-            case 25:
-                printf("Spiral CARISMA scaling function exponent.\n");
-                break;
-            case 26:
-                printf("Spiral CARISMA max rotation multiplier.\n");
-                break;
-            case 27:
-                printf("CRT emulation mode.\n");
-                break;
-            case 28:
-                printf("CRT emulation black level.\n");
-                break;
-            case 29:
-                printf("CRT emulation white level.\n");
-                break;
-            case 30:
-                printf("CRT emulation modulator chip ID.\n");
-                break;
-            case 31:
-                printf("CRT emulation demodulator chip ID.\n");
-                break;
-            case 32:
-                printf("LUT generation mode (true/false).\n");
-                break;
-            case 33:
-                printf("LUT size (integer).\n");
-                break;
-            case 34:
-                printf("expanded intermediate LUT mode (true/false).\n");
-                break;
-            case 35:
-                printf("NES palette generation mode (true/false).\n");
-                break;
-            case 36:
-                printf("NES simulate PAL phase alternation (true/false).\n");
-                break;
-            case 37:
-                printf("NES normalize chroma to colorburst (true/false).\n");
-                break;
-            case 38:
-                printf("NES phase skew for hues 0x2, 0x6, and 0xA.\n");
-                break;
-            case 39:
-                printf("NES luma boost for hues 0x4, 0x8, and 0xC.\n");
-                break;
-            case 40:
-                printf("NES luma-dependent phase skew.\n");
-                break;
-            case 41:
-                printf("NES html output file name.\n");
-                break;
+               printf("Missing value for parameter %s (%s). Expecting floating-point numerical value.\n", params_float[lastj].paramstring.c_str(), params_float[lastj].prettyname.c_str());
+               break;
             default:
-                printf("oh... er... wtf error!.\n");
-        }
+                break;
+        };
         return ERROR_BAD_PARAM_MISSING_VALUE;
     }
+
+    // -------------------------------------------------------------------
+    // Sanity check the parameters and make changes if needed
     
+    softkneemode = (softkneemodealias == 0) ? false : true;
+    gammamode = (gammamodealias == 0) ? false : true;
+
+    if (verbosity < VERBOSITY_SILENT){
+        verbosity = VERBOSITY_SILENT;
+    }
+    if (verbosity > VERBOSITY_EXTREME){
+        verbosity = VERBOSITY_EXTREME;
+    }
+
+    // single color mode should override other input modes
+    // (and must, b/c filemode is true by default
+    if (incolorset){
+        if (filemode){
+            filemode = false;
+            if (infileset){
+                printf("\nIgnoring input file because single-color input mode specified.\n");
+            }
+        }
+        if (lutgen){
+            printf("\nForcing lutgen to false because single-color input mode specified.\n");
+            lutgen = false;
+        }
+        if (nesmode){
+            printf("\nForcing lutgen to false because single-color input mode specified.\n");
+            nesmode = false;
+        }
+    }
+
     if (nesmode && lutgen){
         printf("\nForcing lutgen to false because nespalgen is true.\n");
         lutgen = false;
     }
     if (nesmode && filemode){
-        printf("\nIgnoring input file because nespalgen is true.\n");
+        if (infileset){
+            printf("\nIgnoring input file because nespalgen is true.\n");
+            infileset = false;
+        }
         filemode = false;
     }
     if (nesmode && spiralcarisma){
@@ -1019,6 +1113,20 @@ int main(int argc, const char **argv){
     if (nesmode && (crtmodindex != CRT_MODULATOR_NONE)){
         printf("\nForcing crt modulator to none because nespalgen is true.\n");
         crtmodindex = CRT_MODULATOR_NONE;
+    }
+
+    if (lutgen){
+        if (lutsize < 2){
+            lutsize = 2;
+            printf("\nWARNING: LUT size cannot be less than 2. Changing to 2.\n");
+        }
+        else if (lutsize > 128){
+            printf("\nWARNING: LUT size is %i. Some programs, e.g. retroarch, cannot handle extra-large LUTs.\n", lutsize);
+        }
+        if (infileset){
+            printf("\nIgnoring input file because lutgen is true.\n");
+            infileset = false;
+        }
     }
 
     if (eilut && !lutgen){
@@ -1084,7 +1192,10 @@ int main(int argc, const char **argv){
         inputcolor.z = (input & 0x000000FF) / 255.0;
     }
     
-    //TODO: screen barf params in verbose mode
+    // ---------------------------------------------------------------------
+    // Screen barf the params in verbose mode
+    // TODO: refactor this
+
     if (verbosity >= VERBOSITY_SLIGHT){
         printf("\n\n----------\nParameters are:\n");
         if (filemode){
@@ -1274,6 +1385,8 @@ int main(int argc, const char **argv){
         printf("----------\n\n");
     }
     
+    // ------------------------------------------------------------------------
+    // Initialize stuff
     
     if (!initializeInverseMatrices()){
         printf("Unable to initialize inverse Jzazbz matrices. WTF error!\n");
@@ -1340,6 +1453,8 @@ int main(int argc, const char **argv){
         }
     }
     
+    // ---------------------------------------------------------------------------
+    // Do actual color processing
 
     // this mode converts a single color and printfs the result
     if (!filemode && !nesmode){
@@ -1360,6 +1475,7 @@ int main(int argc, const char **argv){
         }
         return RETURN_SUCCESS;
     }
+    // this mode generates a NES palette
     else if (nesmode){
 
         nesppusimulation nessim;
@@ -1526,12 +1642,10 @@ int main(int argc, const char **argv){
         return RETURN_SUCCESS;
     }
 
-    // if we didn't just return, we are in file mode
+    // if we didn't just return, we are in file mode or LUT mode
 
     int result = ERROR_PNG_FAIL;
     png_image image;
-
-
     
     /* Only the image structure version number needs to be set. */
     memset(&image, 0, sizeof image);
