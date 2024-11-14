@@ -130,8 +130,11 @@ const double CAT16Matrix[3][3] = {
 #define GAMUT_P22_EBUISH_9300K 12
 #define GAMUT_P22_EBUISH_D65 13
 #define GAMUT_P22_EBUISH_ILLC 14
+#define GAMUT_P22_HITACHI_9300K 15
+#define GAMUT_P22_HITACHI_D65 16
+#define GAMUT_P22_HITACHI_ILLC 17
 
-const std::string gamutnames[15] = {
+const std::string gamutnames[18] = {
     "sRGB / bt709 (specification)",
     "NTSC-J (television set receiver specification)",
     "NTSC-J (broadcast specification)",
@@ -146,10 +149,13 @@ const std::string gamutnames[15] = {
     "P22 phosphors, Trinitron, Illuminant C whitepoint",
     "P22 phosphors, EBU-ish, 9300K+27mpcd whitepoint",
     "P22 phosphors, EBU-ish, D65 whitepoint",
-    "P22 phosphors, EBU-ish, Illuminant C whitepoint"
+    "P22 phosphors, EBU-ish, Illuminant C whitepoint",
+    "P22 phosphors, Hitachi, 9300K+27mpcd whitepoint",
+    "P22 phosphors, Hitachi, D65 whitepoint",
+    "P22 phosphors, Hitachi, Illuminant C whitepoint"
 };
 
-const double gamutpoints[15][4][3] = {
+const double gamutpoints[18][4][3] = {
     // srgb_spec
     {
         {0.312713, 0.329016, 0.358271}, //white
@@ -281,7 +287,44 @@ const double gamutpoints[15][4][3] = {
         {0.657, 0.338, 0.005}, //red
         {0.297, 0.609, 0.094}, //green
         {0.148, 0.054, 0.798} //blue
+    },
+
+    // P22_hitachi_9300K
+    // NTSC-J with Hitachi P22 phosphors
+    // Color.org says that, according to “reference data… provided by the manufacturers,” these are chromaticities of the Hitachi CM2198 computer monitor phosphors. (+/- 0.02)
+    // see: https://www.color.org/wpaper1.xalter
+    // Hitachi also made a CMT2198 CRT television.
+    // Having no better data source, we just **ASSUME** Hitachi used the same phosphors in both the CM2198 and CMT2198.
+    // Reviewing the service manual indiciates that the CMT2187, 2196, 2198, and 2199 are substantially identical.
+    // Somewhat puzzlingly, it's not clear whether there were distinct JP and US models.
+    // 2196 and 2198 are lumped together, collectively showing both US and Japan channel coverage.
+    // Both use the same jungle chip (TDA8362), which does not have distinct JP and US modes, and uses just one color correction matrix for NTSC.
+    // And that throws the whitepoint into doubt.
+    // It's possible that one model was the JP model, and the other the US model, and the whitepoint was controlled by a circuit outside of the jungle chip.
+    // It's also possible that models with the same whitepoint (probably 9300K) were sold in both Japan and US.
+    {
+        {0.281, 0.311, 0.408}, //white 9300K+27mpcd
+        {0.624, 0.339, 0.037}, //red
+        {0.285, 0.604, 0.111}, //green
+        {0.150, 0.065, 0.785} //blue
+    },
+    // P22_hitachi_D65
+    // same as above, with D65 whitepoint
+    {
+        {0.312713, 0.329016, 0.358271}, // white D65
+        {0.624, 0.339, 0.037}, //red
+        {0.285, 0.604, 0.111}, //green
+        {0.150, 0.065, 0.785} //blue
+    },
+    // P22_hitachi_9300K
+    // same as above with Illuminant C whitepoint
+    {
+        {0.310063, 0.316158, 0.373779}, // white Illuminant C
+        {0.624, 0.339, 0.037}, //red
+        {0.285, 0.604, 0.111}, //green
+        {0.150, 0.065, 0.785} //blue
     }
+
 };
 
 const std::string modulatornames[4] = {
