@@ -176,13 +176,9 @@ int main(int argc, const char **argv){
     
     // ----------------------------------------------------------------------------------------
     // parameter processing
-    
-    if ((argc < 2) || (strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)){
-        printhelp();
-        return 0;
-    }
-    
+
     // defaults
+    bool helpmode = false;
     bool filemode = true;
     bool gammamode = true;
     int gammamodealias = 1;
@@ -973,6 +969,16 @@ int main(int argc, const char **argv){
                 }
                 if (breakout){break;}
 
+                // check for help flag
+                if (strcmp(argv[i], "-h") == 0){
+                    helpmode = true;
+                    break;
+                }
+                else if (strcmp(argv[i], "--help") == 0){
+                    helpmode = true;
+                    break;
+                }
+
                 // if we have not broken out by here, we have an unknown parameter
                 printf("Invalid parameter: \"%s\"\n", argv[i]);
                 return ERROR_BAD_PARAM_UNKNOWN_PARAM;
@@ -1114,6 +1120,13 @@ int main(int argc, const char **argv){
     // -------------------------------------------------------------------
     // Sanity check the parameters and make changes if needed
     
+    // if helpmode, show help then bail
+    if (helpmode){
+        printhelp();
+        return RETURN_SUCCESS;
+    }
+
+
     softkneemode = (softkneemodealias == 0) ? false : true;
     gammamode = (gammamodealias == 0) ? false : true;
 
