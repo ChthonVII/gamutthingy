@@ -77,6 +77,12 @@ extern const vec3 D65;
 #define CRT_MODULATOR_CXA1145 0
 #define CRT_MODULATOR_CXA1645 1
 
+#define RENORM_DEMOD_NONE 0
+#define RENORM_DEMOD_INSANE 1
+#define RENORM_DEMOD_ANGLE_NOT_ZERO 2
+#define RENORM_DEMOD_GAIN_NOT_ONE 3
+#define RENORM_DEMOD_ANY 4
+
 // YIQ scaling factors
 #define Udownscale 0.492111
 #define Vdownscale 0.877283

@@ -32,6 +32,7 @@ public:
     double modulatorMatrix[3][3];
     int demodulatorindex;
     double demodulatorMatrix[3][3];
+    int demodulatorrenormalization;
     double overallMatrix[3][3];
     double inverseOverallMatrix[3][3];
 
@@ -47,7 +48,7 @@ public:
 
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int verbositylevel);
+    bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, int verbositylevel);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma

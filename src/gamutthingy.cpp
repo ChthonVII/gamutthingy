@@ -221,6 +221,7 @@ int main(int argc, const char **argv){
     double crtwhitelevel = 1.71;
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
+    int crtdemodrenorm = RENORM_DEMOD_INSANE;
     bool lutgen = false;
     bool eilut = false;
     int lutsize = 128;
@@ -579,7 +580,30 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[21] = {
+    const paramvalue demodrenormlist[5] = {
+        {
+            "none",
+            RENORM_DEMOD_NONE
+        },
+        {
+            "insane",
+            RENORM_DEMOD_INSANE
+        },
+        {
+            "nonzeroangle",
+            RENORM_DEMOD_ANGLE_NOT_ZERO
+        },
+        {
+            "gainnot1",
+            RENORM_DEMOD_GAIN_NOT_ONE
+        },
+        {
+            "all",
+            RENORM_DEMOD_ANY
+        }
+    };
+
+    const selectparam params_select[22] = {
         {
             "--source-gamut",            //std::string paramstring; // parameter's text
             "Source Gamut",             //std::string prettyname; // name for pretty printing
@@ -726,6 +750,13 @@ int main(int argc, const char **argv){
             &crtdemodindex,          //int* vartobind; // pointer to variable whose value to set
             crtdemodulatorlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(crtdemodulatorlist)/sizeof(crtdemodulatorlist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--crtdemodrenorm",            //std::string paramstring; // parameter's text
+            "Renormalize CRT Demodulator Chip Condition",             //std::string prettyname; // name for pretty printing
+            &crtdemodrenorm,          //int* vartobind; // pointer to variable whose value to set
+            demodrenormlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(demodrenormlist)/sizeof(demodrenormlist[0])  //int tablesize; // number of items in the table
         }
     };
 
@@ -1425,7 +1456,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtmodindex, crtdemodindex, verbosity);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtmodindex, crtdemodindex, crtdemodrenorm, verbosity);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }

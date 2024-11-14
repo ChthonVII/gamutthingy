@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int verbositylevel){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, int verbositylevel){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -22,6 +22,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulat
         output = InitializeModulator();
     }
     demodulatorindex = demodulatorindex_in;
+    demodulatorrenormalization = renorm;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -444,19 +445,43 @@ void crtdescriptor::InitializeDemodulator(){
         }
         double normfactor = Uupscale;
 
-        /*  // While adjusting the normalization factor when blue's angle is non-zero is theoretically correct,
-            // the red/green gains shown in the datasheets are closer to other chips if NOT scaled,
-            // and the resulting matrix is closer to other chips if NOT scaled.
-            // So we will not scale?...
-        // compute a different normalization factor if blue angle isn't zero
-        if (blueangle != 0.0){
+         // Theoretically, we should be adjusting the adjusting the normalization factor when blue's angle is non-zero or gain is non-one
+        // However, the CXA1213AS...
+            // has red/green gains shown in the datasheets are closer to other Sony chips if NOT scaled,
+            // and the resulting matrix is closer to other Sony chips if NOT scaled.
+        // On the other hand, TDA8362 looks wildly wrong if not renormalized
+        // So punt the decision to the user...
+        bool dorenorm = false;
+        bool weirdgain = (bluegain != 1.0);
+        bool weirdangle = (blueangle != 0.0);
+        switch (demodulatorrenormalization){
+            case (RENORM_DEMOD_NONE):
+                dorenorm = false;
+                break;
+            case (RENORM_DEMOD_INSANE):
+                dorenorm = (weirdgain && weirdangle);
+                break;
+            case (RENORM_DEMOD_ANGLE_NOT_ZERO):
+                dorenorm = weirdangle;
+                break;
+            case (RENORM_DEMOD_GAIN_NOT_ONE):
+                dorenorm = weirdgain;
+                break;
+            case (RENORM_DEMOD_ANY):
+                dorenorm = (weirdgain || weirdangle);
+                break;
+            default:
+                break;
+        };
+        if (dorenorm){
             // Y'UV upscale factors form an ellipse with Uupscale on one axis and Vupscale on the other
             // radius of ellipse at theta is (a*b)/sqrt((a*sin(theta))^2 + (b*cos(theta))^2)
             double Aupscale = (Uupscale * Vupscale) / sqrt((Uupscale * Uupscale * sin(blueangle) * sin(blueangle)) + (Vupscale * Vupscale * cos(blueangle) * cos(blueangle)));
             // compute factor such that denormalized blue gain is the upscale factor at that angle
             normfactor = Aupscale / bluegain;
         }
-        */
+
+
 
         redgain *= normfactor;
         greengain *= normfactor;
