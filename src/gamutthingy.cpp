@@ -189,7 +189,7 @@ int main(int argc, const char **argv){
     bool softkneemode = true;
     int softkneemodealias = 1;
     bool dither = true;
-    int mapdirection = MAP_VPR;
+    int mapdirection = MAP_VPRC;
     int mapmode = MAP_COMPRESS;
     int sourcegamutindex = GAMUT_P22_TRINITRON_9300K;
     int destgamutindex = GAMUT_SRGB;
