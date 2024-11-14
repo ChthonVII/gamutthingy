@@ -77,18 +77,6 @@ extern const vec3 D65;
 #define CRT_MODULATOR_CXA1145 0
 #define CRT_MODULATOR_CXA1645 1
 
-#define CRT_DEMODULATOR_NONE -1
-#define CRT_DEMODULATOR_DUMMY 0
-#define CRT_DEMODULATOR_CXA1464AS 1
-#define CRT_DEMODULATOR_CXA1465AS 2
-#define CRT_DEMODULATOR_CXA1870S_JP 3
-#define CRT_DEMODULATOR_CXA1870S_US 4
-#define CRT_DEMODULATOR_CXA2060BS_JP 5
-#define CRT_DEMODULATOR_CXA2060BS_US 6
-#define CRT_DEMODULATOR_CXA2025AS_JP 7
-#define CRT_DEMODULATOR_CXA2025AS_US 8
-#define CRT_DEMODULATOR_CXA1213AS 9
-
 // YIQ scaling factors
 #define Udownscale 0.492111
 #define Vdownscale 0.877283
@@ -398,8 +386,21 @@ const double modulatorinfo[4][3][3] = {
 
 };
 
-const std::string demodulatornames[10] = {
-    "Dummy/PAL/SMPTE-C",
+#define CRT_DEMODULATOR_NONE -1
+#define CRT_DEMODULATOR_DUMMY 0
+#define CRT_DEMODULATOR_CXA1464AS 1
+#define CRT_DEMODULATOR_CXA1465AS 2
+#define CRT_DEMODULATOR_CXA1870S_JP 3
+#define CRT_DEMODULATOR_CXA1870S_US 4
+#define CRT_DEMODULATOR_CXA2060BS_JP 5
+#define CRT_DEMODULATOR_CXA2060BS_US 6
+#define CRT_DEMODULATOR_CXA2025AS_JP 7
+#define CRT_DEMODULATOR_CXA2025AS_US 8
+#define CRT_DEMODULATOR_CXA1213AS 9
+#define CRT_DEMODULATOR_TDA8362 10
+
+const std::string demodulatornames[11] = {
+    "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
     "CXA1870S (JP mode)",
@@ -408,10 +409,11 @@ const std::string demodulatornames[10] = {
     "CXA2060BS (US mode)",
     "CXA2025AS (JP mode)",
     "CXA2025AS (US mode)",
-    "CXA1213AS"
+    "CXA1213AS",
+    "TDA8362"
 };
 
-const double demodulatorinfo[10][2][3] = {
+const double demodulatorinfo[11][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -512,7 +514,18 @@ const double demodulatorinfo[10][2][3] = {
     {
         {99, 240, 11}, // angles (degrees)
         {0.77, 0.3, 1.0} // gains
-    }
+    },
+
+    // TDA8362
+    // Used in Hitachi CMT2187/2196/2198/2199
+    // Very likely match to the Hitachi P22 phosphor constants above.
+    // This chip does not have distinct JP and US modes, so one color correction matrix used for both apparently.
+    // It's also not clear if televisions sold in the US and Japan shared one whitepoint.
+    // These values are pretty wild (especially red gain). Not sure if gains should be renormalized for blue at non-zero angle.
+    {
+        {100, 235, -10}, // angles (degrees)
+        {1.14, 0.3, 1.14} // gains
+    },
 };
 
 #endif
