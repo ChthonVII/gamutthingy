@@ -35,7 +35,7 @@ typedef struct memo{
 memo memos[256][256][256];
 
 // Do the full conversion process on a given color
-vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode){
+vec3 processcolor(vec3 inputcolor, bool gammamodein, bool gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode){
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
         if (eilutmode){
@@ -45,7 +45,7 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
             linearinputcolor = sourcegamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(inputcolor);
         }
     }
-    else if (gammamode){
+    else if (gammamodein){
         linearinputcolor = vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z));
     }
     
@@ -126,7 +126,7 @@ vec3 processcolor(vec3 inputcolor, bool gammamode, int mapmode, gamutdescriptor 
     if (destgamut.crtemumode == CRT_EMU_BACK){
         outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor);
     }
-    else if (gammamode){
+    else if (gammamodeout){
         outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
     }
     return outcolor;
@@ -180,8 +180,10 @@ int main(int argc, const char **argv){
     // defaults
     bool helpmode = false;
     bool filemode = true;
-    bool gammamode = true;
-    int gammamodealias = 1;
+    bool gammamodein = true;
+    int gammamodeinalias = 1;
+    bool gammamodeout = true;
+    int gammamodeoutalias = 1;
     bool softkneemode = true;
     int softkneemodealias = 1;
     bool dither = true;
@@ -599,7 +601,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[22] = {
+    const selectparam params_select[24] = {
         {
             "--source-gamut",            //std::string paramstring; // parameter's text
             "Source Gamut",             //std::string prettyname; // name for pretty printing
@@ -685,16 +687,30 @@ int main(int argc, const char **argv){
             sizeof(kneetypelist)/sizeof(kneetypelist[0])  //int tablesize; // number of items in the table
         },
         {
-            "--gamma",            //std::string paramstring; // parameter's text
+            "--gamma-in",            //std::string paramstring; // parameter's text
             "Input/Output Gamma Function",             //std::string prettyname; // name for pretty printing
-            &gammamodealias,          //int* vartobind; // pointer to variable whose value to set
+            &gammamodeinalias,          //int* vartobind; // pointer to variable whose value to set
             gammatypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(gammatypelist)/sizeof(gammatypelist[0])  //int tablesize; // number of items in the table
         },
         {
-            "-g",            //std::string paramstring; // parameter's text
+            "--gin",            //std::string paramstring; // parameter's text
             "Input/Output Gamma Function",             //std::string prettyname; // name for pretty printing
-            &gammamodealias,          //int* vartobind; // pointer to variable whose value to set
+            &gammamodeinalias,          //int* vartobind; // pointer to variable whose value to set
+            gammatypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gammatypelist)/sizeof(gammatypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--gamma-out",            //std::string paramstring; // parameter's text
+            "Input/Output Gamma Function",             //std::string prettyname; // name for pretty printing
+            &gammamodeoutalias,          //int* vartobind; // pointer to variable whose value to set
+            gammatypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(gammatypelist)/sizeof(gammatypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--gout",            //std::string paramstring; // parameter's text
+            "Input/Output Gamma Function",             //std::string prettyname; // name for pretty printing
+            &gammamodeoutalias,          //int* vartobind; // pointer to variable whose value to set
             gammatypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(gammatypelist)/sizeof(gammatypelist[0])  //int tablesize; // number of items in the table
         },
@@ -1128,7 +1144,8 @@ int main(int argc, const char **argv){
 
 
     softkneemode = (softkneemodealias == 0) ? false : true;
-    gammamode = (gammamodealias == 0) ? false : true;
+    gammamodein = (gammamodeinalias == 0) ? false : true;
+    gammamodeout = (gammamodeoutalias == 0) ? false : true;
 
     if (verbosity < VERBOSITY_SILENT){
         verbosity = VERBOSITY_SILENT;
@@ -1225,7 +1242,7 @@ int main(int argc, const char **argv){
                 printf("\nForcing dither to false because lutgen is true.\n");
                 dither = false;
             }
-            if (gammamode){
+            if (gammamodeout){
                 printf("\nNOTE: You are saving a LUT using sRGB gamma. The program using this LUT will have to linearize values before interpolating. Are you sure this is what you want?\n");
             }
         }
@@ -1293,11 +1310,17 @@ int main(int argc, const char **argv){
         else {
             printf("Input color: %s\n", inputcolorstring);
         }
-        if (gammamode){
-            printf("Gamma function: srgb\n");
+        if (gammamodein){
+            printf("Input Gamma function: srgb\n");
         }
         else {
-            printf("Gamma function: linear\n");
+            printf("Input Gamma function: linear\n");
+        }
+        if (gammamodeout){
+            printf("Output Gamma function: srgb\n");
+        }
+        else {
+            printf("Output Gamma function: linear\n");
         }
         printf("Source gamut: %s\n", gamutnames[sourcegamutindex].c_str());
         printf("Destination gamut: %s\n", gamutnames[destgamutindex].c_str());
@@ -1534,7 +1557,7 @@ int main(int argc, const char **argv){
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false);
+        vec3 outcolor = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false);
 
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
@@ -1654,7 +1677,7 @@ int main(int argc, const char **argv){
                 htmlfile << "<BR>\n";
             }
 
-            htmlfile << "\t\t\tOutput gamma function: " << (gammamode ? "sRGB" : "linear RGB") << "<BR>\n";
+            htmlfile << "\t\t\tOutput gamma function: " << (gammamodeout ? "sRGB" : "linear RGB") << "<BR>\n";
 
             htmlfile << "\t\t</div>\n\t\t<table style=\"margin-left:auto; margin-right:auto; border:0px; border-collapse: collapse;\">\n";
         }
@@ -1670,7 +1693,7 @@ int main(int argc, const char **argv){
                 }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
-                    vec3 outcolor = processcolor(nesrgb, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true);
+                    vec3 outcolor = processcolor(nesrgb, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true);
                     // for now screen barf
                     //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
                     //nesrgb.printout();
@@ -1833,7 +1856,7 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolor(inputcolor, gammamode, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, false);
+                            outcolor = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, false);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*
