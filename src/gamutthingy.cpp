@@ -191,7 +191,7 @@ int main(int argc, const char **argv){
     bool dither = true;
     int mapdirection = MAP_VPR;
     int mapmode = MAP_COMPRESS;
-    int sourcegamutindex = GAMUT_NTSCJ_R;
+    int sourcegamutindex = GAMUT_P22_TRINITRON_9300K;
     int destgamutindex = GAMUT_SRGB;
     int safezonetype = RMZONE_DELTA_BASED;
     char* inputfilename;
@@ -327,54 +327,66 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[12] = {
+    const paramvalue gamutlist[15] = {
         {
-            "srgb",
+            "srgb_spec",
             GAMUT_SRGB
         },
         {
-            "ntscj",
+            "ntscj_spec",
             GAMUT_NTSCJ_R
         },
         {
-            "ntscjr",
-            GAMUT_NTSCJ_R
-        },
-        {
-            "ntscjb",
+            "ntscj_br_spec",
             GAMUT_NTSCJ_B
         },
         {
-            "ntscjp22",
-            GAMUT_NTSCJ_P22
-        },
-        {
-            "ntscjebu",
-            GAMUT_NTSCJ_EBU
-        },
-        {
-            "ntscjp22trinitron",
-            GAMUT_NTSCJ_P22_TRINITRON
-        },
-        {
-            "ntscup22trinitron",
-            GAMUT_NTSCU_P22_TRINITRON
-        },
-        {
-            "smptecp22trinitron",
-            GAMUT_SMPTEC_P22_TRINITRON
-        },
-        {
-            "smptec",
+            "smptec_spec",
             GAMUT_SMPTEC
         },
         {
-            "ebu",
+            "ntsc1953_spec",
+            GAMUT_NTSC_1953
+        },
+        {
+            "ebu_spec",
             GAMUT_EBU
         },
         {
-            "ntsc1953",
-            GAMUT_NTSC_1953
+            "P22_average_9300K",
+            GAMUT_P22_AVERAGE_9300K
+        },
+        {
+            "P22_average_D65",
+            GAMUT_P22_AVERAGE_D65
+        },
+        {
+            "P22_average_IllC",
+            GAMUT_P22_AVERAGE_ILLC
+        },
+        {
+            "P22_trinitron_9300K",
+            GAMUT_P22_TRINITRON_9300K
+        },
+        {
+            "P22_trinitron_D65",
+            GAMUT_P22_TRINITRON_D65
+        },
+        {
+            "P22_trinitron_IllC",
+            GAMUT_P22_TRINITRON_ILLC
+        },
+        {
+            "P22_ebuish_9300K",
+            GAMUT_P22_EBUISH_9300K
+        },
+        {
+            "P22_ebuish_D65",
+            GAMUT_P22_EBUISH_D65
+        },
+        {
+            "P22_ebuish_IllC",
+            GAMUT_P22_EBUISH_ILLC
         }
     };
 
