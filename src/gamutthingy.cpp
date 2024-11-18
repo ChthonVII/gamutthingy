@@ -189,8 +189,10 @@ int main(int argc, const char **argv){
     bool dither = true;
     int mapdirection = MAP_VPRC;
     int mapmode = MAP_COMPRESS;
-    int sourcegamutindex = GAMUT_P22_TRINITRON_9300K;
+    int sourcegamutindex = GAMUT_P22_TRINITRON;
     int destgamutindex = GAMUT_SRGB;
+    int sourcewhitepointindex = WHITEPOINT_9300K27MPCD;
+    int destwhitepointindex = WHITEPOINT_D65;
     int safezonetype = RMZONE_DELTA_BASED;
     char* inputfilename;
     char* outputfilename;
@@ -326,78 +328,57 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[18] = {
+    const paramvalue gamutlist[8] = {
         {
             "srgb_spec",
             GAMUT_SRGB
         },
         {
-            "ntscj_spec",
-            GAMUT_NTSCJ_R
-        },
-        {
-            "ntscj_br_spec",
-            GAMUT_NTSCJ_B
+            "ntsc_spec",
+            GAMUT_NTSC
         },
         {
             "smptec_spec",
             GAMUT_SMPTEC
         },
         {
-            "ntsc1953_spec",
-            GAMUT_NTSC_1953
-        },
-        {
             "ebu_spec",
             GAMUT_EBU
         },
         {
-            "P22_average_9300K",
-            GAMUT_P22_AVERAGE_9300K
+            "P22_average",
+            GAMUT_P22_AVERAGE
         },
         {
-            "P22_average_D65",
-            GAMUT_P22_AVERAGE_D65
+            "P22_trinitron",
+            GAMUT_P22_TRINITRON
         },
         {
-            "P22_average_IllC",
-            GAMUT_P22_AVERAGE_ILLC
+            "P22_ebuish",
+            GAMUT_P22_EBUISH
         },
         {
-            "P22_trinitron_9300K",
-            GAMUT_P22_TRINITRON_9300K
+            "P22_hitachi",
+            GAMUT_P22_HITACHI
+        }
+    };
+
+    const paramvalue whitepointlist[4] = {
+        {
+            "D65",
+            WHITEPOINT_D65
         },
         {
-            "P22_trinitron_D65",
-            GAMUT_P22_TRINITRON_D65
+            "9300K27mpcd",
+            WHITEPOINT_9300K27MPCD
         },
         {
-            "P22_trinitron_IllC",
-            GAMUT_P22_TRINITRON_ILLC
+            "9300K8mpcd",
+            WHITEPOINT_9300K8MPCD
         },
         {
-            "P22_ebuish_9300K",
-            GAMUT_P22_EBUISH_9300K
-        },
-        {
-            "P22_ebuish_D65",
-            GAMUT_P22_EBUISH_D65
-        },
-        {
-            "P22_ebuish_IllC",
-            GAMUT_P22_EBUISH_ILLC
-        },
-        {
-            "P22_hitachi_9300K",
-            GAMUT_P22_HITACHI_9300K
-        },
-        {
-            "P22_hitachi_D65",
-            GAMUT_P22_HITACHI_D65
-        },
-        {
-            "P22_hitachi_IllC",
-            GAMUT_P22_HITACHI_ILLC
+            "illuminantC",
+            WHITEPOINT_ILLUMINANTC
         }
     };
 
@@ -601,34 +582,62 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[24] = {
+    const selectparam params_select[28] = {
         {
-            "--source-gamut",            //std::string paramstring; // parameter's text
-            "Source Gamut",             //std::string prettyname; // name for pretty printing
+            "--source-primaries",            //std::string paramstring; // parameter's text
+            "Source Primaries",             //std::string prettyname; // name for pretty printing
             &sourcegamutindex,          //int* vartobind; // pointer to variable whose value to set
             gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(gamutlist)/sizeof(gamutlist[0])     //int tablesize; // number of items in the table
         },
         {
             "-s",            //std::string paramstring; // parameter's text
-            "Source Gamut",             //std::string prettyname; // name for pretty printing
+            "Source Primaries",             //std::string prettyname; // name for pretty printing
             &sourcegamutindex,          //int* vartobind; // pointer to variable whose value to set
             gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(gamutlist)/sizeof(gamutlist[0]) //int tablesize; // number of items in the table
         },
         {
-            "--dest-gamut",            //std::string paramstring; // parameter's text
-            "Destination Gamut",             //std::string prettyname; // name for pretty printing
+            "--dest-primaries",            //std::string paramstring; // parameter's text
+            "Destination Primaries",             //std::string prettyname; // name for pretty printing
             &destgamutindex,          //int* vartobind; // pointer to variable whose value to set
             gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(gamutlist)/sizeof(gamutlist[0]) //int tablesize; // number of items in the table
         },
         {
             "-d",            //std::string paramstring; // parameter's text
-            "Destination Gamut",             //std::string prettyname; // name for pretty printing
+            "Destination Primaries",             //std::string prettyname; // name for pretty printing
             &destgamutindex,          //int* vartobind; // pointer to variable whose value to set
             gamutlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(gamutlist)/sizeof(gamutlist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--source-whitepoint",            //std::string paramstring; // parameter's text
+            "Source Whitepoint",             //std::string prettyname; // name for pretty printing
+            &sourcewhitepointindex,          //int* vartobind; // pointer to variable whose value to set
+            whitepointlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(whitepointlist)/sizeof(whitepointlist[0]) //int tablesize; // number of items in the table
+        },
+        {
+            "--sw",            //std::string paramstring; // parameter's text
+            "Source Whitepoint",             //std::string prettyname; // name for pretty printing
+            &sourcewhitepointindex,          //int* vartobind; // pointer to variable whose value to set
+            whitepointlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(whitepointlist)/sizeof(whitepointlist[0]) //int tablesize; // number of items in the table
+        },
+        {
+            "--dest-whitepoint",            //std::string paramstring; // parameter's text
+            "Destination Whitepoint",             //std::string prettyname; // name for pretty printing
+            &destwhitepointindex,          //int* vartobind; // pointer to variable whose value to set
+            whitepointlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(whitepointlist)/sizeof(whitepointlist[0]) //int tablesize; // number of items in the table
+        },
+        {
+            "--dw",            //std::string paramstring; // parameter's text
+            "Destination Whitepoint",             //std::string prettyname; // name for pretty printing
+            &sourcewhitepointindex,          //int* vartobind; // pointer to variable whose value to set
+            whitepointlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(whitepointlist)/sizeof(whitepointlist[0]) //int tablesize; // number of items in the table
         },
         {
             "--map-mode",            //std::string paramstring; // parameter's text
@@ -1322,8 +1331,10 @@ int main(int argc, const char **argv){
         else {
             printf("Output Gamma function: linear\n");
         }
-        printf("Source gamut: %s\n", gamutnames[sourcegamutindex].c_str());
-        printf("Destination gamut: %s\n", gamutnames[destgamutindex].c_str());
+        printf("Source primaries: %s\n", gamutnames[sourcegamutindex].c_str());
+        printf("Source whitepoint: %s\n", whitepointnames[sourcewhitepointindex].c_str());
+        printf("Destination primaries: %s\n", gamutnames[destgamutindex].c_str());
+        printf("Destination whitepoint: %s\n", whitepointnames[destwhitepointindex].c_str());
 
         printf("Gamut mapping mode: ");
         switch(mapmode){
@@ -1501,15 +1512,15 @@ int main(int argc, const char **argv){
         }
     }
     
-    vec3 sourcewhite = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
-    vec3 sourcered = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
-    vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
-    vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][3][0], gamutpoints[sourcegamutindex][3][1], gamutpoints[sourcegamutindex][3][2]);
+    vec3 sourcewhite = vec3(whitepoints[sourcewhitepointindex][0], whitepoints[sourcewhitepointindex][1], whitepoints[sourcewhitepointindex][2]);
+    vec3 sourcered = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
+    vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
+    vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
     
-    vec3 destwhite = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
-    vec3 destred = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
-    vec3 destgreen = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
-    vec3 destblue = vec3(gamutpoints[destgamutindex][3][0], gamutpoints[destgamutindex][3][1], gamutpoints[destgamutindex][3][2]);
+    vec3 destwhite = vec3(whitepoints[destwhitepointindex][0], whitepoints[destwhitepointindex][1], whitepoints[destwhitepointindex][2]);
+    vec3 destred = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
+    vec3 destgreen = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
+    vec3 destblue = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
     
     bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
     
@@ -1614,9 +1625,10 @@ int main(int argc, const char **argv){
             htmlfile << "\t\t\tCRT black level: " << crtblacklevel << " x100 cd/m^2<BR>\n";
             htmlfile << "\t\t\tCRT white level: " << crtwhitelevel << " x100 cd/m^2<BR>\n";
 
-            htmlfile << "\t\t\tSource gamut: " << gamutnames[sourcegamutindex] << "<BR>\n";
-
-            htmlfile << "\t\t\tDestination gamut: " << gamutnames[destgamutindex] << "<BR>\n";
+            htmlfile << "\t\t\tSource primaries: " << gamutnames[sourcegamutindex] << "<BR>\n";
+            htmlfile << "\t\t\tSource whitepoint: " << whitepointnames[sourcewhitepointindex] << "<BR>\n";
+            htmlfile << "\t\t\tDestination primaries: " << gamutnames[destgamutindex] << "<BR>\n";
+            htmlfile << "\t\t\tDestination whitepoint: " << whitepointnames[destwhitepointindex] << "<BR>\n";
 
             if (sourcegamut.needschromaticadapt || destgamut.needschromaticadapt){
                 htmlfile << "\t\t\tChromatic adapation type: ";
