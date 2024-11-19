@@ -37,18 +37,13 @@ public:
     double inverseOverallMatrix[3][3];
 
     // variables for clamping
-    /*
-    double redclamphighfactor = 1.0;
-    double greenclamphighfactor = 1.0;
-    double blueclamphighfactor = 1.0;
-    double redclamplowfactor = 1.0;
-    double greenclamplowfactor = 1.0;
-    double blueclamplowfactor = 1.0;
-    */
+    double rgbclamplowlevel;
+    double rgbclamphighlevel;
+    bool clamphighrgb;
 
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, int verbositylevel);
+    bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma

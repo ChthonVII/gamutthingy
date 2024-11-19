@@ -222,6 +222,9 @@ int main(int argc, const char **argv){
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     int crtdemodrenorm = RENORM_DEMOD_INSANE;
+    bool crtdoclamphigh = false;
+    double crtclamphigh = 1.2;
+    double crtclamplow = -0.1;
     bool lutgen = false;
     bool eilut = false;
     int lutsize = 128;
@@ -234,7 +237,7 @@ int main(int argc, const char **argv){
     bool neswritehtml = false;
     char* neshtmlfilename;
     
-    const boolparam params_bool[9] = {
+    const boolparam params_bool[10] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -279,6 +282,11 @@ int main(int argc, const char **argv){
             "--nesburstnorm",                     //std::string paramstring; // parameter's text
             "NES simulation normalize chroma to colorburst",           //std::string prettyname; // name for pretty printing
             &nescbc                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtclamphighrgb",                     //std::string paramstring; // parameter's text
+            "CRT Clamp High RGB Output Values",           //std::string prettyname; // name for pretty printing
+            &crtdoclamphigh                //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -782,7 +790,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[19] = {
+    const floatparam params_float[21] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -877,6 +885,16 @@ int main(int argc, const char **argv){
             "--nesperlumaskew",         //std::string paramstring; // parameter's text
             "NES per luma phase skew (degrees)",        //std::string prettyname; // name for pretty printing
             &nesskewstep           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtclamphigh",         //std::string paramstring; // parameter's text
+            "CRT RGB Output Clamp High",        //std::string prettyname; // name for pretty printing
+            &crtclamphigh         //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtclamplow",         //std::string paramstring; // parameter's text
+            "CRT RGB Output Clamp Low",        //std::string prettyname; // name for pretty printing
+            &crtclamplow           //double* vartobind; // pointer to variable whose value to set
         }
 
 
@@ -1289,6 +1307,20 @@ int main(int argc, const char **argv){
         inputcolor.y = ((input & 0x0000FF00) >> 8) / 255.0;
         inputcolor.z = (input & 0x000000FF) / 255.0;
     }
+
+    if (crtclamphigh < 1.0){
+        crtclamphigh = 1.0;
+        printf("Cannot clamp CRT R'G'B' high output below 100%%; clamping to 100%% instead.\n");
+    }
+    if (crtclamplow > 0.0){
+        crtclamplow = 0.0;
+        printf("Cannot clamp CRT R'G'B' low output above 0%%; clamping to 0%% instead.\n");
+    }
+    else if (crtclamplow < -0.1){
+        crtclamplow = -0.1;
+        printf("CRT R'G'B' low output clamp must be at least -0.1; clamping to -0.1 instead.\n");
+    }
+
     
     // ---------------------------------------------------------------------
     // Screen barf the params in verbose mode
@@ -1479,6 +1511,13 @@ int main(int argc, const char **argv){
             else {
                  printf("%s\n", demodulatornames[crtdemodindex].c_str());
             }
+            printf("CRT R'G'B' high low values clamped to %f.\n", crtclamplow);
+            if (crtdoclamphigh){
+                printf("CRT R'G'B' high output values clamped to %f.\n", crtclamphigh);
+            }
+            else {
+                printf("CRT R'G'B' high output values not clamped. (Out-of-bounds values resolved by gamut compression algorithm.)\n");
+            }
         }
         if (nesmode){
             printf("NES simulate PAL phase alternation: %i\n", nesispal);
@@ -1503,7 +1542,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtmodindex, crtdemodindex, crtdemodrenorm, verbosity);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }

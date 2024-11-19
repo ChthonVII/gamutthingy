@@ -943,6 +943,7 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color, double &errorsize){
     }
     else {
         // if we're emulating a CRT, then define the gamut boundaries with respect to the set of outputs that the CRT emulation could produce from valid inputs
+        /*
         if (crtemumode != CRT_EMU_NONE){
             rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
         }
@@ -970,6 +971,125 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color, double &errorsize){
             isinbounds = false;
             errorsize += (-1.0 * rgbcolor.z);
         }
+        */
+
+        /*
+        if (rgbcolor.x > 1.0){
+            isinbounds = false;
+            errorsize += rgbcolor.x - 1.0;
+        }
+        else if (rgbcolor.x < 0.0){
+            isinbounds = false;
+            errorsize += (-1.0 * rgbcolor.x);
+        }
+        if (rgbcolor.y > 1.0){
+            isinbounds = false;
+            errorsize += rgbcolor.y - 1.0;
+        }
+        else if (rgbcolor.y < 0.0){
+            isinbounds = false;
+            errorsize += (-1.0 * rgbcolor.y);
+        }
+        if (rgbcolor.z > 1.0){
+            isinbounds = false;
+            errorsize += rgbcolor.z - 1.0;
+        }
+        else if (rgbcolor.z < 0.0){
+            isinbounds = false;
+            errorsize += (-1.0 * rgbcolor.z);
+        }
+        if ((crtemumode != CRT_EMU_NONE) && isinbounds){
+            rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
+            if (rgbcolor.x > 1.0){
+                isinbounds = false;
+                errorsize += rgbcolor.x - 1.0;
+            }
+            else if (rgbcolor.x < 0.0){
+                isinbounds = false;
+                errorsize += (-1.0 * rgbcolor.x);
+            }
+            if (rgbcolor.y > 1.0){
+                isinbounds = false;
+                errorsize += rgbcolor.y - 1.0;
+            }
+            else if (rgbcolor.y < 0.0){
+                isinbounds = false;
+                errorsize += (-1.0 * rgbcolor.y);
+            }
+            if (rgbcolor.z > 1.0){
+                isinbounds = false;
+                errorsize += rgbcolor.z - 1.0;
+            }
+            else if (rgbcolor.z < 0.0){
+                isinbounds = false;
+                errorsize += (-1.0 * rgbcolor.z);
+            }
+        }
+        */
+        // CRT mode has extra steps
+        if (crtemumode != CRT_EMU_NONE){
+            // check if the gamma-space RGB would be outside the RGB clipping rule
+
+            vec3 gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
+            if (attachedCRT->clamphighrgb){
+                if (gammargb.x > attachedCRT->rgbclamphighlevel){
+                    isinbounds = false;
+                    errorsize += gammargb.x - attachedCRT->rgbclamphighlevel;
+                }
+                if (gammargb.y > attachedCRT->rgbclamphighlevel){
+                    isinbounds = false;
+                    errorsize += gammargb.y - attachedCRT->rgbclamphighlevel;
+                }
+                if (gammargb.z > attachedCRT->rgbclamphighlevel){
+                    isinbounds = false;
+                    errorsize += gammargb.z - attachedCRT->rgbclamphighlevel;
+                }
+            }
+            if (gammargb.x < attachedCRT->rgbclamplowlevel){
+                isinbounds = false;
+                errorsize += (-1.0 * gammargb.x); //wrong but don't care b/c going to remove this
+            }
+            if (gammargb.y < attachedCRT->rgbclamplowlevel){
+                isinbounds = false;
+                errorsize += (-1.0 * gammargb.y); //wrong but don't care b/c going to remove this
+            }
+            if (gammargb.z < attachedCRT->rgbclamplowlevel){
+                isinbounds = false;
+                errorsize += (-1.0 * gammargb.z); //wrong but don't care b/c going to remove this
+            }
+
+            // invert the whole CRT process to get back to the original inputs
+            rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
+
+        }
+        // normal check (skip if we already blew up on CRT stuff)
+        if (isinbounds){
+            if (rgbcolor.x > 1.0){
+                isinbounds = false;
+                errorsize += rgbcolor.x - 1.0;
+            }
+            else if (rgbcolor.x < 0.0){
+                isinbounds = false;
+                errorsize += (-1.0 * rgbcolor.x);
+            }
+            if (rgbcolor.y > 1.0){
+                isinbounds = false;
+                errorsize += rgbcolor.y - 1.0;
+            }
+            else if (rgbcolor.y < 0.0){
+                isinbounds = false;
+                errorsize += (-1.0 * rgbcolor.y);
+            }
+            if (rgbcolor.z > 1.0){
+                isinbounds = false;
+                errorsize += rgbcolor.z - 1.0;
+            }
+            else if (rgbcolor.z < 0.0){
+                isinbounds = false;
+                errorsize += (-1.0 * rgbcolor.z);
+            }
+        }
+
     }
 
     return isinbounds;

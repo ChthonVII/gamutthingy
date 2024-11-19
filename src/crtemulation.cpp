@@ -8,13 +8,16 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, int verbositylevel){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
     CRT_EOTF_whitelevel = whitelevel;
     Initialize1886EOTF();
     output = InitializeNTSC1953WhiteBalanceFactors();
+    rgbclamplowlevel = clamplow;
+    rgbclamphighlevel = clamphigh;
+    clamphighrgb = doclamphigh;
     modulatorindex = modulatorindex_in;
     bool havemodulator = false;
     if (modulatorindex != CRT_MODULATOR_NONE){
@@ -53,109 +56,6 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulat
     }
     
     output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
-    
-    /*
-    OR NOT!
-    The biggest practical impact is to make yellow *much* more orange. Not desirable.
-
-    // We don't really know how the output from the demodulator was clamped.
-    // The general approach here is to just pass along the out-of-bounds values until the gamut compression step.
-    // In most cases, this is better than clamping because
-    // (a) We get a range of continuous values unstead of clipping, and
-    // (b) We don't alter the hue like we would with clamping.
-    // However, really far-out outliers (which in practice means "red") cause other colors in that direction to get
-    // compressed harder than they probably should.
-    // So, as a compromise, we're going to scale down outliers to the range -0.2 to 1.2,
-    // using -0.2 to -0.1 and 1.1 to 1.2 for the compression zones.
-    // This coincides with the absolute limits of what could be modulated onto a NTSC carrier wave.
-    // This limit did not apply to the *output* of the demodulator circuit.
-    // However we might make a loosey goosey guess that demodulator output was probably not clamped to a wider range than that.
-    // So we end up with a chutto hampa solution where we probably haven't clamped realistically,
-    // but passing out-of-bounds values onward to the GMA is generally better than clamping anyway,
-    // and we've reduced the extent of the one case where maybe it's not.
-    double maxred = 0.0;
-    double minred = 0.0;
-    if (overallMatrix[0][0] > 0.0){
-        maxred += overallMatrix[0][0];
-    }
-    else {
-        minred += overallMatrix[0][0];
-    }
-    if (overallMatrix[0][1] > 0.0){
-        maxred += overallMatrix[0][1];
-    }
-    else {
-        minred += overallMatrix[0][1];
-    }
-    if (overallMatrix[0][2] > 0.0){
-        maxred += overallMatrix[0][2];
-    }
-    else {
-        minred += overallMatrix[0][2];
-    }
-    if (maxred > 1.2){
-        redclamphighfactor = 0.1 / (maxred - 1.1);
-    }
-    if (minred < -0.2){
-        redclamplowfactor = -0.1 / (minred + 0.1);
-    }
-
-
-    double maxgreen = 0.0;
-    double mingreen = 0.0;
-    if (overallMatrix[1][0] > 0.0){
-        maxgreen += overallMatrix[1][0];
-    }
-    else {
-        mingreen += overallMatrix[1][0];
-    }
-    if (overallMatrix[1][1] > 0.0){
-        maxgreen += overallMatrix[1][1];
-    }
-    else {
-        mingreen += overallMatrix[1][1];
-    }
-    if (overallMatrix[1][2] > 0.0){
-        maxgreen += overallMatrix[1][2];
-    }
-    else {
-        mingreen += overallMatrix[1][2];
-    }
-    if (maxgreen > 1.2){
-        greenclamphighfactor = 0.1 / (maxgreen - 1.1);
-    }
-    if (mingreen < -0.2){
-        greenclamplowfactor = -0.1 / (mingreen + 0.1);
-    }
-
-    double maxblue = 0.0;
-    double minblue = 0.0;
-    if (overallMatrix[2][0] > 0.0){
-        maxblue += overallMatrix[2][0];
-    }
-    else {
-        minblue += overallMatrix[2][0];
-    }
-    if (overallMatrix[2][1] > 0.0){
-        maxblue += overallMatrix[2][1];
-    }
-    else {
-        minblue += overallMatrix[2][1];
-    }
-    if (overallMatrix[2][2] > 0.0){
-        maxblue += overallMatrix[2][2];
-    }
-    else {
-        minblue += overallMatrix[2][2];
-    }
-    if (maxblue > 1.2){
-        blueclamphighfactor = 0.1 / (maxblue - 1.1);
-    }
-    if (minblue < -0.2){
-        blueclamplowfactor = -0.1 / (minblue + 0.1);
-    }
-
-    */
 
     return output;
 }
@@ -684,15 +584,30 @@ vec3 crtdescriptor::togamma1886appx1vec3(vec3 input){
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     vec3 output = multMatrixByColor(overallMatrix, input);
 
-    // We do need to clamp low values.
+    // clamp rgb
+    // Real CRT probably did this, though who knows what the threshholds were.
+    // We can sort of guess that maybe clipping here roughly mirrored clipping guidelines for broadcast media.
+    // Broadcast signals absolutely must be clipped to -20 to 120 IRE in order to be modulated onto the carrier.
+    // Some internet comments suggest clipping broadcast signals to 104 or 110 IRE "super white" was common.
+    // Grading programs like DaVinci Resolve offer clipping modes of 0 to 100, -10 to 110, and -20 to 120.
+    // The gap between reference black and blanking level on US NTSC was 7.5/92.5 (about -0.081). Going below that caused trouble on some CRTs.
+    // We absolutely need to clamp low values.
     // Even if the CRT jungle chip isn't actively clamping, at some point there are just zero volts driving the electron gun.
     // Additionally, the Jzazbz PQ function is going to return NAN given inputs that are too negative.
-    // Somewhat arbitrarily setting the maximum negative value at slightly more than the gap between US NTSC black and blanking (7.5/92.5).
+    // (These colors are forced to black to prevent a segfault)
+    // According to a couple test runs, we can get away with -0.1, but -0.2 borks the PQ function.
     // With this clamp in place, the only problematic input observed so far is the NES's 0xD "super black"
-    // (Which gets forced to black in XYZtoJzazbz(), which is the right result.)
-    if (output.x < -0.085) output.x = -0.085;
-    if (output.y < -0.085) output.y = -0.085;
-    if (output.z < -0.085) output.z = -0.085;
+    // (Which *should* be forced to black, so that's OK.)
+    // We don't *need* to clamp high values. The gamut compression algorithm will compress them.
+    // Clamping will distort these colors. Though, that distortion is probably truer to what CRTs actually did.
+    if (clamphighrgb){
+        if (output.x > rgbclamphighlevel){output.x = rgbclamphighlevel;}
+        if (output.y > rgbclamphighlevel){output.y = rgbclamphighlevel;}
+        if (output.z > rgbclamphighlevel){output.z = rgbclamphighlevel;}
+    }
+    if (output.x < rgbclamplowlevel){output.x = rgbclamplowlevel;}
+    if (output.y < rgbclamplowlevel){output.y = rgbclamplowlevel;}
+    if (output.z < rgbclamplowlevel){output.z = rgbclamplowlevel;}
 
     output.x = tolinear1886appx1(output.x);
     output.y = tolinear1886appx1(output.y);
