@@ -157,9 +157,7 @@ public:
     vec3 ClampLuminosity(vec3 input);
 
     // checks if the supplied JzCzhz color is within this gamut.
-    // if not, also sets errorsize to the sum of linear rgb over/underruns.
-    // (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
-    bool IsJzCzhzInBounds(vec3 color, double &errorsize);
+    bool IsJzCzhzInBounds(vec3 color);
 
     // Populates the gamut boundary descriptor using the algorithm from
     // Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. (https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694)

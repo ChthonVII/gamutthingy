@@ -927,172 +927,56 @@ vec3 gamutdescriptor::ClampLuminosity(vec3 input){
 
 
 // checks if the supplied JzCzhz color is within this gamut.
-// if not, also sets errorsize to the sum of linear rgb over/underruns.
-// (or sets errorsize to 10k if JzCzhzToLinearRGB() encounters a NaN error)
-bool gamutdescriptor::IsJzCzhzInBounds(vec3 color, double &errorsize){
-    
-    bool isinbounds = true;
-    errorsize = 0.0;
-    
+bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
+
     vec3 rgbcolor = JzCzhzToLinearRGB(color);
     
     // inverse PQ function can generate NaN :( Let's assume all NaNs are waaay out of bounds
     if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z)){
-        isinbounds = false;
-        errorsize = 10000.0; // arbitrary huge number
-    }
-    else {
-        // if we're emulating a CRT, then define the gamut boundaries with respect to the set of outputs that the CRT emulation could produce from valid inputs
-        /*
-        if (crtemumode != CRT_EMU_NONE){
-            rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
-        }
-        if (rgbcolor.x > 1.0){
-            isinbounds = false;
-            errorsize += rgbcolor.x - 1.0;
-        }
-        else if (rgbcolor.x < 0.0){
-            isinbounds = false;
-            errorsize += (-1.0 * rgbcolor.x);
-        }
-        if (rgbcolor.y > 1.0){
-            isinbounds = false;
-            errorsize += rgbcolor.y - 1.0;
-        }
-        else if (rgbcolor.y < 0.0){
-            isinbounds = false;
-            errorsize += (-1.0 * rgbcolor.y);
-        }
-        if (rgbcolor.z > 1.0){
-            isinbounds = false;
-            errorsize += rgbcolor.z - 1.0;
-        }
-        else if (rgbcolor.z < 0.0){
-            isinbounds = false;
-            errorsize += (-1.0 * rgbcolor.z);
-        }
-        */
-
-        /*
-        if (rgbcolor.x > 1.0){
-            isinbounds = false;
-            errorsize += rgbcolor.x - 1.0;
-        }
-        else if (rgbcolor.x < 0.0){
-            isinbounds = false;
-            errorsize += (-1.0 * rgbcolor.x);
-        }
-        if (rgbcolor.y > 1.0){
-            isinbounds = false;
-            errorsize += rgbcolor.y - 1.0;
-        }
-        else if (rgbcolor.y < 0.0){
-            isinbounds = false;
-            errorsize += (-1.0 * rgbcolor.y);
-        }
-        if (rgbcolor.z > 1.0){
-            isinbounds = false;
-            errorsize += rgbcolor.z - 1.0;
-        }
-        else if (rgbcolor.z < 0.0){
-            isinbounds = false;
-            errorsize += (-1.0 * rgbcolor.z);
-        }
-        if ((crtemumode != CRT_EMU_NONE) && isinbounds){
-            rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
-            if (rgbcolor.x > 1.0){
-                isinbounds = false;
-                errorsize += rgbcolor.x - 1.0;
-            }
-            else if (rgbcolor.x < 0.0){
-                isinbounds = false;
-                errorsize += (-1.0 * rgbcolor.x);
-            }
-            if (rgbcolor.y > 1.0){
-                isinbounds = false;
-                errorsize += rgbcolor.y - 1.0;
-            }
-            else if (rgbcolor.y < 0.0){
-                isinbounds = false;
-                errorsize += (-1.0 * rgbcolor.y);
-            }
-            if (rgbcolor.z > 1.0){
-                isinbounds = false;
-                errorsize += rgbcolor.z - 1.0;
-            }
-            else if (rgbcolor.z < 0.0){
-                isinbounds = false;
-                errorsize += (-1.0 * rgbcolor.z);
-            }
-        }
-        */
-        // CRT mode has extra steps
-        if (crtemumode != CRT_EMU_NONE){
-            // check if the gamma-space RGB would be outside the RGB clipping rule
-
-            vec3 gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
-            if (attachedCRT->clamphighrgb){
-                if (gammargb.x > attachedCRT->rgbclamphighlevel){
-                    isinbounds = false;
-                    errorsize += gammargb.x - attachedCRT->rgbclamphighlevel;
-                }
-                if (gammargb.y > attachedCRT->rgbclamphighlevel){
-                    isinbounds = false;
-                    errorsize += gammargb.y - attachedCRT->rgbclamphighlevel;
-                }
-                if (gammargb.z > attachedCRT->rgbclamphighlevel){
-                    isinbounds = false;
-                    errorsize += gammargb.z - attachedCRT->rgbclamphighlevel;
-                }
-            }
-            if (gammargb.x < attachedCRT->rgbclamplowlevel){
-                isinbounds = false;
-                errorsize += (-1.0 * gammargb.x); //wrong but don't care b/c going to remove this
-            }
-            if (gammargb.y < attachedCRT->rgbclamplowlevel){
-                isinbounds = false;
-                errorsize += (-1.0 * gammargb.y); //wrong but don't care b/c going to remove this
-            }
-            if (gammargb.z < attachedCRT->rgbclamplowlevel){
-                isinbounds = false;
-                errorsize += (-1.0 * gammargb.z); //wrong but don't care b/c going to remove this
-            }
-
-            // invert the whole CRT process to get back to the original inputs
-            rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
-
-        }
-        // normal check (skip if we already blew up on CRT stuff)
-        if (isinbounds){
-            if (rgbcolor.x > 1.0){
-                isinbounds = false;
-                errorsize += rgbcolor.x - 1.0;
-            }
-            else if (rgbcolor.x < 0.0){
-                isinbounds = false;
-                errorsize += (-1.0 * rgbcolor.x);
-            }
-            if (rgbcolor.y > 1.0){
-                isinbounds = false;
-                errorsize += rgbcolor.y - 1.0;
-            }
-            else if (rgbcolor.y < 0.0){
-                isinbounds = false;
-                errorsize += (-1.0 * rgbcolor.y);
-            }
-            if (rgbcolor.z > 1.0){
-                isinbounds = false;
-                errorsize += rgbcolor.z - 1.0;
-            }
-            else if (rgbcolor.z < 0.0){
-                isinbounds = false;
-                errorsize += (-1.0 * rgbcolor.z);
-            }
-        }
-
+        return false;
     }
 
-    return isinbounds;
+    // CRT mode has extra steps
+    if (crtemumode != CRT_EMU_NONE){
+
+        // check if the gamma-space RGB would be outside the RGB clipping rule
+        vec3 gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
+        if (attachedCRT->clamphighrgb){
+            if (gammargb.x > attachedCRT->rgbclamphighlevel){return false;}
+            if (gammargb.y > attachedCRT->rgbclamphighlevel){return false;}
+            if (gammargb.z > attachedCRT->rgbclamphighlevel){return false;}
+        }
+        if (gammargb.x < attachedCRT->rgbclamplowlevel){return false;}
+        if (gammargb.y < attachedCRT->rgbclamplowlevel){return false;}
+        if (gammargb.z < attachedCRT->rgbclamplowlevel){return false;}
+
+        // invert the whole CRT process to get back to the original inputs for the next step
+        rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
+
+    }
+    // normal check
+    if (rgbcolor.x > 1.0){
+        return false;
+    }
+    else if (rgbcolor.x < 0.0){
+        return false;
+    }
+    if (rgbcolor.y > 1.0){
+        return false;
+    }
+    else if (rgbcolor.y < 0.0){
+        return false;
+    }
+    if (rgbcolor.z > 1.0){
+        return false;
+    }
+    else if (rgbcolor.z < 0.0){
+        return false;
+    }
+
+
+    // if we haven't failed by now, we're in bounds
+    return true;
 }
 
 
@@ -1124,8 +1008,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         double rowluma = row * lumastep;
         for (int col = 1; col < CHROMA_STEPS; col++){
             vec3 color = vec3(rowluma, col * chromastep, hue);
-            double dummy;
-            grid[row][col].inbounds = IsJzCzhzInBounds(color, dummy);
+            grid[row][col].inbounds = IsJzCzhzInBounds(color);
             
             //printf("row %i, col %i, color: %f, %f, %f, rgbcolor %f, %f, %f, inbounds %i\n", row, col, color.x, color.y, color.z, rgbcolor.z, rgbcolor.y, rgbcolor.z, isinbounds);
         }
@@ -1146,8 +1029,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 for (int finestep = 1; finestep<FINE_CHROMA_STEPS; finestep++){
                     double finex = (col * chromastep) + (finestep * finechromastep);
                     vec3 color = vec3(rowluma, finex, hue);
-                    double dummy;
-                    bool isinbounds = IsJzCzhzInBounds(color, dummy);
+                    bool isinbounds = IsJzCzhzInBounds(color);
                     // we found the boundary point
                     if ((waitingforout && !isinbounds) || (!waitingforout && isinbounds)){
                         boundarypoint newbpoint;
@@ -1193,18 +1075,15 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     double cuspchroma = biggestchroma;
     while (scanluma <= scanmaxluma){
         vec3 color = vec3(scanluma, biggestchroma, hue);
-        double dummy;
         //vec3 rgbcolor = JzCzhzToLinearRGB(color);
         // only process this row if it's in bounds at the biggest chroma found so far
-        //if (!(isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0))){
-        if (IsJzCzhzInBounds(color, dummy)){
+        if (IsJzCzhzInBounds(color)){
             double scanchroma = cuspchroma;
             while (scanchroma <= maxchroma){
                 color = vec3(scanluma, scanchroma, hue);
                 //rgbcolor = JzCzhzToLinearRGB(color);
                 // we've gone out of bounds, so we can stop now
-                //if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z) || (rgbcolor.x > 1.0) || (rgbcolor.x < 0.0) || (rgbcolor.y > 1.0) || (rgbcolor.y < 0.0) || (rgbcolor.z > 1.0) || (rgbcolor.z < 0.0)){
-                if (!IsJzCzhzInBounds(color, dummy)){
+                if (!IsJzCzhzInBounds(color)){
                     double boundary = scanchroma - (0.5 * finechromastep); // assume boundary is halfway between samples;
                     if (boundary > cuspchroma){
                         cuspchroma = boundary;
@@ -1763,9 +1642,8 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
                 break;
         }
         *rotationptr = 0.0; //initialize to 0 each pass
-        double error;
         // if source primary is representable in dest gamut, no rotation needed
-        if (!othergamut.IsJzCzhzInBounds(sourceprimary, error)){
+        if (!othergamut.IsJzCzhzInBounds(sourceprimary)){
             if (verbose >= VERBOSITY_SLIGHT){
                 printf("not representable in destination gamut, ");
             }
