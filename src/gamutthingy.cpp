@@ -223,8 +223,8 @@ int main(int argc, const char **argv){
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     int crtdemodrenorm = RENORM_DEMOD_INSANE;
-    bool crtdoclamphigh = false;
-    double crtclamphigh = 1.2;
+    bool crtdoclamphigh = true;
+    double crtclamphigh = 1.1;
     double crtclamplow = -0.1;
     bool lutgen = false;
     bool eilut = false;
