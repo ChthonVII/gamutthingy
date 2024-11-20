@@ -659,7 +659,7 @@ int main(int argc, const char **argv){
         {
             "--dw",            //std::string paramstring; // parameter's text
             "Destination Whitepoint",             //std::string prettyname; // name for pretty printing
-            &sourcewhitepointindex,          //int* vartobind; // pointer to variable whose value to set
+            &destwhitepointindex,          //int* vartobind; // pointer to variable whose value to set
             whitepointlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(whitepointlist)/sizeof(whitepointlist[0]) //int tablesize; // number of items in the table
         },
