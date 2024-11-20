@@ -210,7 +210,7 @@ int main(int argc, const char **argv){
     double cccfloor = 0.5;
     double cccceiling = 0.95;
     double cccexp = 1.0;
-    bool spiralcarisma = false;
+    bool spiralcarisma = true;
     int scfunctiontype = SC_CUBIC_HERMITE;
     double scfloor = 0.7;
     double scceiling = 1.0;
