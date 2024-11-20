@@ -219,6 +219,7 @@ int main(int argc, const char **argv){
     int crtemumode = CRT_EMU_NONE;
     double crtblacklevel = 0.0001;
     double crtwhitelevel = 1.71;
+    int crtyuvconstantprecision = YUV_CONSTANT_PRECISION_MID;
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     int crtdemodrenorm = RENORM_DEMOD_INSANE;
@@ -590,7 +591,22 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[28] = {
+    const paramvalue yuvprecisionlist[3] = {
+        {
+            "2digit",
+            YUV_CONSTANT_PRECISION_CRAP
+        },
+        {
+            "3digit",
+            YUV_CONSTANT_PRECISION_MID
+        },
+        {
+            "exact",
+            YUV_CONSTANT_PRECISION_FULL
+        }
+    };
+
+    const selectparam params_select[29] = {
         {
             "--source-primaries",            //std::string paramstring; // parameter's text
             "Source Primaries",             //std::string prettyname; // name for pretty printing
@@ -786,6 +802,13 @@ int main(int argc, const char **argv){
             &crtdemodrenorm,          //int* vartobind; // pointer to variable whose value to set
             demodrenormlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(demodrenormlist)/sizeof(demodrenormlist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--crtyuvconst",            //std::string paramstring; // parameter's text
+            "CRT YUV White Balance Constant Precison",             //std::string prettyname; // name for pretty printing
+            &crtyuvconstantprecision,          //int* vartobind; // pointer to variable whose value to set
+            yuvprecisionlist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(yuvprecisionlist)/sizeof(yuvprecisionlist[0])  //int tablesize; // number of items in the table
         }
     };
 
@@ -1497,6 +1520,16 @@ int main(int argc, const char **argv){
         if (printcrtdetails){
             printf("CRT black level %f x100 cd/m^2\n", crtblacklevel);
             printf("CRT white level %f x100 cd/m^2\n", crtwhitelevel);
+            printf("CRT YUV white balance constant precision: ");
+            if (crtyuvconstantprecision == YUV_CONSTANT_PRECISION_CRAP){
+                printf("truncated to 2 digits (1953 standard).\n");
+            }
+            else if (crtyuvconstantprecision == YUV_CONSTANT_PRECISION_MID){
+                printf("truncated to 3 digits (1994 standard).\n");
+            }
+            else {
+                printf("full precision.\n");
+            }
             printf("Game console R'G'B' to YIQ modulator chip: ");
             if (crtmodindex == CRT_MODULATOR_NONE){
                 printf("none\n");
@@ -1542,7 +1575,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -1624,7 +1657,7 @@ int main(int argc, const char **argv){
     else if (nesmode){
 
         nesppusimulation nessim;
-        nessim.Initialize(verbosity, nesispal, nescbc, nesskew26A, nesboost48C, nesskewstep);
+        nessim.Initialize(verbosity, nesispal, nescbc, nesskew26A, nesboost48C, nesskewstep, crtyuvconstantprecision);
         printf("Generating NES palette and saving result to %s...\n", outputfilename);
 
         std::ofstream palfile(outputfilename, std::ios::out | std::ios::binary);
@@ -1651,6 +1684,17 @@ int main(int argc, const char **argv){
             htmlfile << "\t\t\tNES phase skew for hues 0x2, 0x6, and 0xA: " << nesskew26A << " degrees<BR>\n";
             htmlfile << "\t\t\tNES luma boost for hues 0x4, 0x8, and 0xC: " << nesboost48C << " IRE<BR>\n";
             htmlfile << "\t\t\tNES phase skew per luma step: " << nesskewstep << " degrees<BR>\n";
+
+            htmlfile << "\t\t\tCRT YUV white balance constant precision: ";
+            if (crtyuvconstantprecision == YUV_CONSTANT_PRECISION_CRAP){
+                htmlfile << "truncated to 2 digits (1953 standard).<BR>\n";
+            }
+            else if (crtyuvconstantprecision == YUV_CONSTANT_PRECISION_MID){
+                htmlfile << "truncated to 3 digits (1994 standard).<BR>\n";
+            }
+            else {
+                htmlfile << "full precision.<BR>\n";
+            }
 
             htmlfile << "\t\t\tCRT YIQ to R'G'B' demodulator chip: ";
             if (crtdemodindex == CRT_DEMODULATOR_NONE){

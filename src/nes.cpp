@@ -1,5 +1,6 @@
 #include "nes.h"
 #include "matrix.h"
+#include "crtemulation.h"
 
 #include <cstring> // for memset & memcpy
 #include <numbers> // for PI
@@ -58,7 +59,7 @@ const double colorburst_amp_correction = (40.0 / (140.0 * (0.524 - 0.148)));
 //      2C02E: ~-2.5 degrees per luma step
 //      2C02G: ~-5 degrees per luma step
 //      2C07: ~10 dgrees per luma step (but PAL so it cancels out)
-bool nesppusimulation::Initialize(int verboselevel, bool ispal, bool cbcorrection, double skew26A, double boost48C, double skewstep){
+bool nesppusimulation::Initialize(int verboselevel, bool ispal, bool cbcorrection, double skew26A, double boost48C, double skewstep, int yuvconstprec){
 
     verbosity = verboselevel;
     palmode = ispal;
@@ -66,6 +67,7 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, bool cbcorrectio
     phaseskew26A = skew26A;
     lumaboost48C = boost48C;
     phaseskewperlumastep = skewstep;
+    YUVconstantprecision = yuvconstprec;
 
     bool output = InitializeYUVtoRGBMatrix();
 
@@ -74,81 +76,18 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, bool cbcorrectio
 
 // Initialize an idealized YUV to R'G'B' matrix.
 // We need R'G'B' output from the NES simulation b/c the color correction built into the TV's demodulation
-// is represented as a R'G'B' to R'G'B' matrix in crt.cpp.
-// An idealized matrix might not be the best choice.
-// TODO: Consider implementing less accurate matrices that might have actually been used.
+// is represented as a R'G'B' to R'G'B' matrix in crtemulation.cpp.
 bool nesppusimulation::InitializeYUVtoRGBMatrix(){
-
-
-    // We need the NTSC1953 white balance factors
-    // So the first part of this is copy/pasta from crtdescriptor::InitializeNTSC1953WhiteBalanceFactors()
-    if (verbosity >= VERBOSITY_SLIGHT){
-        printf("\n----------\nInitializing idealized YUV to RGB matrix for NES palette generation...\n");
-    }
 
     bool output = true;
 
-    const double matrixP[3][3] = {
-        {gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][2][0]},
-        {gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][2][1]},
-        {gamutpoints[GAMUT_NTSC][0][2], gamutpoints[GAMUT_NTSC][1][2], gamutpoints[GAMUT_NTSC][2][2]}
-    };
-
-    double inverseMatrixP[3][3];
-    output = Invert3x3Matrix(matrixP, inverseMatrixP);
-    if (!output){
-        printf("Disaster! Matrix P is not invertible! Bad stuff will happen!\n");
-    }
-
-    vec3 matrixW;
-    matrixW.x = whitepoints[WHITEPOINT_ILLUMINANTC][0] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
-    matrixW.y = 1.0;
-    matrixW.z = whitepoints[WHITEPOINT_ILLUMINANTC][2] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
-
-    vec3 normalizationFactors = multMatrixByColor(inverseMatrixP, matrixW);
-
-    const double matrixC[3][3] = {
-        {normalizationFactors.x, 0.0, 0.0},
-        {0.0, normalizationFactors.y, 0.0},
-        {0.0, 0.0, normalizationFactors.z}
-    };
-
-    double matrixNPM[3][3];
-    mult3x3Matrices(matrixP, matrixC, matrixNPM);
-
-    const double wr = matrixNPM[1][0];
-    const double wg = matrixNPM[1][1];
-    const double wb = matrixNPM[1][2];
-
-    const double matrixRGBtoYPbPr[3][3] = {
-        {wr, wg, wb},
-        {-1.0 * wr, -1.0 * wg, wr + wg},
-        {wg + wb, -1.0 * wg, -1.0 * wb}
-    };
-
-    const double matrixYPbPrtoYUV[3][3] = {
-        {1.0, 0.0, 0.0},
-        {0.0, Udownscale, 0.0},
-        {0.0, 0.0, Vdownscale}
-    };
-
-    double matrixRGBtoYUV[3][3];
-    mult3x3Matrices(matrixYPbPrtoYUV, matrixRGBtoYPbPr, matrixRGBtoYUV);
-
-    double matrixYUVtoRGB[3][3];
-    output = Invert3x3Matrix(matrixRGBtoYUV, matrixYUVtoRGB);
-    if (!output){
-        printf("Disaster! MatrixRGBtoYUV is not invertible! Bad stuff will happen!\n");
-    }
-
-    memcpy(&idealizedYUVtoRGBMatrix, matrixYUVtoRGB, 9 * sizeof(double));
+    output = MakeIdealYUVtoRGB(idealizedYUVtoRGBMatrix, YUVconstantprecision);
 
     if (verbosity >= VERBOSITY_SLIGHT){
         printf("\nIdealized YUV to RGB matrix is:\n");
         print3x3matrix(idealizedYUVtoRGBMatrix);
         printf("\n----------\n\n");
     }
-
 
     return output;
 

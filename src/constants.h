@@ -89,6 +89,10 @@ extern const vec3 D65;
 #define Uupscale (1.0/Udownscale)
 #define Vupscale (1.0/Vdownscale)
 
+#define YUV_CONSTANT_PRECISION_CRAP 0 // truncated constants from 1953 standard
+#define YUV_CONSTANT_PRECISION_MID 1 // less truncated constants from 1994 SMPTE-C (170M) standard
+#define YUV_CONSTANT_PRECISION_FULL 2 // compute precise constants from 1953 primaries and Illuminant C.
+
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html

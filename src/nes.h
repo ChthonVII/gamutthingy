@@ -17,6 +17,7 @@
 class nesppusimulation{
 public:
     int verbosity = 0;
+    int YUVconstantprecision = YUV_CONSTANT_PRECISION_FULL;
     bool palmode = false;
     bool docolorburstampcorrection = true;
     double phaseskew26A = 4.5; // degrees
@@ -33,7 +34,7 @@ public:
     //      2C02E: ~-2.5 degrees per luma step
     //      2C02G: ~-5 degrees per luma step
     //      2C07: ~10 dgrees per luma step (but PAL so it cancels out)
-    bool Initialize(int verboselevel, bool ispal, bool cbcorrection, double skew26A, double boost48C, double skewstep);
+    bool Initialize(int verboselevel, bool ispal, bool cbcorrection, double skew26A, double boost48C, double skewstep, int yuvconstprec);
 
     // We need R'G'B' output from the NES simulation b/c the color correction built into the TV's demodulation
     // is represented as a R'G'B' to R'G'B' matrix in crt.cpp.

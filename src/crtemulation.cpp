@@ -8,12 +8,13 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
     CRT_EOTF_whitelevel = whitelevel;
     Initialize1886EOTF();
+    YUVconstantprecision = yuvconstprec;
     output = InitializeNTSC1953WhiteBalanceFactors();
     rgbclamplowlevel = clamplow;
     rgbclamphighlevel = clamphigh;
@@ -276,54 +277,80 @@ double crtdescriptor::togamma1886appx1(double input){
 
 // set the global variables for NTSC 1953 white balance
 // This is basically copy/paste from the first few steps of gamut boundary initialization.
+// Following refactor, this function is almost pointless, since the constants are now only used in one place...
 bool crtdescriptor::InitializeNTSC1953WhiteBalanceFactors(){
     
-    if (verbosity >= VERBOSITY_SLIGHT){
-        printf("\n----------\nInitializing NTSC 1953 white balance factors for CRT de/modulator emulation...\n");
-    }
-    
     bool output = true;
-    
-    const double matrixP[3][3] = {
-        {gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][2][0]},
-        {gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][2][1]},
-        {gamutpoints[GAMUT_NTSC][0][2], gamutpoints[GAMUT_NTSC][1][2], gamutpoints[GAMUT_NTSC][2][2]}
-    };
-    
-    double inverseMatrixP[3][3];
-    output = Invert3x3Matrix(matrixP, inverseMatrixP);
-    if (!output){
-        printf("Disaster! Matrix P is not invertible! Bad stuff will happen!\n");       
+
+    if (YUVconstantprecision == YUV_CONSTANT_PRECISION_CRAP){
+        // truncated constants from 1953 standard
+        printf("\n----------\nUsing 2-Digit white balance factors from NTSC 1953 standard for CRT de/modulator emulation.\n");
+        ntsc1953_wr = 0.3;
+        ntsc1953_wg = 0.59;
+        ntsc1953_wb = 0.11;
     }
+    else if (YUVconstantprecision == YUV_CONSTANT_PRECISION_MID){
+        // less truncated constants from 1994 SMPTE-C (170M) standard
+        printf("\n----------\nUsing 3-Digit white balance factors from SMPTE-C 1994 standard for CRT de/modulator emulation.\n");
+        ntsc1953_wr = 0.299;
+        ntsc1953_wg = 0.587;
+        ntsc1953_wb = 0.114;
+    }
+    else {
+        // compute precise white balance from 1953 primaries and Illuminant C.
+
+
+        if (verbosity >= VERBOSITY_SLIGHT){
+            printf("\n----------\nCalculating exact white balance factors for CRT de/modulator emulation...\n");
+        }
     
-    vec3 matrixW;
-    matrixW.x = whitepoints[WHITEPOINT_ILLUMINANTC][0] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
-    matrixW.y = 1.0;
-    matrixW.z = whitepoints[WHITEPOINT_ILLUMINANTC][2] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+
+        const double matrixP[3][3] = {
+            {gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][2][0]},
+            {gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][2][1]},
+            {gamutpoints[GAMUT_NTSC][0][2], gamutpoints[GAMUT_NTSC][1][2], gamutpoints[GAMUT_NTSC][2][2]}
+        };
     
-    vec3 normalizationFactors = multMatrixByColor(inverseMatrixP, matrixW);
+        double inverseMatrixP[3][3];
+        output = Invert3x3Matrix(matrixP, inverseMatrixP);
+        if (!output){
+            printf("Disaster! Matrix P is not invertible! Bad stuff will happen!\n");
+        }
     
-    double matrixC[3][3] = {
-        {normalizationFactors.x, 0.0, 0.0},
-        {0.0, normalizationFactors.y, 0.0},
-        {0.0, 0.0, normalizationFactors.z}
-    };
+        vec3 matrixW;
+        matrixW.x = whitepoints[WHITEPOINT_ILLUMINANTC][0] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+        matrixW.y = 1.0;
+        matrixW.z = whitepoints[WHITEPOINT_ILLUMINANTC][2] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
     
-    double matrixNPM[3][3];
-    mult3x3Matrices(matrixP, matrixC, matrixNPM);
+        vec3 normalizationFactors = multMatrixByColor(inverseMatrixP, matrixW);
     
-    ntsc1953_wr = matrixNPM[1][0];
-    ntsc1953_wg = matrixNPM[1][1];
-    ntsc1953_wb = matrixNPM[1][2];
+        double matrixC[3][3] = {
+            {normalizationFactors.x, 0.0, 0.0},
+            {0.0, normalizationFactors.y, 0.0},
+            {0.0, 0.0, normalizationFactors.z}
+        };
     
-    if (verbosity >= VERBOSITY_SLIGHT){
-        printf("wr: %.10f, wg: %.10f, wb: %.10f\n----------\n", ntsc1953_wr, ntsc1953_wg, ntsc1953_wb);
+        double matrixNPM[3][3];
+        mult3x3Matrices(matrixP, matrixC, matrixNPM);
+    
+        ntsc1953_wr = matrixNPM[1][0];
+        ntsc1953_wg = matrixNPM[1][1];
+        ntsc1953_wb = matrixNPM[1][2];
+    
+        if (verbosity >= VERBOSITY_SLIGHT){
+            printf("wr: %.10f, wg: %.10f, wb: %.10f\n----------\n", ntsc1953_wr, ntsc1953_wg, ntsc1953_wb);
+        }
     }
     
     return output;
 }
 
-void crtdescriptor::InitializeDemodulator(){
+// The seminal text on this sort of color correction is:
+// Parker, N.W.. "An Analysis of the Necessary Decoder Corrections for Color Receiver Operation with Non-Standard Receiver Primaries." IEEE Transactions on Broadcast and Television Receivers, Vol 12, Issue 1, pp 23-32. 1966. (https://libgen.is/scimag/10.1109%2Ftbtr1.1966.4319950)
+bool crtdescriptor::InitializeDemodulator(){
+
+    bool output = true;
+
     if (verbosity >= VERBOSITY_SLIGHT){
         printf("\n----------\nInitializing CRT demodulator matrix...\n");
     }
@@ -384,8 +411,6 @@ void crtdescriptor::InitializeDemodulator(){
             normfactor = Aupscale / bluegain;
         }
 
-
-
         redgain *= normfactor;
         greengain *= normfactor;
         bluegain *= normfactor;
@@ -406,6 +431,11 @@ void crtdescriptor::InitializeDemodulator(){
     
     //printf("UV coords: red: x %f, y %f; green x %f, y %f; blue x %f y %f\n", redx, redy, greenx, greeny, bluex, bluey);
     
+    /* ----------------------------------------------------------------------------
+    This is the original math as per Parker.
+    I've replaced it with a "simplified" equation from patchy-ntsc that probably normalizes better.
+    (https://github.com/libretro/slang-shaders/blob/master/ntsc/shaders/patchy-ntsc/patchy-color.slang)
+
     // constant matrix
     const double matrixB[2][2] = {
         {(1.0 - ntsc1953_wr) / Vupscale, (-1.0 * ntsc1953_wr) / Uupscale},
@@ -451,14 +481,64 @@ void crtdescriptor::InitializeDemodulator(){
         demodulatorMatrix[2][1] = Kbg;
         demodulatorMatrix[2][2] = Kbb;
     }
-    
+    --------------------------------------------------------------------------
+    */
+
+    // make a Y'UV to R'G'B' matrix from the angles and gains
+    double YUVtoRGB[3][3] = {
+        {1.0, redx, redy},
+        {1.0, greenx, greeny},
+        {1.0, bluex, bluey}
+    };
+
+    // make an idealized R'G'B' to Y'UV matrix from the 1953 white balance
+    double RGBtoYUV[3][3];
+    output = MakeIdealRGBtoYUV(RGBtoYUV, YUVconstantprecision);
+
+    // compose R'G'B' to R'G'B' from R'G'B' to Y'UV and Y'UV to R'G'B'
+    // This probably normalizes better than Parker's method, since Parker puts all the error on blue.
+    double correctionMatrix[3][3];
+    mult3x3Matrices(YUVtoRGB, RGBtoYUV, correctionMatrix);
+
+    // normalize
+    double redsum = correctionMatrix[0][0] + correctionMatrix[0][1] + correctionMatrix[0][2];
+    double greensum = correctionMatrix[1][0] + correctionMatrix[1][1] + correctionMatrix[1][2];
+    double bluesum = correctionMatrix[2][0] + correctionMatrix[2][1] + correctionMatrix[2][2];
+
+    correctionMatrix[0][0] /= redsum;
+    correctionMatrix[0][1] /= redsum;
+    correctionMatrix[0][2] /= redsum;
+    correctionMatrix[1][0] /= greensum;
+    correctionMatrix[1][1] /= greensum;
+    correctionMatrix[1][2] /= greensum;
+    correctionMatrix[2][0] /= bluesum;
+    correctionMatrix[2][1] /= bluesum;
+    correctionMatrix[2][2] /= bluesum;
+
+    // copy our correction matrix
+    // (or the identity matrix if dummy demodulator)
+    if (demodulatorindex == CRT_DEMODULATOR_DUMMY){
+        demodulatorMatrix[0][0] = 1.0;
+        demodulatorMatrix[0][1] = 0.0;
+        demodulatorMatrix[0][2] = 0.0;
+        demodulatorMatrix[1][0] = 0.0;
+        demodulatorMatrix[1][1] = 1.0;
+        demodulatorMatrix[1][2] = 0.0;
+        demodulatorMatrix[2][0] = 0.0;
+        demodulatorMatrix[2][1] = 0.0;
+        demodulatorMatrix[2][2] = 1.0;
+    }
+    else {
+        memcpy(demodulatorMatrix, correctionMatrix, 3 * 3 * sizeof(double));
+    }
+
     // screen barf
     if (verbosity >= VERBOSITY_SLIGHT){
         print3x3matrix(demodulatorMatrix);
         printf("\n----------\n");
     }
-    
-    return;
+
+    return output;
 }
 
 
@@ -508,31 +588,8 @@ bool crtdescriptor::InitializeModulator(){
     
     
     // in order to get back to R'G'B', we need an idealized Y'UV to R'G'B' matrix
-    
-    // idealized R'G'B' to Y'PbPr (a.k.a. Y'(B'-Y')(R'-Y'))
-    double idealRGBtoYPbPr[3][3] = {
-        {ntsc1953_wr, ntsc1953_wg, ntsc1953_wb}, // use the high precision NTSC 1953 white balance
-        {-1.0 * ntsc1953_wr, -1.0 * ntsc1953_wg, ntsc1953_wr + ntsc1953_wg},
-        {ntsc1953_wg + ntsc1953_wb, -1.0 * ntsc1953_wg, -1.0 * ntsc1953_wb}
-    };
-    
-    // idealized Y'PbPr to Y'UV
-    double idealYPbPrtoYUV[3][3] = {
-        {1.0, 0.0, 0.0},
-        {0.0, Udownscale, 0.0},
-        {0.0, 0.0, Vdownscale}
-    };
-    
-    // idealized R'G'B' to Y'UV
-    double idealRGBtoYUV[3][3];
-    mult3x3Matrices(idealYPbPrtoYUV, idealRGBtoYPbPr, idealRGBtoYUV);
-    
-    // invert to get idealized Y'UV to R'G'B'
     double idealYUVtoRGB[3][3];
-    output = Invert3x3Matrix(idealRGBtoYUV, idealYUVtoRGB);
-    if (!output){
-        printf("Disaster! Matrix idealRGBtoYUV is not invertible! Bad stuff will happen!\n");       
-    }
+    output = MakeIdealYUVtoRGB(idealYUVtoRGB, YUVconstantprecision);
     //printf("Ideal Y'UV to R'G'B':\n");
     //print3x3matrix(idealYUVtoRGB);
     
@@ -622,3 +679,89 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input){
     vec3 output = multMatrixByColor(inverseOverallMatrix, input);
     return output;
 }
+
+bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision){
+
+    bool status = true;
+
+    double wr;
+    double wg;
+    double wb;
+
+    if (constantprecision == YUV_CONSTANT_PRECISION_CRAP){
+        // truncated constants from 1953 standard
+        wr = 0.3;
+        wg = 0.59;
+        wb = 0.11;
+    }
+    else if (constantprecision == YUV_CONSTANT_PRECISION_MID){
+        // less truncated constants from 1994 SMPTE-C (170M) standard
+        wr = 0.299;
+        wg = 0.587;
+        wb = 0.114;
+    }
+    else {
+        // compute precise white balance from 1953 primaries and Illuminant C.
+
+        const double matrixP[3][3] = {
+            {gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][2][0]},
+            {gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][2][1]},
+            {gamutpoints[GAMUT_NTSC][0][2], gamutpoints[GAMUT_NTSC][1][2], gamutpoints[GAMUT_NTSC][2][2]}
+        };
+
+        double inverseMatrixP[3][3];
+        status = Invert3x3Matrix(matrixP, inverseMatrixP);
+        if (!status){
+            printf("Disaster! Matrix P is not invertible! Bad stuff will happen!\n");
+        }
+
+        vec3 matrixW;
+        matrixW.x = whitepoints[WHITEPOINT_ILLUMINANTC][0] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+        matrixW.y = 1.0;
+        matrixW.z = whitepoints[WHITEPOINT_ILLUMINANTC][2] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+
+        const vec3 normalizationFactors = multMatrixByColor(inverseMatrixP, matrixW);
+
+        const double matrixC[3][3] = {
+            {normalizationFactors.x, 0.0, 0.0},
+            {0.0, normalizationFactors.y, 0.0},
+            {0.0, 0.0, normalizationFactors.z}
+        };
+
+        double matrixNPM[3][3];
+        mult3x3Matrices(matrixP, matrixC, matrixNPM);
+
+        wr = matrixNPM[1][0];
+        wg = matrixNPM[1][1];
+        wb = matrixNPM[1][2];
+    }
+
+
+
+    const double matrixRGBtoYPbPr[3][3] = {
+        {wr, wg, wb},
+        {-1.0 * wr, -1.0 * wg, wr + wg},
+        {wg + wb, -1.0 * wg, -1.0 * wb}
+    };
+
+    const double matrixYPbPrtoYUV[3][3] = {
+        {1.0, 0.0, 0.0},
+        {0.0, Udownscale, 0.0},
+        {0.0, 0.0, Vdownscale}
+    };
+
+    mult3x3Matrices(matrixYPbPrtoYUV, matrixRGBtoYPbPr, output);
+
+    return status;
+}
+
+bool MakeIdealYUVtoRGB(double output[3][3], int constantprecision){
+    bool status = true;
+    double RGBtoYUV[3][3];
+    status = MakeIdealRGBtoYUV(RGBtoYUV, constantprecision);
+    if (status){
+        status = Invert3x3Matrix(RGBtoYUV, output);
+    }
+    return status;
+}
+

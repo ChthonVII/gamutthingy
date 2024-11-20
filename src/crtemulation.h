@@ -15,6 +15,8 @@ class crtdescriptor{
 public:
     int verbosity;
     
+    int YUVconstantprecision;
+
     // NTSC1953 white balance factors
     double ntsc1953_wr;
     double ntsc1953_wg;
@@ -43,7 +45,7 @@ public:
 
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel);
+    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma
@@ -61,13 +63,15 @@ public:
     
     bool InitializeNTSC1953WhiteBalanceFactors();
     bool InitializeModulator();
-    void InitializeDemodulator();
+    bool InitializeDemodulator();
     
     vec3 CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input);
     vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input);
 };
 
-
+// helper functions
+bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision);
+bool MakeIdealYUVtoRGB(double output[3][3], int constantprecision);
 
 
 
