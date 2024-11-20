@@ -1704,6 +1704,15 @@ int main(int argc, const char **argv){
                  htmlfile << demodulatornames[crtdemodindex] << "<BR>\n";
             }
 
+            htmlfile << "\t\t\tCRT R'G'B' high low values clamped to " << crtclamplow << ".<BR>\n";
+            if (crtdoclamphigh){
+                htmlfile << "\t\t\tCRT R'G'B' high output values clamped to " << crtclamphigh << ".<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tCRT R'G'B' high output values not clamped. (Out-of-bounds values resolved by gamut compression algorithm.)<BR>\n";
+            }
+
+
             htmlfile << "\t\t\tCRT bt1886 Appendix1 EOTF function calibrated to:<BR>\n";
             htmlfile << "\t\t\tCRT black level: " << crtblacklevel << " x100 cd/m^2<BR>\n";
             htmlfile << "\t\t\tCRT white level: " << crtwhitelevel << " x100 cd/m^2<BR>\n";
