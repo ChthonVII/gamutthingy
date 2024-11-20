@@ -19,10 +19,6 @@ public:
     double ntsc1953_wr;
     double ntsc1953_wg;
     double ntsc1953_wb;
-
-    double ntsc1953maxpr;
-    double ntsc1953maxpg;
-    double ntsc1953maxpb;
     
     // some variables for the BT.1886 EOTF that we can initialize once and then not have to recompute.
     double CRT_EOTF_blacklevel;
@@ -45,25 +41,6 @@ public:
     double rgbclamphighlevel;
     bool clamphighrgb;
 
-    bool prpgpbscaling = false;
-    double prpgpbscalemax = 1.2;
-    double prpgpbscaleelbow = 0.9;
-    double maxpr;
-    double maxpg;
-    double maxpb;
-    double adjntsc1953maxpr;
-    double adjntsc1953maxpg;
-    double adjntsc1953maxpb;
-    double prelbow;
-    double pgelbow;
-    double pbelbow;
-    double prhand;
-    double pghand;
-    double pbhand;
-    bool prneedsscale;
-    bool pgneedsscale;
-    bool pbneedsscale;
-
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
     bool Initialize(double blacklevel, double whitelevel, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel);
@@ -81,13 +58,10 @@ public:
     double togamma1886appx1(double input);
     vec3 tolinear1886appx1vec3(vec3 input);
     vec3 togamma1886appx1vec3(vec3 input);
-    vec3 ScalePrPgPb(vec3 input);
-    bool PrPgPrBpBoundsCheck(vec3 input);
     
     bool InitializeNTSC1953WhiteBalanceFactors();
     bool InitializeModulator();
     void InitializeDemodulator();
-    void InitializePrPgPbScaling();
     
     vec3 CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input);
     vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input);

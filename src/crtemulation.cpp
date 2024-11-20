@@ -57,10 +57,6 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int modulat
     
     output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
 
-    if (prpgpbscaling){
-        InitializePrPgPbScaling();
-    }
-
     return output;
 }
 
@@ -323,10 +319,6 @@ bool crtdescriptor::InitializeNTSC1953WhiteBalanceFactors(){
     if (verbosity >= VERBOSITY_SLIGHT){
         printf("wr: %.10f, wg: %.10f, wb: %.10f\n----------\n", ntsc1953_wr, ntsc1953_wg, ntsc1953_wb);
     }
-
-    ntsc1953maxpr = ntsc1953_wg + ntsc1953_wb;
-    ntsc1953maxpg = ntsc1953_wr + ntsc1953_wb;
-    ntsc1953maxpb = ntsc1953_wr + ntsc1953_wg;
     
     return output;
 }
@@ -573,76 +565,6 @@ bool crtdescriptor::InitializeModulator(){
     
 }
 
-void crtdescriptor::InitializePrPgPbScaling(){
-    adjntsc1953maxpr = ntsc1953maxpr * prpgpbscalemax;
-    adjntsc1953maxpg = ntsc1953maxpg * prpgpbscalemax;
-    adjntsc1953maxpb = ntsc1953maxpb * prpgpbscalemax;
-
-    prelbow = ntsc1953maxpr * prpgpbscaleelbow;
-    pgelbow = ntsc1953maxpg * prpgpbscaleelbow;
-    pbelbow = ntsc1953maxpb * prpgpbscaleelbow;
-
-    prhand = adjntsc1953maxpr - prelbow;
-    pghand = adjntsc1953maxpg - pgelbow;
-    pbhand = adjntsc1953maxpb - pbelbow;
-
-    vec3 color = multMatrixByColor(overallMatrix, vec3(1.0, 0.0, 0.0));
-    double luma = (color.x * ntsc1953_wr) + (color.y * ntsc1953_wg) + (color.z * ntsc1953_wb);
-    maxpr = color.x - luma;
-    prneedsscale = (maxpr > adjntsc1953maxpr);
-
-    color = multMatrixByColor(overallMatrix, vec3(0.0, 1.0, 0.0));
-    luma = (color.x * ntsc1953_wr) + (color.y * ntsc1953_wg) + (color.z * ntsc1953_wb);
-    maxpg = color.y - luma;
-    pgneedsscale = (maxpg > adjntsc1953maxpg);
-
-    color = multMatrixByColor(overallMatrix, vec3(0.0, 0.0, 1.0));
-    luma = (color.x * ntsc1953_wr) + (color.y * ntsc1953_wg) + (color.z * ntsc1953_wb);
-    maxpb = color.z - luma;
-    pbneedsscale = (maxpb > adjntsc1953maxpb);
-
-    printf("PrPgPb scaling %i, %i, %i\n", prneedsscale, pgneedsscale, pbneedsscale);
-
-    return;
-}
-
-vec3 crtdescriptor::ScalePrPgPb(vec3 input){
-
-    vec3 output = input;
-
-    double luma = (input.x * ntsc1953_wr) + (input.y * ntsc1953_wg) + (input.z * ntsc1953_wb);
-    double pr = input.x - luma;
-    double pg = input.y - luma;
-    double pb = input.z - luma;
-
-    if (prneedsscale && (pr > prelbow)){
-        pr = prelbow + (prhand * ((pr - prelbow) / (maxpr - prelbow)));
-        output.x = pr + luma;
-    }
-
-    if (pgneedsscale && (pg > pgelbow)){
-        pg = pgelbow + (pghand * ((pg - pgelbow) / (maxpg - pgelbow)));
-        output.y = pg + luma;
-    }
-
-    if (pbneedsscale && (pb > pbelbow)){
-        pb = pbelbow + (pbhand * ((pb - pbelbow) / (maxpb - pbelbow)));
-        output.z = pb + luma;
-    }
-    return output;
-}
-
-bool crtdescriptor::PrPgPrBpBoundsCheck(vec3 input){
-    double luma = (input.x * ntsc1953_wr) + (input.y * ntsc1953_wg) + (input.z * ntsc1953_wb);
-    double pr = input.x - luma;
-    double pg = input.y - luma;
-    double pb = input.z - luma;
-    if (pr > adjntsc1953maxpr){return false;}
-    if (pg > adjntsc1953maxpg){return false;}
-    if (pb > adjntsc1953maxpb){return false;}
-    return true;
-}
-
 vec3 crtdescriptor::tolinear1886appx1vec3(vec3 input){
     vec3 output;
     output.x = tolinear1886appx1(input.x);
@@ -661,10 +583,6 @@ vec3 crtdescriptor::togamma1886appx1vec3(vec3 input){
 
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     vec3 output = multMatrixByColor(overallMatrix, input);
-
-    if (prpgpbscaling){
-        output = ScalePrPgPb(output);
-    }
 
     // clamp rgb
     // Real CRT probably did this, though who knows what the threshholds were.

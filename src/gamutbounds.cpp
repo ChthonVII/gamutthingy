@@ -939,9 +939,8 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     // CRT mode has extra steps
     if (crtemumode != CRT_EMU_NONE){
 
-        // check if the gamma-space RGB would be outside the RGB clipping rule or PrPgPb scaling rule
+        // check if the gamma-space RGB would be outside the RGB clipping rule
         vec3 gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
-        if (attachedCRT->prpgpbscaling && !attachedCRT->PrPgPrBpBoundsCheck(gammargb)){return false;}
         if (attachedCRT->clamphighrgb){
             if (gammargb.x > attachedCRT->rgbclamphighlevel){return false;}
             if (gammargb.y > attachedCRT->rgbclamphighlevel){return false;}
