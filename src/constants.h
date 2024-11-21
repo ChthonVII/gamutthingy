@@ -120,7 +120,7 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_ILLUMINANTC 3
 #define WHITEPOINT_7000K 4
 #define WHITEPOINT_7250K 5
-#define WHITEPOINT_7500K 6
+#define WHITEPOINT_D75 6
 #define WHITEPOINT_8500K 7
 #define WHITEPOINT_8800K 8
 #define WHITEPOINT_BOHNSACK 9
@@ -132,7 +132,7 @@ const std::string whitepointnames[10] = {
     "Illuminant C",
     "7000K",
     "7250K",
-    "7500K",
+    "D75",
     "8500K",
     "8800K",
     "Triniton (Bohnsack measurement)"
@@ -153,9 +153,9 @@ const double whitepoints[10][3] = {
     // 7250K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
     // coords estimated via xycoordfromfromCCT()
     {0.302126, 0.318146, 0.379728},
-    // 7500K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
+    // D75 (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
     // coords estimated via xycoordfromfromCCT()
-    {0.299096, 0.314916, 0.385988},
+    {0.29902, 0.31485, 0.38613},
     // 8500K (grade claims, without citation, that consumer CRTs' 9300K was often ~8500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L118 and also #L306))
     // coords estimated via xycoordfromfromCCT()
     {0.289145, 0.303920, 0.406935},

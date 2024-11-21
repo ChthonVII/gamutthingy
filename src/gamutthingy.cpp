@@ -406,8 +406,8 @@ int main(int argc, const char **argv){
             WHITEPOINT_7250K
         },
         {
-            "7500K",
-            WHITEPOINT_7500K
+            "D75",
+            WHITEPOINT_D75
         },
         {
             "8500K",
