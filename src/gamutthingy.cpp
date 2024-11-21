@@ -1442,6 +1442,11 @@ int main(int argc, const char **argv){
         printf("CRT R'G'B' low output clamp must be at least -0.1; clamping to -0.1 instead.\n");
     }
 
+    if (eilut && !crtdoclamphigh){
+        crtdoclamphigh = true;
+        printf("Forcing crtclamphighrgb to true because eilut is true. Clamping CRT R'G'B' high output to %f.\n", crtclamphigh);
+    }
+
     if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
         sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp);
     }
@@ -2098,11 +2103,12 @@ int main(int argc, const char **argv){
                                 greenvalue = (double)y / ((double)(lutsize - 1));
                                 bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
 
-                                // expanded intermediate LUT uses range of -0.5 to 1.5
+                                // expanded intermediate LUT uses range specified by crt clamping parameters
                                 if (eilut){
-                                    redvalue = (redvalue * 2.0) - 0.5;
-                                    greenvalue = (greenvalue * 2.0) - 0.5;
-                                    bluevalue = (bluevalue * 2.0) - 0.5;
+                                    double scaleby = crtclamphigh - crtclamplow;
+                                    redvalue = (redvalue * scaleby) + crtclamplow;
+                                    greenvalue = (greenvalue * scaleby) + crtclamplow;
+                                    bluevalue = (bluevalue * scaleby) + crtclamplow;
                                 }
                             }
                             else {
