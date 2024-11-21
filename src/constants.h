@@ -154,7 +154,6 @@ const double whitepoints[10][3] = {
     // coords estimated via xycoordfromfromCCT()
     {0.302126, 0.318146, 0.379728},
     // D75 (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
-    // coords estimated via xycoordfromfromCCT()
     {0.29902, 0.31485, 0.38613},
     // 8500K (grade claims, without citation, that consumer CRTs' 9300K was often ~8500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L118 and also #L306))
     // coords estimated via xycoordfromfromCCT()
