@@ -118,15 +118,27 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_9300K27MPCD 1
 #define WHITEPOINT_9300K8MPCD 2
 #define WHITEPOINT_ILLUMINANTC 3
+#define WHITEPOINT_7000K 4
+#define WHITEPOINT_7250K 5
+#define WHITEPOINT_7500K 6
+#define WHITEPOINT_8500K 7
+#define WHITEPOINT_8800K 8
+#define WHITEPOINT_BOHNSACK 9
 
-const std::string whitepointnames[4] = {
+const std::string whitepointnames[10] = {
     "D65",
     "9300K + 27mpcd",
     "9300K + 8mpcd",
-    "Illuminant C"
+    "Illuminant C",
+    "7000K",
+    "7250K",
+    "7500K",
+    "8500K",
+    "8800K",
+    "Triniton (Bohnsack measurement)"
 };
 
-const double whitepoints[4][3] = {
+const double whitepoints[10][3] = {
     // D65
     {0.312713, 0.329016, 0.358271},
     // 9300K + 27MPCD
@@ -134,7 +146,25 @@ const double whitepoints[4][3] = {
     // 9300K + 8MPCD
     {0.2838, 0.2981, 0.4181},
     // Illuminant C
-    {0.310063, 0.316158, 0.373779}
+    {0.310063, 0.316158, 0.373779},
+    // 7000K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
+    // coords estimated via xycoordfromfromCCT()
+    {0.305390, 0.321565, 0.373045},
+    // 7250K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
+    // coords estimated via xycoordfromfromCCT()
+    {0.302126, 0.318146, 0.379728},
+    // 7500K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
+    // coords estimated via xycoordfromfromCCT()
+    {0.299096, 0.314916, 0.385988},
+    // 8500K (grade claims, without citation, that consumer CRTs' 9300K was often ~8500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L118 and also #L306))
+    // coords estimated via xycoordfromfromCCT()
+    {0.289145, 0.303920, 0.406935},
+    // 8800K (grade claims, without citation, that consumer CRTs' 9300K was somtimes ~8800K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L118 and also #L306))
+    // coords estimated via xycoordfromfromCCT()
+    {0.286707, 0.301135, 0.412158},
+    // Trintron Bohnsack, measured whitepoint of 1994 GDM-17SE1 Trinitron computer monitor
+    // probably supposed to be 9300K+8MPCD
+    {0.2836, 0.2963, 0.4201}
 };
 
 

@@ -380,7 +380,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue whitepointlist[6] = {
+    const paramvalue whitepointlist[12] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -396,6 +396,30 @@ int main(int argc, const char **argv){
         {
             "illuminantC",
             WHITEPOINT_ILLUMINANTC
+        },
+        {
+            "7000K",
+            WHITEPOINT_7000K
+        },
+        {
+            "7250K",
+            WHITEPOINT_7250K
+        },
+        {
+            "7500K",
+            WHITEPOINT_7500K
+        },
+        {
+            "8500K",
+            WHITEPOINT_8500K
+        },
+        {
+            "8800K",
+            WHITEPOINT_8800K
+        },
+        {
+            "trinitronbohnsack",
+            WHITEPOINT_BOHNSACK
         },
         {
             "customcoord",
