@@ -318,3 +318,33 @@ double inversehermite(double input){
     }
     return output;
 }
+
+// Compute xy coordinates from CCT
+// This approximation function is borrowed from grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang
+// Unfortunately, grade doesn't cite where it came from.
+// This approximation function gives more accurate results for D65 than either function on wikipedia:
+// https://en.wikipedia.org/wiki/Standard_illuminant#Computation
+// https://en.wikipedia.org/wiki/Planckian_locus#Approximation
+vec3 xycoordfromfromCCT(double cct){
+
+    const double temp3 = 1000.0 / cct;
+    const double temp6 = 1000000.0 / (cct * cct);
+    const double temp9 = 1000000000.0 / (cct * cct * cct);
+
+    double x;
+    if (cct < 5500){
+        x = 0.244058 + (0.0989971 * temp3) + (2.96545 * temp6) + (-4.59673 * temp9);
+    }
+    else if (cct < 8000){
+        x = 0.200033 + (0.9545630 * temp3) + (-2.53169 * temp6) + (7.08578 * temp9);
+    }
+    else {
+        x = 0.237045 + (0.2437440 * temp3) + (1.94062 * temp6) + (-2.11004 * temp9);
+    }
+
+    double y = -0.275275 + (2.87396 * x) - (3.02034 * x * x) + (0.0297408 * x * x * x);
+
+    double z = 1.0 - x - y;
+
+    return vec3(x, y, z);
+}

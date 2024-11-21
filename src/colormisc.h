@@ -1,8 +1,10 @@
 #ifndef COLORMISC_H
 #define COLORMISC_H
 
-//#include "../../png.h"
+#include "vec3.h"
+
 #include <png.h> // Linux should have libpng-dev installed; Windows users can figure stuff out.
+
 
 // clamp a double between 0.0 and 1.0
 double clampdouble(double input);
@@ -49,5 +51,8 @@ double inversepowermap(double floor, double ceiling, double input, double power)
 
 //Compute the inverse of the 01 hermite cubic spline for domain = range = 0-1
 double inversehermite(double input);
+
+// Compute xy coordinates from CCT
+vec3 xycoordfromfromCCT(double cct);
 
 #endif

@@ -191,8 +191,16 @@ int main(int argc, const char **argv){
     int mapmode = MAP_COMPRESS;
     int sourcegamutindex = GAMUT_P22_TRINITRON;
     int destgamutindex = GAMUT_SRGB;
+    double sourcecustomwhitex = 0.2838;
+    double sourcecustomwhitey = 0.2981;
+    double sourcecustomwhitetemp = 9177.98;
+    vec3 sourcecustomwhitefromtemp;
     int sourcewhitepointindex = WHITEPOINT_9300K27MPCD;
     int destwhitepointindex = WHITEPOINT_D65;
+    double destcustomwhitex = 0.312713;
+    double destcustomwhitey = 0.329016;
+    double destcustomwhitetemp =  6503.512;
+    vec3 destcustomwhitefromtemp;
     int safezonetype = RMZONE_DELTA_BASED;
     char* inputfilename;
     char* outputfilename;
@@ -372,7 +380,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue whitepointlist[4] = {
+    const paramvalue whitepointlist[6] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -388,6 +396,14 @@ int main(int argc, const char **argv){
         {
             "illuminantC",
             WHITEPOINT_ILLUMINANTC
+        },
+        {
+            "customcoord",
+            WHITEPOINT_CUSTOM_COORD
+        },
+        {
+            "customtemp",
+            WHITEPOINT_CUSTOM_TEMP
         }
     };
 
@@ -813,7 +829,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[21] = {
+    const floatparam params_float[34] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -918,9 +934,67 @@ int main(int argc, const char **argv){
             "--crtclamplow",         //std::string paramstring; // parameter's text
             "CRT RGB Output Clamp Low",        //std::string prettyname; // name for pretty printing
             &crtclamplow           //double* vartobind; // pointer to variable whose value to set
-        }
-
-
+        },
+        {
+            "--source-whitepoint-custom-x",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitex           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--swcx",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitex           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dest-whitepoint-custom-x",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitex           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dwcx",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitex           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--source-whitepoint-custom-y",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitey           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--swcy",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitey           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dest-whitepoint-custom-y",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitey           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dwcy",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitey           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--source-whitepoint-custom-temp",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--swct",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dest-whitepoint-custom-temp",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dwct",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
+        },
         // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
         // because they suck and there's no evidence they were ever used for CRTs (or anything else).
         // Leaving them on the backend in case they ever prove useful in the future.
@@ -1344,6 +1418,13 @@ int main(int argc, const char **argv){
         printf("CRT R'G'B' low output clamp must be at least -0.1; clamping to -0.1 instead.\n");
     }
 
+    if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+        sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp);
+    }
+
+    if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+        destcustomwhitefromtemp = xycoordfromfromCCT(destcustomwhitetemp);
+    }
     
     // ---------------------------------------------------------------------
     // Screen barf the params in verbose mode
@@ -1387,9 +1468,25 @@ int main(int argc, const char **argv){
             printf("Output Gamma function: linear\n");
         }
         printf("Source primaries: %s\n", gamutnames[sourcegamutindex].c_str());
-        printf("Source whitepoint: %s\n", whitepointnames[sourcewhitepointindex].c_str());
+        if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+            printf("Source whitepoint: custom temperature %fK (x=%f, y=%f)\n", sourcecustomwhitetemp, sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
+        }
+        else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
+            printf("Source whitepoint: custom coordinates x=%f, y=%f\n", sourcecustomwhitex, sourcecustomwhitey);
+        }
+        else{
+            printf("Source whitepoint: %s\n", whitepointnames[sourcewhitepointindex].c_str());
+        }
         printf("Destination primaries: %s\n", gamutnames[destgamutindex].c_str());
-        printf("Destination whitepoint: %s\n", whitepointnames[destwhitepointindex].c_str());
+        if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+            printf("Destination whitepoint: custom temperature %fK (x=%f, y=%f)\n", destcustomwhitetemp, destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
+        }
+        else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
+            printf("Destination whitepoint: custom coordinates x=%f, y=%f\n", destcustomwhitex, destcustomwhitey);
+        }
+        else {
+            printf("Destination whitepoint: %s\n", whitepointnames[destwhitepointindex].c_str());
+        }
 
         printf("Gamut mapping mode: ");
         switch(mapmode){
@@ -1584,12 +1681,30 @@ int main(int argc, const char **argv){
         }
     }
     
-    vec3 sourcewhite = vec3(whitepoints[sourcewhitepointindex][0], whitepoints[sourcewhitepointindex][1], whitepoints[sourcewhitepointindex][2]);
+    vec3 sourcewhite;
+    if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+        sourcewhite = sourcecustomwhitefromtemp;
+    }
+    else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
+        sourcewhite = vec3(sourcecustomwhitex, sourcecustomwhitey, 1.0 - sourcecustomwhitex - sourcecustomwhitey);
+    }
+    else {
+        sourcewhite = vec3(whitepoints[sourcewhitepointindex][0], whitepoints[sourcewhitepointindex][1], whitepoints[sourcewhitepointindex][2]);
+    }
     vec3 sourcered = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
     vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
     vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
     
-    vec3 destwhite = vec3(whitepoints[destwhitepointindex][0], whitepoints[destwhitepointindex][1], whitepoints[destwhitepointindex][2]);
+    vec3 destwhite;
+    if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+        destwhite = destcustomwhitefromtemp;
+    }
+    else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
+        destwhite = vec3(destcustomwhitex, destcustomwhitey, 1.0 - destcustomwhitex - destcustomwhitey);
+    }
+    else {
+        destwhite = vec3(whitepoints[destwhitepointindex][0], whitepoints[destwhitepointindex][1], whitepoints[destwhitepointindex][2]);
+    }
     vec3 destred = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
     vec3 destgreen = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
     vec3 destblue = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
@@ -1718,9 +1833,25 @@ int main(int argc, const char **argv){
             htmlfile << "\t\t\tCRT white level: " << crtwhitelevel << " x100 cd/m^2<BR>\n";
 
             htmlfile << "\t\t\tSource primaries: " << gamutnames[sourcegamutindex] << "<BR>\n";
-            htmlfile << "\t\t\tSource whitepoint: " << whitepointnames[sourcewhitepointindex] << "<BR>\n";
+            if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+                htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K (x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")<BR>\n";
+            }
+            else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
+                htmlfile << "\t\t\tSource whitepoint: custom coordinates x=" << sourcecustomwhitex << ", y=" << sourcecustomwhitey << "<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tSource whitepoint: " << whitepointnames[sourcewhitepointindex] << "<BR>\n";
+            }
             htmlfile << "\t\t\tDestination primaries: " << gamutnames[destgamutindex] << "<BR>\n";
-            htmlfile << "\t\t\tDestination whitepoint: " << whitepointnames[destwhitepointindex] << "<BR>\n";
+            if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
+                htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K (x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")<BR>\n";
+            }
+            else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
+                htmlfile << "\t\t\tDestination whitepoint: custom coordinates x=" << destcustomwhitex << ", y=" << destcustomwhitey << "<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tDestination whitepoint: " << whitepointnames[destwhitepointindex] << "<BR>\n";
+            }
 
             if (sourcegamut.needschromaticadapt || destgamut.needschromaticadapt){
                 htmlfile << "\t\t\tChromatic adapation type: ";
