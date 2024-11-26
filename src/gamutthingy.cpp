@@ -171,6 +171,16 @@ typedef struct intparam{
     int* vartobind; // pointer to variable whose value to set
 } intparam;
 
+typedef struct float6param{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    double* vartobind0; // pointer to variable whose value to set
+    double* vartobind1; // pointer to variable whose value to set
+    double* vartobind2; // pointer to variable whose value to set
+    double* vartobind3; // pointer to variable whose value to set
+    double* vartobind4; // pointer to variable whose value to set
+    double* vartobind5; // pointer to variable whose value to set
+} float6param;
 
 int main(int argc, const char **argv){
     
@@ -190,7 +200,19 @@ int main(int argc, const char **argv){
     int mapdirection = MAP_VPRC;
     int mapmode = MAP_COMPRESS;
     int sourcegamutindex = GAMUT_P22_TRINITRON;
+    double sourcecustomgamut[3][3] = {
+        // deafult to GAMUT_P22_TRINITRON
+        {0.621, 0.34, 0.039}, //red
+        {0.281, 0.606, 0.113}, //green
+        {0.152, 0.067, 0.781} //blue
+    };
     int destgamutindex = GAMUT_SRGB;
+    double destcustomgamut[3][3] = {
+        // deafult to GAMUT_SRGB
+        {0.64, 0.33, 0.03}, //red
+        {0.3, 0.6, 0.1}, //green
+        {0.15, 0.06, 0.79} //blue
+    };
     double sourcecustomwhitex = 0.2838;
     double sourcecustomwhitey = 0.2981;
     double sourcecustomwhitetemp = 9177.98;
@@ -345,7 +367,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[8] = {
+    const paramvalue gamutlist[9] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -377,6 +399,10 @@ int main(int argc, const char **argv){
         {
             "P22_hitachi",
             GAMUT_P22_HITACHI
+        },
+        {
+            "customcoord",
+            GAMUT_CUSTOM
         }
     };
 
@@ -1042,6 +1068,50 @@ int main(int argc, const char **argv){
         },
     };
 
+    const float6param params_float6[4] = {
+        {
+            "--sourceprimariescustomcoords",         //std::string paramstring; // parameter's text
+            "Source Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &sourcecustomgamut[0][0],          //double* vartobind0; // pointer to variable whose value to set
+            &sourcecustomgamut[0][1],          //double* vartobind1; // pointer to variable whose value to set
+            &sourcecustomgamut[1][0],          //double* vartobind2; // pointer to variable whose value to set
+            &sourcecustomgamut[1][1],          //double* vartobind3; // pointer to variable whose value to set
+            &sourcecustomgamut[2][0],          //double* vartobind4; // pointer to variable whose value to set
+            &sourcecustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
+        },
+        {
+            "--spcc",         //std::string paramstring; // parameter's text
+            "Source Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &sourcecustomgamut[0][0],          //double* vartobind0; // pointer to variable whose value to set
+            &sourcecustomgamut[0][1],          //double* vartobind1; // pointer to variable whose value to set
+            &sourcecustomgamut[1][0],          //double* vartobind2; // pointer to variable whose value to set
+            &sourcecustomgamut[1][1],          //double* vartobind3; // pointer to variable whose value to set
+            &sourcecustomgamut[2][0],          //double* vartobind4; // pointer to variable whose value to set
+            &sourcecustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
+        },
+        {
+            "--destprimariescustomcoords",         //std::string paramstring; // parameter's text
+            "Destination Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &destcustomgamut[0][0],          //double* vartobind0; // pointer to variable whose value to set
+            &destcustomgamut[0][1],          //double* vartobind1; // pointer to variable whose value to set
+            &destcustomgamut[1][0],          //double* vartobind2; // pointer to variable whose value to set
+            &destcustomgamut[1][1],          //double* vartobind3; // pointer to variable whose value to set
+            &destcustomgamut[2][0],          //double* vartobind4; // pointer to variable whose value to set
+            &destcustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
+        },
+        {
+            "--dpcc",         //std::string paramstring; // parameter's text
+            "Destination Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &destcustomgamut[0][0],          //double* vartobind0; // pointer to variable whose value to set
+            &destcustomgamut[0][1],          //double* vartobind1; // pointer to variable whose value to set
+            &destcustomgamut[1][0],          //double* vartobind2; // pointer to variable whose value to set
+            &destcustomgamut[1][1],          //double* vartobind3; // pointer to variable whose value to set
+            &destcustomgamut[2][0],          //double* vartobind4; // pointer to variable whose value to set
+            &destcustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
+        }
+    };
+
+
     int nextparamtype = 0;
     int listsize = 0;
     int lastj = 0;
@@ -1051,6 +1121,11 @@ int main(int argc, const char **argv){
     const paramvalue* nexttable = nullptr;
     int nexttablesize = 0;
     double* nextfloatptr = nullptr;
+    double* nextfloatptr1 = nullptr;
+    double* nextfloatptr2 = nullptr;
+    double* nextfloatptr3 = nullptr;
+    double* nextfloatptr4 = nullptr;
+    double* nextfloatptr5 = nullptr;
     bool selectfound = false;
     bool breakout = false;
     for (int i=1; i<argc; i++){
@@ -1066,6 +1141,11 @@ int main(int argc, const char **argv){
                 nexttable = nullptr;
                 nexttablesize = 0;
                 nextfloatptr = nullptr;
+                nextfloatptr1 = nullptr;
+                nextfloatptr2 = nullptr;
+                nextfloatptr3 = nullptr;
+                nextfloatptr4 = nullptr;
+                nextfloatptr5 = nullptr;
                 selectfound = false;
                 breakout = false;
 
@@ -1126,6 +1206,23 @@ int main(int argc, const char **argv){
                     if (strcmp(argv[i], params_float[j].paramstring.c_str()) == 0){
                         nextfloatptr = params_float[j].vartobind;
                         nextparamtype = 5;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
+                }
+                if (breakout){break;}
+
+                listsize = sizeof(params_float6)/sizeof(params_float6[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i], params_float6[j].paramstring.c_str()) == 0){
+                        nextfloatptr = params_float6[j].vartobind0;
+                        nextfloatptr1 = params_float6[j].vartobind1;
+                        nextfloatptr2 = params_float6[j].vartobind2;
+                        nextfloatptr3 = params_float6[j].vartobind3;
+                        nextfloatptr4 = params_float6[j].vartobind4;
+                        nextfloatptr5 = params_float6[j].vartobind5;
+                        nextparamtype = 6;
                         lastj = j;
                         breakout = true;
                         break;
@@ -1213,7 +1310,7 @@ int main(int argc, const char **argv){
                         *nextintptr = input;
                     }
                     else {
-                        printf("Invalid value for parameter %s (%s). Expecting integer numerical value.", params_int[lastj].paramstring.c_str(), params_int[lastj].prettyname.c_str());
+                        printf("Invalid value for parameter %s (%s). Expecting integer numerical value.\n", params_int[lastj].paramstring.c_str(), params_int[lastj].prettyname.c_str());
                         return ERROR_BAD_PARAM_INT;
                     }
                     nextparamtype = 0;
@@ -1238,8 +1335,18 @@ int main(int argc, const char **argv){
                         *nextfloatptr = input;
                     }
                     else {
-                        printf("Invalid value for parameter %s (%s). Expecting floating-point numerical value.", params_float[lastj].paramstring.c_str(), params_float[lastj].prettyname.c_str());
+                        printf("Invalid value for parameter %s (%s). Expecting floating-point numerical value.\n", params_float[lastj].paramstring.c_str(), params_float[lastj].prettyname.c_str());
                         return ERROR_BAD_PARAM_FLOAT;
+                    }
+                    nextparamtype = 0;
+                    break;
+                }
+            case 6:
+                {
+                    int inputok = sscanf(argv[i], "%lf,%lf,%lf,%lf,%lf,%lf", nextfloatptr, nextfloatptr1, nextfloatptr2, nextfloatptr3, nextfloatptr4, nextfloatptr5);
+                    if (inputok != 6){
+                        printf("Invalid value for parameter %s (%s). Expecting 6 comma-separated floating-point numerical values. Got %i.\n", params_float6[lastj].paramstring.c_str(), params_float6[lastj].prettyname.c_str(), inputok);
+                        return ERROR_BAD_PARAM_SSCANF;
                     }
                     nextparamtype = 0;
                     break;
@@ -1454,6 +1561,13 @@ int main(int argc, const char **argv){
     if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
         destcustomwhitefromtemp = xycoordfromfromCCT(destcustomwhitetemp);
     }
+
+    sourcecustomgamut[0][2] = 1.0 - sourcecustomgamut[0][0] - sourcecustomgamut[0][1];
+    sourcecustomgamut[1][2] = 1.0 - sourcecustomgamut[1][0] - sourcecustomgamut[1][1];
+    sourcecustomgamut[2][2] = 1.0 - sourcecustomgamut[2][0] - sourcecustomgamut[2][1];
+    destcustomgamut[0][2] = 1.0 - destcustomgamut[0][0] - destcustomgamut[0][1];
+    destcustomgamut[1][2] = 1.0 - destcustomgamut[1][0] - destcustomgamut[1][1];
+    destcustomgamut[2][2] = 1.0 - destcustomgamut[2][0] - destcustomgamut[2][1];
     
     // ---------------------------------------------------------------------
     // Screen barf the params in verbose mode
@@ -1496,7 +1610,13 @@ int main(int argc, const char **argv){
         else {
             printf("Output Gamma function: linear\n");
         }
-        printf("Source primaries: %s\n", gamutnames[sourcegamutindex].c_str());
+        if (sourcegamutindex == GAMUT_CUSTOM){
+            printf("Source primaries custom coordinates: red %f, %f; green %f, %f; blue %f, %f\n", sourcecustomgamut[0][0], sourcecustomgamut[0][1], sourcecustomgamut[1][0], sourcecustomgamut[1][1], sourcecustomgamut[2][0], sourcecustomgamut[2][1]);
+        }
+        else {
+            printf("Source primaries: %s\n", gamutnames[sourcegamutindex].c_str());
+        }
+
         if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
             printf("Source whitepoint: custom temperature %fK (x=%f, y=%f)\n", sourcecustomwhitetemp, sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
         }
@@ -1506,7 +1626,14 @@ int main(int argc, const char **argv){
         else{
             printf("Source whitepoint: %s\n", whitepointnames[sourcewhitepointindex].c_str());
         }
-        printf("Destination primaries: %s\n", gamutnames[destgamutindex].c_str());
+
+        if (destgamutindex == GAMUT_CUSTOM){
+            printf("Destination primaries custom coordinates: red %f, %f; green %f, %f; blue %f, %f\n", destcustomgamut[0][0], destcustomgamut[0][1], destcustomgamut[1][0], destcustomgamut[1][1], destcustomgamut[2][0], destcustomgamut[2][1]);
+        }
+        else {
+            printf("Destination primaries: %s\n", gamutnames[destgamutindex].c_str());
+        }
+
         if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
             printf("Destination whitepoint: custom temperature %fK (x=%f, y=%f)\n", destcustomwhitetemp, destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
         }
@@ -1720,9 +1847,18 @@ int main(int argc, const char **argv){
     else {
         sourcewhite = vec3(whitepoints[sourcewhitepointindex][0], whitepoints[sourcewhitepointindex][1], whitepoints[sourcewhitepointindex][2]);
     }
-    vec3 sourcered = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
-    vec3 sourcegreen = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
-    vec3 sourceblue = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
+
+    vec3 sourcered, sourcegreen, sourceblue;
+    if (sourcegamutindex == GAMUT_CUSTOM){
+        sourcered = vec3(sourcecustomgamut[0][0], sourcecustomgamut[0][1], sourcecustomgamut[0][2]);
+        sourcegreen = vec3(sourcecustomgamut[1][0], sourcecustomgamut[1][1], sourcecustomgamut[1][2]);
+        sourceblue = vec3(sourcecustomgamut[2][0], sourcecustomgamut[2][1], sourcecustomgamut[2][2]);
+    }
+    else {
+        sourcered = vec3(gamutpoints[sourcegamutindex][0][0], gamutpoints[sourcegamutindex][0][1], gamutpoints[sourcegamutindex][0][2]);
+        sourcegreen = vec3(gamutpoints[sourcegamutindex][1][0], gamutpoints[sourcegamutindex][1][1], gamutpoints[sourcegamutindex][1][2]);
+        sourceblue = vec3(gamutpoints[sourcegamutindex][2][0], gamutpoints[sourcegamutindex][2][1], gamutpoints[sourcegamutindex][2][2]);
+    }
     
     vec3 destwhite;
     if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
@@ -1734,9 +1870,18 @@ int main(int argc, const char **argv){
     else {
         destwhite = vec3(whitepoints[destwhitepointindex][0], whitepoints[destwhitepointindex][1], whitepoints[destwhitepointindex][2]);
     }
-    vec3 destred = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
-    vec3 destgreen = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
-    vec3 destblue = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
+
+    vec3 destred, destgreen, destblue;
+    if (destgamutindex == GAMUT_CUSTOM){
+        destred = vec3(destcustomgamut[0][0], destcustomgamut[0][1], destcustomgamut[0][2]);
+        destgreen = vec3(destcustomgamut[1][0], destcustomgamut[1][1], destcustomgamut[1][2]);
+        destblue = vec3(destcustomgamut[2][0], destcustomgamut[2][1], destcustomgamut[2][2]);
+    }
+    else {
+        destred = vec3(gamutpoints[destgamutindex][0][0], gamutpoints[destgamutindex][0][1], gamutpoints[destgamutindex][0][2]);
+        destgreen = vec3(gamutpoints[destgamutindex][1][0], gamutpoints[destgamutindex][1][1], gamutpoints[destgamutindex][1][2]);
+        destblue = vec3(gamutpoints[destgamutindex][2][0], gamutpoints[destgamutindex][2][1], gamutpoints[destgamutindex][2][2]);
+    }
     
     bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
     
@@ -1861,7 +2006,13 @@ int main(int argc, const char **argv){
             htmlfile << "\t\t\tCRT black level: " << crtblacklevel << " x100 cd/m^2<BR>\n";
             htmlfile << "\t\t\tCRT white level: " << crtwhitelevel << " x100 cd/m^2<BR>\n";
 
-            htmlfile << "\t\t\tSource primaries: " << gamutnames[sourcegamutindex] << "<BR>\n";
+            if (sourcegamutindex == GAMUT_CUSTOM){
+                htmlfile << "\t\t\tSource primaries custom coordinates: red " << sourcecustomgamut[0][0] << ", " << sourcecustomgamut[0][1] << "; green " << sourcecustomgamut[1][0] << ", " << sourcecustomgamut[1][1] << "; blue " << sourcecustomgamut[2][0] << ", " << sourcecustomgamut[2][1] << "<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tSource primaries: " << gamutnames[sourcegamutindex] << "<BR>\n";
+            }
+
             if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
                 htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K (x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")<BR>\n";
             }
@@ -1871,7 +2022,14 @@ int main(int argc, const char **argv){
             else {
                 htmlfile << "\t\t\tSource whitepoint: " << whitepointnames[sourcewhitepointindex] << "<BR>\n";
             }
-            htmlfile << "\t\t\tDestination primaries: " << gamutnames[destgamutindex] << "<BR>\n";
+
+            if (destgamutindex == GAMUT_CUSTOM){
+                htmlfile << "\t\t\tDestination primaries custom coordinates: red " << destcustomgamut[0][0] << ", " << destcustomgamut[0][1] << "; green " << destcustomgamut[1][0] << ", " << destcustomgamut[1][1] << "; blue " << destcustomgamut[2][0] << ", " << destcustomgamut[2][1] << "<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tDestination primaries: " << gamutnames[destgamutindex] << "<BR>\n";
+            }
+
             if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
                 htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K (x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")<BR>\n";
             }
