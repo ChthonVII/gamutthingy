@@ -182,6 +182,13 @@ typedef struct float6param{
     double* vartobind5; // pointer to variable whose value to set
 } float6param;
 
+typedef struct float2param{
+    std::string paramstring; // parameter's text
+    std::string prettyname; // name for pretty printing
+    double* vartobind0; // pointer to variable whose value to set
+    double* vartobind1; // pointer to variable whose value to set
+} float2param;
+
 int main(int argc, const char **argv){
     
     // ----------------------------------------------------------------------------------------
@@ -879,7 +886,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[34] = {
+    const floatparam params_float[26] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -986,46 +993,6 @@ int main(int argc, const char **argv){
             &crtclamplow           //double* vartobind; // pointer to variable whose value to set
         },
         {
-            "--source-whitepoint-custom-x",         //std::string paramstring; // parameter's text
-            "Source Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
-            &sourcecustomwhitex           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--swcx",         //std::string paramstring; // parameter's text
-            "Source Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
-            &sourcecustomwhitex           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--dest-whitepoint-custom-x",         //std::string paramstring; // parameter's text
-            "Destination Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
-            &destcustomwhitex           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--dwcx",         //std::string paramstring; // parameter's text
-            "Destination Whitepoint Custom X Coord",        //std::string prettyname; // name for pretty printing
-            &destcustomwhitex           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--source-whitepoint-custom-y",         //std::string paramstring; // parameter's text
-            "Source Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
-            &sourcecustomwhitey           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--swcy",         //std::string paramstring; // parameter's text
-            "Source Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
-            &sourcecustomwhitey           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--dest-whitepoint-custom-y",         //std::string paramstring; // parameter's text
-            "Destination Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
-            &destcustomwhitey           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--dwcy",         //std::string paramstring; // parameter's text
-            "Destination Whitepoint Custom Y Coord",        //std::string prettyname; // name for pretty printing
-            &destcustomwhitey           //double* vartobind; // pointer to variable whose value to set
-        },
-        {
             "--source-whitepoint-custom-temp",         //std::string paramstring; // parameter's text
             "Source Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
             &sourcecustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
@@ -1070,7 +1037,7 @@ int main(int argc, const char **argv){
 
     const float6param params_float6[4] = {
         {
-            "--sourceprimariescustomcoords",         //std::string paramstring; // parameter's text
+            "--source-primaries-custom-coords",         //std::string paramstring; // parameter's text
             "Source Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
             &sourcecustomgamut[0][0],          //double* vartobind0; // pointer to variable whose value to set
             &sourcecustomgamut[0][1],          //double* vartobind1; // pointer to variable whose value to set
@@ -1090,7 +1057,7 @@ int main(int argc, const char **argv){
             &sourcecustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
         },
         {
-            "--destprimariescustomcoords",         //std::string paramstring; // parameter's text
+            "--dest-primaries-custom-coords",         //std::string paramstring; // parameter's text
             "Destination Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
             &destcustomgamut[0][0],          //double* vartobind0; // pointer to variable whose value to set
             &destcustomgamut[0][1],          //double* vartobind1; // pointer to variable whose value to set
@@ -1108,6 +1075,33 @@ int main(int argc, const char **argv){
             &destcustomgamut[1][1],          //double* vartobind3; // pointer to variable whose value to set
             &destcustomgamut[2][0],          //double* vartobind4; // pointer to variable whose value to set
             &destcustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
+        }
+    };
+
+    const float2param params_float2[4] = {
+        {
+            "--source-whitepoint-custom-coords",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitex,          //double* vartobind0; // pointer to variable whose value to set
+            &sourcecustomwhitey        //double* vartobind1; // pointer to variable whose value to set
+        },
+        {
+            "--swcc",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitex,          //double* vartobind0; // pointer to variable whose value to set
+            &sourcecustomwhitey        //double* vartobind1; // pointer to variable whose value to set
+        },
+        {
+            "--dest-whitepoint-custom-coords",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitex,          //double* vartobind0; // pointer to variable whose value to set
+            &destcustomwhitey        //double* vartobind1; // pointer to variable whose value to set
+        },
+        {
+            "--dwcc",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Coordinants",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitex,          //double* vartobind0; // pointer to variable whose value to set
+            &destcustomwhitey        //double* vartobind1; // pointer to variable whose value to set
         }
     };
 
@@ -1223,6 +1217,19 @@ int main(int argc, const char **argv){
                         nextfloatptr4 = params_float6[j].vartobind4;
                         nextfloatptr5 = params_float6[j].vartobind5;
                         nextparamtype = 6;
+                        lastj = j;
+                        breakout = true;
+                        break;
+                    }
+                }
+                if (breakout){break;}
+
+                listsize = sizeof(params_float2)/sizeof(params_float2[0]);
+                for (int j=0; j<listsize; j++){
+                    if (strcmp(argv[i], params_float2[j].paramstring.c_str()) == 0){
+                        nextfloatptr = params_float2[j].vartobind0;
+                        nextfloatptr1 = params_float2[j].vartobind1;
+                        nextparamtype = 7;
                         lastj = j;
                         breakout = true;
                         break;
@@ -1346,6 +1353,16 @@ int main(int argc, const char **argv){
                     int inputok = sscanf(argv[i], "%lf,%lf,%lf,%lf,%lf,%lf", nextfloatptr, nextfloatptr1, nextfloatptr2, nextfloatptr3, nextfloatptr4, nextfloatptr5);
                     if (inputok != 6){
                         printf("Invalid value for parameter %s (%s). Expecting 6 comma-separated floating-point numerical values. Got %i.\n", params_float6[lastj].paramstring.c_str(), params_float6[lastj].prettyname.c_str(), inputok);
+                        return ERROR_BAD_PARAM_SSCANF;
+                    }
+                    nextparamtype = 0;
+                    break;
+                }
+            case 7:
+                {
+                    int inputok = sscanf(argv[i], "%lf,%lf", nextfloatptr, nextfloatptr1);
+                    if (inputok != 2){
+                        printf("Invalid value for parameter %s (%s). Expecting 2 comma-separated floating-point numerical values. Got %i.\n", params_float2[lastj].paramstring.c_str(), params_float2[lastj].prettyname.c_str(), inputok);
                         return ERROR_BAD_PARAM_SSCANF;
                     }
                     nextparamtype = 0;
