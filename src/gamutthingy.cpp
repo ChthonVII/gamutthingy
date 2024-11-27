@@ -374,7 +374,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[15] = {
+    const paramvalue gamutlist[17] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -400,12 +400,20 @@ int main(int argc, const char **argv){
             GAMUT_P22_TRINITRON
         },
         {
+            "P22_trinitron_bohnsack",
+            GAMUT_P22_TRINITRON_BOHNSACK
+        },
+        {
             "P22_trinitron_raney1",
             GAMUT_P22_TRINITRON_RANEY1
         },
         {
             "P22_trinitron_raney2",
             GAMUT_P22_TRINITRON_RANEY2
+        },
+        {
+            "P22_trinitron_mixandmatch",
+            GAMUT_P22_TRINITRON_MIXANDMATCH
         },
         {
             "P22_nec_multisync_c400",

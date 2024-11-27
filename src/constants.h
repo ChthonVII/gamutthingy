@@ -228,8 +228,10 @@ const double whitepoints[17][3] = {
 #define GAMUT_JAPAN_SPEC 11
 #define GAMUT_P22_TRINITRON_RANEY1 12
 #define GAMUT_P22_TRINITRON_RANEY2 13
+#define GAMUT_P22_TRINITRON_MIXANDMATCH 14
+#define GAMUT_P22_TRINITRON_BOHNSACK 15
 
-const std::string gamutnames[14] = {
+const std::string gamutnames[16] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -244,9 +246,11 @@ const std::string gamutnames[14] = {
     "P22 phosphors, \"Japan Specific\"",
     "P22 phosphors, Trinitron, Raney Measurement 1",
     "P22 phosphors, Trinitron, Raney Measurement 2",
+    "P22 phosphors, Trinitron, Mix-and-Match",
+    "P22 phosphors, Trinitron, Bohnsack Measurement",
 };
 
-const double gamutpoints[14][3][3] = {
+const double gamutpoints[16][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -373,6 +377,24 @@ const double gamutpoints[14][3][3] = {
         {0.625, 0.345, 0.03}, //red
         {0.28, 0.605, 0.115}, //green
         {0.15, 0.065, 0.785} //blue
+    },
+
+    // Sony mix-and-match of best values from different measurements
+    // red from Sony PVM 20M2U (~1996) measured by Keith Raney
+    // green and blue from color.org
+    {
+        {0.63, 0.345, 0.025}, //red
+        {0.281, 0.606, 0.113}, //green
+        {0.152, 0.067, 0.781} //blue
+    },
+
+    // Trinitron Bohnsack
+    // In 1997, some visual science researchers decided to measure the properties of their 1994-model GDM-17SE1 and got values very close to that.
+    // see: https://www.scholars.northwestern.edu/en/publications/characteristics-of-the-sony-multiscan-17se-trinitron-color-graphi
+    {
+        {0.6233, 0.339, 0.0377}, //red
+        {0.2838, 0.5895, 0.1267}, //green
+        {0.1519, 0.0669, 0.7812} //blue
     },
 
     // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
