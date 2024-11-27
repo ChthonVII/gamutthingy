@@ -119,27 +119,41 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_9300K27MPCD 1
 #define WHITEPOINT_9300K8MPCD 2
 #define WHITEPOINT_ILLUMINANTC 3
-#define WHITEPOINT_7000K 4
-#define WHITEPOINT_7250K 5
-#define WHITEPOINT_D75 6
-#define WHITEPOINT_8500K 7
-#define WHITEPOINT_8800K 8
-#define WHITEPOINT_BOHNSACK 9
+#define WHITEPOINT_6900K 4
+#define WHITEPOINT_7000K 5
+#define WHITEPOINT_7100K 6
+#define WHITEPOINT_7250K 7
+#define WHITEPOINT_D75 8
+#define WHITEPOINT_8500K 9
+#define WHITEPOINT_8800K 10
+#define WHITEPOINT_BOHNSACK 11
+#define WHITEPOINT_NEC_MULTISYNC_C400 12
+#define WHITEPOINT_KDS_VS19 13
+#define WHITEPOINT_93K_FAIRCHILD 14
+#define WHITEPOINT_D65_FAIRCHILD 15
+#define WHITEPOINT_D65_DISPLAYMATE 16
 
-const std::string whitepointnames[10] = {
+const std::string whitepointnames[17] = {
     "D65",
     "9300K + 27mpcd",
     "9300K + 8mpcd",
     "Illuminant C",
+    "6900K",
     "7000K",
+    "7100K",
     "7250K",
     "D75",
     "8500K",
     "8800K",
-    "Triniton (Bohnsack measurement)"
+    "Triniton ~93K (Bohnsack measurement)",
+    "NEC Multisync C400 ~93K",
+    "KDS VS19 ~93K",
+    "Diamond Pro/Trinitron ~93K (Fairchild measurement)",
+    "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
+    "Trinitron ~D65 (DisplayMate measurement)"
 };
 
-const double whitepoints[10][3] = {
+const double whitepoints[17][3] = {
     // D65
     {0.312713, 0.329016, 0.358271},
     // 9300K + 27MPCD
@@ -148,9 +162,19 @@ const double whitepoints[10][3] = {
     {0.2838, 0.2981, 0.4181},
     // Illuminant C
     {0.310063, 0.316158, 0.373779},
+    // 6900K (Dogway claims, without citation, that consumer Euro CRTs' D65 was often 7100K in practice
+    // (https://forums.libretro.com/t/dogways-grading-shader-slang/27148/523))
+    // DariusG actually measured a PAL CRT and got 6900K
+    // https://forums.libretro.com/t/dogways-grading-shader-slang/27148/524
+    // coords estimated via xycoordfromfromCCT()
+    {0.306769, 0.322990, 0.370241},
     // 7000K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
     // coords estimated via xycoordfromfromCCT()
     {0.305390, 0.321565, 0.373045},
+    // 7100K (Dogway claims, without citation, that consumer US CRTs' D65 was often 7100K in practice
+    // (https://forums.libretro.com/t/dogways-grading-shader-slang/27148/523))
+    // coords estimated via xycoordfromfromCCT()
+    {0.304054, 0.320173, 0.375773},
     // 7250K (grade claims, without citation, that consumer CRTs' D65 was often 7000K to 7500K in practice (https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L109))
     // coords estimated via xycoordfromfromCCT()
     {0.302126, 0.318146, 0.379728},
@@ -164,7 +188,29 @@ const double whitepoints[10][3] = {
     {0.286707, 0.301135, 0.412158},
     // Trintron Bohnsack, measured whitepoint of 1994 GDM-17SE1 Trinitron computer monitor
     // probably supposed to be 9300K+8MPCD
-    {0.2836, 0.2963, 0.4201}
+    {0.2836, 0.2963, 0.4201},
+    // NEC_MULTISYNC_C400 computer monitor
+    // Probably supposed to be 9300K + 27MPCD
+    // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    {0.28, 0.315, 0.405},
+    // KDS_VS19 computer monitor
+    // identical to 9300K + 27MPCD
+    // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    {0.281, 0.311, 0.408},
+    // Mitsubishi Diamond Pro (unspecified model number) computer monitor with Trinitron tube D93 Fairchild
+    // Probably supposed to be 9300K + 27MPCD
+    // only 60 cd/m2 ?!
+    // from https://web.archive.org/web/20220517234701/https://www.imaging.org//site/PDFS/Papers/1997/RP-0-67/2401.pdf
+    {0.2838, 0.3290, 0.3872},
+    // Mitsubishi Diamond Pro (unspecified model number) computer monitor with Trinitron tube D65 Fairchild
+    // Supposed to be D65, but pretty far off...
+    // only 53 cd/m2 ?!
+    // from https://web.archive.org/web/20220517234701/https://www.imaging.org//site/PDFS/Papers/1997/RP-0-67/2401.pdf
+    {0.3124, 0.2977, 0.3899},
+    // Sony PVM-20L5 (2002) measured as 6480K
+    // https://www.displaymate.com/ShootOut_Part_1.htm
+    // coords estimated via xycoordfromfromCCT()
+    {0.313091, 0.329377, 0.357532},
 };
 
 #define GAMUT_CUSTOM -1
@@ -176,8 +222,14 @@ const double whitepoints[10][3] = {
 #define GAMUT_P22_TRINITRON 5
 #define GAMUT_P22_EBUISH 6
 #define GAMUT_P22_HITACHI 7
+#define GAMUT_P22_NEC_MULTISYNC_C400 8
+#define GAMUT_P22_KDS_VS19 9
+#define GAMUT_DELL 10
+#define GAMUT_JAPAN_SPEC 11
+#define GAMUT_P22_TRINITRON_RANEY1 12
+#define GAMUT_P22_TRINITRON_RANEY2 13
 
-const std::string gamutnames[8] = {
+const std::string gamutnames[14] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -185,10 +237,16 @@ const std::string gamutnames[8] = {
     "P22 phosphors, Average",
     "P22 phosphors, Trinitron",
     "P22 phosphors, EBU-ish",
-    "P22 phosphors, Hitachi"
+    "P22 phosphors, Hitachi",
+    "P22 phosphors, NEC Multisync C400",
+    "P22 phosphors, KDS VS19",
+    "P22 phosphors, Dell",
+    "P22 phosphors, \"Japan Specific\"",
+    "P22 phosphors, Trinitron, Raney Measurement 1",
+    "P22 phosphors, Trinitron, Raney Measurement 2",
 };
 
-const double gamutpoints[8][3][3] = {
+const double gamutpoints[14][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -237,7 +295,6 @@ const double gamutpoints[8][3][3] = {
         {0.281, 0.606, 0.113}, //green
         {0.152, 0.067, 0.781} //blue
     },
-    // P22_trinitron_D65
 
     // P22_ebuish_9300K
     // ntscj (EBUish phosphors noted in a 1992 Toshiba patent, whitepoint 9300K+27mpcd)
@@ -267,7 +324,67 @@ const double gamutpoints[8][3][3] = {
         {0.624, 0.339, 0.037}, //red
         {0.285, 0.604, 0.111}, //green
         {0.150, 0.065, 0.785} //blue
-    }
+    },
+
+    // NEC_MULTISYNC_C400 computer monitor
+    // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    {
+        {0.610, 0.35, 0.04}, //red
+        {0.307, 0.595, 0.098}, //green
+        {0.15, 0.065, 0.785} //blue
+    },
+
+    // KDS_VS19 computer monitor
+    // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    {
+        {0.625, 0.34, 0.035}, //red
+        {0.285, 0.605, 0.11}, //green
+        {0.15, 0.065, 0.785} //blue
+    },
+
+    // Dell computer monitor (all monitors except 21" Mitsubishi p/n 65532)
+    // Use with 9300K whitepoint (unclear which)
+    // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    {
+        {0.625, 0.34, 0.035}, //red
+        {0.275, 0.605, 0.12}, //green
+        {0.15, 0.065, 0.785} //blue
+    },
+
+    // "Japan Specific Phosphor" described in ARIB TR B9 v1.0 (1998)
+    // https://web.archive.org/web/20130413094712/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf
+    {
+        {0.618, 0.35, 0.032}, //red
+        {0.29, 0.6, 0.11}, //green
+        {0.15, 0.06, 0.97} //blue
+    },
+
+    // Sony PVM 20M2U (~1996) measured by Keith Raney
+    // https://github.com/danmons/colour_matrix_adaptations/blob/main/csv/inputs.csv
+    {
+        {0.63, 0.345, 0.025}, //red
+        {0.285, 0.605, 0.11}, //green
+        {0.15, 0.065, 0.785} //blue
+    },
+
+    // Sony PVM 20L2MDU (~2002) measured by Keith Raney
+    // https://github.com/danmons/colour_matrix_adaptations/blob/main/csv/inputs.csv
+    {
+        {0.625, 0.345, 0.03}, //red
+        {0.28, 0.605, 0.115}, //green
+        {0.15, 0.065, 0.785} //blue
+    },
+
+    // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
+    // Grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L728
+    // Better explanation from Dogway: https://github.com/Dogway/Avisynth-Scripts/blob/258644dea7a1fbc9a71e7f39d6bb62234a80e1c7/TransformsPack%20-%20Main.avsi#L2348
+    // A Y2O2S:Eu3+ red phosphor coated with FE2O3 pigment could technically reach an x coord of 0.661, but only with a 50% brightness loss.
+    // See figure 1 in Ohno, Katsutoshi and Kusunoki, Tsuneo. "The Effect of Ultrafine Pigment Color Filters on Cathode Ray Tube Brightness, Contrast, and Color Purity." J. Electrochem. Soc., Vol. 143, No. 3, p. 1063 (1996).
+    // Dogway likely confused the maximum possible coords result reported in some literature with the realistic coords achievable at acceptable brightness.
+    // Green looks suspicious too. That y coord is off the chart for ZnS:Au,Cu,Al.
+    // See Yen, William, Shionoya, Shigeo, and Yamamoto, Hajime. "Phosphor Handbook Second Edition," section 6.2.3, table 2. CRC Press, Boca Raton (2007).
+
+
 };
 
 const std::string modulatornames[4] = {

@@ -374,7 +374,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[9] = {
+    const paramvalue gamutlist[15] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -400,6 +400,30 @@ int main(int argc, const char **argv){
             GAMUT_P22_TRINITRON
         },
         {
+            "P22_trinitron_raney1",
+            GAMUT_P22_TRINITRON_RANEY1
+        },
+        {
+            "P22_trinitron_raney2",
+            GAMUT_P22_TRINITRON_RANEY2
+        },
+        {
+            "P22_nec_multisync_c400",
+            GAMUT_P22_NEC_MULTISYNC_C400
+        },
+        {
+            "P22_dell",
+            GAMUT_DELL
+        },
+        {
+            "P22_japan_specific",
+            GAMUT_JAPAN_SPEC
+        },
+        {
+            "P22_kds_vs19",
+            GAMUT_P22_KDS_VS19
+        },
+        {
             "P22_ebuish",
             GAMUT_P22_EBUISH
         },
@@ -413,7 +437,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue whitepointlist[12] = {
+    const paramvalue whitepointlist[19] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -431,8 +455,16 @@ int main(int argc, const char **argv){
             WHITEPOINT_ILLUMINANTC
         },
         {
+            "6900K",
+            WHITEPOINT_6900K
+        },
+        {
             "7000K",
             WHITEPOINT_7000K
+        },
+        {
+            "7100K",
+            WHITEPOINT_7100K
         },
         {
             "7250K",
@@ -451,8 +483,28 @@ int main(int argc, const char **argv){
             WHITEPOINT_8800K
         },
         {
-            "trinitronbohnsack",
+            "trinitron_93k_bohnsack",
             WHITEPOINT_BOHNSACK
+        },
+        {
+            "trinitron_d65_soniera",
+            WHITEPOINT_D65_DISPLAYMATE
+        },
+        {
+            "diamondpro_d65_fairchild",
+            WHITEPOINT_D65_FAIRCHILD
+        },
+        {
+            "diamondpro_93k_fairchild",
+            WHITEPOINT_93K_FAIRCHILD
+        },
+        {
+            "nec_multisync_c400_93k",
+            WHITEPOINT_NEC_MULTISYNC_C400
+        },
+        {
+            "kds_vs19_93k",
+            WHITEPOINT_KDS_VS19
         },
         {
             "customcoord",
