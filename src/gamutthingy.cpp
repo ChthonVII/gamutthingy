@@ -443,6 +443,9 @@ int main(int argc, const char **argv){
             "customcoord",
             GAMUT_CUSTOM
         }
+
+        // intentionally omitting grade's P22_90s_ph because it is definitely wrong.
+        // see comment in constants.h
     };
 
     const paramvalue whitepointlist[19] = {
