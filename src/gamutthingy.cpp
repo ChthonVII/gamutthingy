@@ -2024,6 +2024,27 @@ int main(int argc, const char **argv){
         return GAMUT_INITIALIZE_FAIL;
     }
 
+    // screen barf an overall matrix (useful for copy/pasting into other code)
+    double matrixpreviewsource[3][3];
+    double matrixpreviewdest[3][3];
+    double matrixpreview[3][3];
+    if (sourcegamut.needschromaticadapt){
+        memcpy(matrixpreviewsource, sourcegamut.matrixNPMadaptToD65, 3 * 3 * sizeof(double));
+    }
+    else {
+        memcpy(matrixpreviewsource, sourcegamut.matrixNPM, 3 * 3 * sizeof(double));
+    }
+    if (destgamut.needschromaticadapt){
+        memcpy(matrixpreviewdest, destgamut.inverseMatrixNPMadaptToD65, 3 * 3 * sizeof(double));
+    }
+    else {
+        memcpy(matrixpreviewdest, destgamut.inverseMatrixNPM, 3 * 3 * sizeof(double));
+    }
+    mult3x3Matrices(matrixpreviewdest, matrixpreviewsource, matrixpreview);
+    printf("\nOverall linear RGB to linear RGB transformation matrix:\n");
+    print3x3matrix(matrixpreview);
+    printf("----------\n");
+
     // if spiral CARISMA is enabled, we need some more initialization
     if (spiralcarisma){
         srcOK = sourcegamut.initializePolarPrimaries(true, scfloor, scceiling, scexp, scfunctiontype, verbosity);
