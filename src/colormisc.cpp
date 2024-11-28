@@ -67,6 +67,49 @@ double tolinear(double input){
     return clampdouble(pow((input + 0.055) / 1.055, 2.4));
 }
 
+// rec2084 gamma functions
+// See https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Shaders/ColorSpaceUtility.hlsli#L75
+// maxnits should be "the brightness level that SDR 'white' is rendered at within an HDR monitor" (probably 100-200ish)
+// Google Chrome uses a default of 200 if autodetection fails.
+double rec2084togamma(double input, double maxnits){
+
+    input = clampdouble(input);
+
+    const double m1 = 1305.0/8192.0;
+    const double m2 = 2523.0/32.0;
+    const double c1 = 107.0/128.0;
+    const double c2 = 2413.0/128.0;
+    const double c3 = 2392.0/128.0;
+
+    const double Ym1 = pow(input * (maxnits / 10000.0), m1);
+
+    double output = pow((c1 + (c2 * Ym1)) / (1.0 + (c3 * Ym1)), m2);
+
+    output = clampdouble(output);
+
+    return output;
+}
+double rec2084tolinear(double input, double maxnits){
+
+    input = clampdouble(input);
+
+    const double m1 = 1305.0/8192.0;
+    const double m2 = 2523.0/32.0;
+    const double c1 = 107.0/128.0;
+    const double c2 = 2413.0/128.0;
+    const double c3 = 2392.0/128.0;
+
+    const double E1overm2 = pow(input, 1.0 / m2);
+    double top = E1overm2 - c1;
+    if (top < 0.0){ top = 0.0; }
+    double output = pow(top / (c2 - (c3 * E1overm2)), 1.0 / m1);
+    output *= (10000.0 / maxnits);
+
+    output = clampdouble(output);
+
+    return output;
+}
+
 
 // Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
 // Answer will be in range -pi to +pi radians.

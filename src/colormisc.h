@@ -19,6 +19,10 @@ png_byte toRGB8nodither(double input);
 double togamma(double input);
 double tolinear(double input);
 
+// rec2084 gamma functions
+double rec2084togamma(double input, double maxnits);
+double rec2084tolinear(double input, double maxnits);
+
 // Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
 // Answer will be in range -pi to +pi radians.
 double AngleDiff(double angleA, double angleB);

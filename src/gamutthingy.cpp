@@ -1481,7 +1481,6 @@ int main(int argc, const char **argv){
         return RETURN_SUCCESS;
     }
 
-
     softkneemode = (softkneemodealias == 0) ? false : true;
     gammamodein = (gammamodeinalias == 0) ? false : true;
     gammamodeout = (gammamodeoutalias == 0) ? false : true;
