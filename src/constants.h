@@ -218,24 +218,26 @@ const double whitepoints[17][3] = {
 #define GAMUT_NTSC 1
 #define GAMUT_SMPTEC 2
 #define GAMUT_EBU 3
-#define GAMUT_P22_AVERAGE 4
-#define GAMUT_P22_TRINITRON 5
-#define GAMUT_P22_EBUISH 6
-#define GAMUT_P22_HITACHI 7
-#define GAMUT_P22_NEC_MULTISYNC_C400 8
-#define GAMUT_P22_KDS_VS19 9
-#define GAMUT_DELL 10
-#define GAMUT_JAPAN_SPEC 11
-#define GAMUT_P22_TRINITRON_RANEY1 12
-#define GAMUT_P22_TRINITRON_RANEY2 13
-#define GAMUT_P22_TRINITRON_MIXANDMATCH 14
-#define GAMUT_P22_TRINITRON_BOHNSACK 15
+#define GAMUT_REC2020 4
+#define GAMUT_P22_AVERAGE 5
+#define GAMUT_P22_TRINITRON 6
+#define GAMUT_P22_EBUISH 7
+#define GAMUT_P22_HITACHI 8
+#define GAMUT_P22_NEC_MULTISYNC_C400 9
+#define GAMUT_P22_KDS_VS19 10
+#define GAMUT_DELL 11
+#define GAMUT_JAPAN_SPEC 12
+#define GAMUT_P22_TRINITRON_RANEY1 13
+#define GAMUT_P22_TRINITRON_RANEY2 14
+#define GAMUT_P22_TRINITRON_MIXANDMATCH 15
+#define GAMUT_P22_TRINITRON_BOHNSACK 16
 
-const std::string gamutnames[16] = {
+const std::string gamutnames[17] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
     "EBU (470bg) (specification)",
+    "Rec2020 (specification)",
     "P22 phosphors, Average",
     "P22 phosphors, Trinitron",
     "P22 phosphors, EBU-ish",
@@ -250,7 +252,7 @@ const std::string gamutnames[16] = {
     "P22 phosphors, Trinitron, Bohnsack Measurement",
 };
 
-const double gamutpoints[16][3][3] = {
+const double gamutpoints[17][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -274,6 +276,12 @@ const double gamutpoints[16][3][3] = {
         {0.64, 0.33, 0.03}, //red
         {0.29, 0.6, 0.11}, //green
         {0.15, 0.06, 0.79} //blue
+    },
+    // rec2020_spec
+    {
+        {0.708, 0.292, 0.0}, //red
+        {0.17, 0.797, 0.033}, //green
+        {0.131, 0.046, 0.823} //blue
     },
     // P22_average
     // ntscj (measurements taken upon television set receiver using P22 phospors, whitepoint 9300K+27mpcd)
