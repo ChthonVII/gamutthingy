@@ -54,6 +54,9 @@
 #define GAMUT_INITIALIZE_FAIL 18
 #define GAMUT_INITIALIZE_FAIL_SPIRAL 19
 
+#define GAMMA_LINEAR 0
+#define GAMMA_SRGB 1
+#define GAMMA_REC2084 2
 
 extern const vec3 D65;
 
