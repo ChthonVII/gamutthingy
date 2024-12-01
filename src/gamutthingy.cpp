@@ -666,7 +666,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue crtdemodulatorlist[12] = {
+    const paramvalue crtdemodulatorlist[13] = {
         {
             "none",
             CRT_DEMODULATOR_NONE
@@ -698,6 +698,10 @@ int main(int argc, const char **argv){
         {
             "CXA2060BS_US",
             CRT_DEMODULATOR_CXA2060BS_US
+        },
+        {
+            "CXA2060BS_PAL",
+            CRT_DEMODULATOR_CXA2060BS_PAL
         },
         {
             "CXA2025AS_JP",

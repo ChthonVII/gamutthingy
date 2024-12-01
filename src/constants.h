@@ -499,12 +499,13 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_CXA1870S_US 4
 #define CRT_DEMODULATOR_CXA2060BS_JP 5
 #define CRT_DEMODULATOR_CXA2060BS_US 6
-#define CRT_DEMODULATOR_CXA2025AS_JP 7
-#define CRT_DEMODULATOR_CXA2025AS_US 8
-#define CRT_DEMODULATOR_CXA1213AS 9
-#define CRT_DEMODULATOR_TDA8362 10
+#define CRT_DEMODULATOR_CXA2060BS_PAL 7
+#define CRT_DEMODULATOR_CXA2025AS_JP 8
+#define CRT_DEMODULATOR_CXA2025AS_US 9
+#define CRT_DEMODULATOR_CXA1213AS 10
+#define CRT_DEMODULATOR_TDA8362 11
 
-const std::string demodulatornames[11] = {
+const std::string demodulatornames[12] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -512,13 +513,14 @@ const std::string demodulatornames[11] = {
     "CXA1870S (US mode)",
     "CXA2060BS (JP mode)",
     "CXA2060BS (US mode)",
+    "CXA2060BS (PAL mode)",
     "CXA2025AS (JP mode)",
     "CXA2025AS (US mode)",
     "CXA1213AS",
     "TDA8362"
 };
 
-const double demodulatorinfo[11][2][3] = {
+const double demodulatorinfo[12][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -595,6 +597,13 @@ const double demodulatorinfo[11][2][3] = {
         {0.78, 0.3, 1.0} // gains
     },
     
+    // CXA2060BS (PAL mode)
+    // Used in Sony Trinitron ~??? (probably around 1997)
+    {
+        {90, 227, 0}, // angles (degrees)
+        {Vupscale/Uupscale, 0.34, 1.0} // gains
+    },
+
     // CXA2025AS (JP mode)
     // Used in Sony Trinitron ~1997
     {
