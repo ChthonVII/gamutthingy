@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -27,6 +27,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     }
     demodulatorindex = demodulatorindex_in;
     demodulatorrenormalization = renorm;
+    demodfixes = dodemodfixes;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -364,6 +365,37 @@ bool crtdescriptor::InitializeDemodulator(){
     double redgain = demodulatorinfo[demodulatorindex][1][0];
     double greengain = demodulatorinfo[demodulatorindex][1][1];
     double bluegain = demodulatorinfo[demodulatorindex][1][2];
+    // if red or green looks like it would be unmodified but for rounding/truncation in the datasheet, restore the full precision value
+    if (demodfixes){
+        if ((redgain >= 0.55) && (redgain < 0.57)){
+            printf("Assuming red gain of %f really meant %f\n", redgain, Vupscale / Uupscale);
+            redgain = Vupscale / Uupscale;
+        }
+        bool ganglefix = false;
+        bool ggainfix = false;
+        if ((demodulatorinfo[demodulatorindex][0][1] >= 235.0) && (demodulatorinfo[demodulatorindex][0][1] <= 237.0)){
+            ganglefix = true;
+        }
+        if ((greengain >= 0.34) && (greengain <= 0.35)){
+            ggainfix = true;
+        }
+        if (ganglefix || ggainfix){
+            vec2 vanillagreen = MakeVanillaGreen(YUVconstantprecision, output);
+            if (!output){
+                printf("Unexpected error in crtdescriptor::InitializeDemodulator().\n");
+            }
+            if (ganglefix){
+                printf("Assuming green angle of %f really meant %f\n", greenangle * (180.0 / std::numbers::pi_v<double>), vanillagreen.x * (180 / std::numbers::pi_v<double>));
+                greenangle = vanillagreen.x;
+            }
+            if (ggainfix){
+                printf("Assuming green gain of %f really meant %f\n", greengain, vanillagreen.y);
+                greengain = vanillagreen.y;
+            }
+        }
+    }
+
+
     // gains are probably normalized to blue, probably to 1.0.
     // if blue is near 2.03, then it's not normalized. Let's guess 1.8 for a good cutoff.
     if (bluegain < 1.8){
@@ -765,3 +797,80 @@ bool MakeIdealYUVtoRGB(double output[3][3], int constantprecision){
     return status;
 }
 
+// Compute the unmodified angle and gain for green
+// return vec2(angle, gain) and ok/error state via ok
+vec2 MakeVanillaGreen(int constantprecision, bool &ok){
+
+    bool status = true;
+
+    double wr;
+    double wg;
+    //double wb;
+
+    if (constantprecision == YUV_CONSTANT_PRECISION_CRAP){
+        // truncated constants from 1953 standard
+        wr = 0.3;
+        wg = 0.59;
+        //wb = 0.11;
+    }
+    else if (constantprecision == YUV_CONSTANT_PRECISION_MID){
+        // less truncated constants from 1994 SMPTE-C (170M) standard
+        wr = 0.299;
+        wg = 0.587;
+        //wb = 0.114;
+    }
+    else {
+        // compute precise white balance from 1953 primaries and Illuminant C.
+
+        const double matrixP[3][3] = {
+            {gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][2][0]},
+            {gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][2][1]},
+            {gamutpoints[GAMUT_NTSC][0][2], gamutpoints[GAMUT_NTSC][1][2], gamutpoints[GAMUT_NTSC][2][2]}
+        };
+
+        double inverseMatrixP[3][3];
+        status = Invert3x3Matrix(matrixP, inverseMatrixP);
+        if (!status){
+            printf("Disaster! Matrix P is not invertible! Bad stuff will happen!\n");
+        }
+
+        vec3 matrixW;
+        matrixW.x = whitepoints[WHITEPOINT_ILLUMINANTC][0] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+        matrixW.y = 1.0;
+        matrixW.z = whitepoints[WHITEPOINT_ILLUMINANTC][2] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+
+        const vec3 normalizationFactors = multMatrixByColor(inverseMatrixP, matrixW);
+
+        const double matrixC[3][3] = {
+            {normalizationFactors.x, 0.0, 0.0},
+            {0.0, normalizationFactors.y, 0.0},
+            {0.0, 0.0, normalizationFactors.z}
+        };
+
+        double matrixNPM[3][3];
+        mult3x3Matrices(matrixP, matrixC, matrixNPM);
+
+        wr = matrixNPM[1][0];
+        wg = matrixNPM[1][1];
+        //wb = matrixNPM[1][2];
+    }
+
+    double yg = (1.0 + ((1.0 - wg) / wg)) * -1.0 * Vupscale * wr;
+    double xg = (Uupscale * wr) + ((1.0 - wg) * (1.0 / wg) * ((wr - 1.0) * Uupscale));
+    //printf("yg %f, xg %f\n", yg, xg);
+    double gaing = sqrt((yg*yg) + (xg*xg));
+    gaing /= Uupscale;
+    double angleg = atan2(yg, xg);
+    // fix the quadrant on the angle
+    while (angleg < std::numbers::pi_v<long double>){
+        angleg += (0.5 * std::numbers::pi_v<long double>);
+    }
+    while (angleg > (1.5 * std::numbers::pi_v<long double>)){
+        angleg -= (0.5 * std::numbers::pi_v<long double>);
+    }
+    //printf("vanilla green angle is %f and gain is %f\n", (double)(angleg * (180.0 / std::numbers::pi_v<long double>)), gaing);
+
+    ok = status;
+
+    return vec2(angleg, gaing);
+}

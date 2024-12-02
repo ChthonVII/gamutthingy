@@ -265,6 +265,7 @@ int main(int argc, const char **argv){
     int crtmodindex = CRT_MODULATOR_NONE;
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     int crtdemodrenorm = RENORM_DEMOD_INSANE;
+    bool crtdemodfixes = true;
     bool crtdoclamphigh = true;
     double crtclamphigh = 1.1;
     double crtclamplow = -0.1;
@@ -280,7 +281,7 @@ int main(int argc, const char **argv){
     bool neswritehtml = false;
     char* neshtmlfilename;
     
-    const boolparam params_bool[10] = {
+    const boolparam params_bool[11] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -330,6 +331,11 @@ int main(int argc, const char **argv){
             "--crtclamphighrgb",                     //std::string paramstring; // parameter's text
             "CRT Clamp High RGB Output Values",           //std::string prettyname; // name for pretty printing
             &crtdoclamphigh                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtdemodfixes",                     //std::string paramstring; // parameter's text
+            "Correct CRT demodulator angles/gains near \"straight\" demodulation to those exact values",           //std::string prettyname; // name for pretty printing
+            &crtdemodfixes                //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -1953,7 +1959,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }

@@ -525,8 +525,8 @@ const double demodulatorinfo[12][2][3] = {
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
     {
-        {90, 225, 0}, // angles (degrees)
-        {0.57, 0.34, 1.0} // gains
+        {90, 236, 0}, // angles (degrees)
+        {0.56, 0.34, 1.0} // gains
 
     },
 

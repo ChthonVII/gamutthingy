@@ -1,6 +1,7 @@
 #ifndef CRTEMULATION_H
 #define CRTEMULATION_H
 
+#include "vec2.h"
 #include "vec3.h"
 #include "constants.h"
 
@@ -38,6 +39,8 @@ public:
     double overallMatrix[3][3];
     double inverseOverallMatrix[3][3];
 
+    bool demodfixes;
+
     // variables for clamping
     double rgbclamplowlevel;
     double rgbclamphighlevel;
@@ -45,7 +48,7 @@ public:
 
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel);
+    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma
@@ -72,7 +75,7 @@ public:
 // helper functions
 bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision);
 bool MakeIdealYUVtoRGB(double output[3][3], int constantprecision);
-
+vec2 MakeVanillaGreen(int constantprecision, bool &ok);
 
 
 
