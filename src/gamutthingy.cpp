@@ -328,7 +328,7 @@ int main(int argc, const char **argv){
             &nescbc                //bool* vartobind; // pointer to variable whose value to set
         },
         {
-            "--crtclamphighrgb",                     //std::string paramstring; // parameter's text
+            "--crtclamphighenable",                     //std::string paramstring; // parameter's text
             "CRT Clamp High RGB Output Values",           //std::string prettyname; // name for pretty printing
             &crtdoclamphigh                //bool* vartobind; // pointer to variable whose value to set
         },
@@ -1666,7 +1666,7 @@ int main(int argc, const char **argv){
 
     if (eilut && !crtdoclamphigh){
         crtdoclamphigh = true;
-        printf("Forcing crtclamphighrgb to true because eilut is true. Clamping CRT R'G'B' high output to %f.\n", crtclamphigh);
+        printf("Forcing crtclamphighenable to true because eilut is true. Clamping CRT R'G'B' high output to %f.\n", crtclamphigh);
     }
 
     if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
