@@ -1,57 +1,183 @@
 # gamutthingy
 
-WARNING: This readme file is out of date. Please check recent commits for new and as-yet undocumented features.
 
-Converts .png images between color gamuts with chromatic adaptation and gamut compression mapping.
+**NOTE:** This readme file is in the middle of a substantial revision. The section explaining parameters has been fully revised; the rest has not.
 
-Principally intended for creating gamut conversion LUTs for FFNx and for color correcting texture assets for Final Fantasy 7 & 8.
+Performs color gamut conversion conversion with chromatic adaptation and gamut compression mapping, and optionally simulates the "color correction" behavior of several CRT televisions.
 
-Supercedes ntscjpng and ntscjguess.
+Principally intended for adjusting the colors of CRT-era games for modern sRGB displays.
 
-**Parameters:**
-- `--help` or `-h`: Displays help.
-- `--color` or `-c`: Specifies a single color to convert. A message containing the result will be printed to stdout. Should be a "0x" prefixed hexadecimal representation of an RGB8 color. For example: `0xFABF00`.
-- `--infile` or `-i`: Specifies an input file. Should be a .png image.
-- `--outfile` or `-o`: Specifies an input file. Should be a .png image.
-- `--gamma` or `-g`: Specifies the gamma function (and inverse) to be applied to the input and output. Possible values are `srgb` (default) and `linear`. LUTs for FFNx should be created using linear RGB. Images should generally be converted using the sRGB gamma function.
-- `--source-gamut` or `-s`: Specifies the source gamut. Possible values are:
-     - `srgb`: The sRGB gamut used by (SDR) modern computer monitors. Identical to the bt709 gamut used for modern HD video.
-     - `ntscj`: alias for `ntscjr`.
-     - `ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets, official specification. (whitepoint 9300K+27mpcd) Default.
-     - `ntscjp22`: NTSC-J gamut as derived from average measurements conducted on Japanese CRT television sets with typical P22 phosphors. (whitepoint 9300K+27mpcd) These phosphors deviate significantly from the specification, and were generally used in tandem with a "color correction circuit." See below.
-     - `ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts, official specification. (whitepoint 9300K+8mpcd)
-     - `smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.
-     - `ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).
-- `--dest-gamut` or `-d`: Specifies the destination gamut. Possible values are the same as for source gamut. Default is `srgb`.
-- `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing white points. Possible values are `bradford` and `cat16` (default).
+Four general modes of operation:
+- Convert a single color input and print the result to the console.
+- Convert a .png image input and save the output to a .png image.
+- Generate a 3D lookup table (LUT) and save the output to a .png image.
+- Simulate the color palette of a NES/Famicom and save the output to a .pal file in the format used by most NES emulators.
+
+#### Parameters
+**Input Modes:**
+- `--color` or `-c`: Specifies a single color to convert. Should be a "0x" prefixed hexadecimal representation of an RGB8 color. For example: `0xFABF00`.  A message containing the result will be printed to stdout.
+- `--infile` or `-i`: Specifies an input file to convert. Should be a .png image. Output will be saved to the output file specified with `-o` or `--outfile`.
+- `--lutgen`: Generate a LUT. Possible values are `true` or `false`(default). Output will be saved to the output file specified with `-o` or `--outfile`.
+- `--nespalgen`: Generate a NES/Famicom palette. Possible values are `true` or `false`(default). Output will be saved to the output file specified with `-o` or `--outfile`.
+
+**Input-Related Parameters:**
+- `--gamma-in` or `--gin`: Specifies the gamma function to be applied to the input. Possible values are `srgb` (default), `linear`, and `rec2084`. Will be ignored if CRT simulation before gamut conversion is enabled (`--crtemu front`) since the CRT EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png input isn't supported yet.)
+- `--hdr-sdr-max-nits` or `--hsmn`: See same in "Output Parameters," below.
+- `--lutsize`: Specifies the size of the LUT to generate. E.g., `--lutsize 64` will result in a 64x64x64 LUT. Integer number. Default 128.
+- `--eilut`: Enables "Expanded Intermediate LUT Generation" mode. LUTs generated with this mode assume that the program using the LUT performs its own composite and color correction simulation, and then shifts and renormalizes the output from the range specified by `--crtclamplow` and `--crtclamphigh` to 0-1. (CRT color correction usually produces out-of-bounds values that need to be normalized.) (If `--crtclamphighrgb false`, it will be forced to true and the default high clamping value will be used.) This is useful if you want to simulate composite video artifacts that cannot be expressed by simply changing the R'G'B' input value. Because gamutthingy prunes the source gamut boundaries based on the color correction simulation, the program using the LUT needs to implement substantially similar color correction simulation. (An alternative approach would be to apply the inverse of the color correction (expressed as a R'G'B'-to-R'G'B' matrix), then use the LUT generated by the standard mode.) Possible values are `true` or `false`(default).
+- `--nespalmode`: When generating NES palette, simulate a PAL NES model instead of a NTSC one. Possible values are `true` or `false`(default).
+- `--nesburstnorm`: When generating NES palette, normalize chroma to the amplitude of the NES's colorburst, rather than assuming 40 IRE. While CRT televisions should do this, in practice some did and some didn't. Possible values are `true`(default) or `false`.
+- `--nesskew26a`: When generating NES palette, phase skew, in degrees, caused by design of the traces for hues \#2, \#6, and \#A. Floating point number. Default 4.5.
+- `--nesboost48c`: When generating NES palette, luma boost, in IRE units, caused by design of the traces for hues \#4, \#8, and \#C. Floating point number. Default 1.0.
+- `--nesperlumaskew`: When generating NES palette, phase skew, in degrees, for each step of increasing luma. Floating point number. Default -2.5. Sane values are -2.5 for the 2C02E PPU chip used in early NTSC NES/Famicom models, -5.0 for the 2C02G used in mid/late NTSC models, and -10.0 for the 2C07 used in PAL models (although PAL phase alternation cancels this out when `--nespalmode true`).
+
+**CRT Simulation Parameters:**
+- `--crtemu`: Specifies whether to simulate a CRT before or after gamut conversion, or not at all. Possible values are `none` (default), `front` (before the gamut conversion), and `back` (after the gamut conversion). The common use case is `front`. There are few, if any, use cases for `back`.
+- `--crtmod`: Specifies the R'G'B'-to-composite modulator chip in the game console. Note that (1) on paper, these chips are all extremely close to an ideal modulator, (2) the data sheets for these chips were often more aspirational than descriptive, and (3) these chips generated all sorts of analog artifacts that aren't simulated here. Accordingly, `none` is the advised setting. Possible values are:
+     - `none`  Assume an ideal modulator.(default)
+     - `CXA1145` Extremely common. Used in most 1st generation and some 2nd generation Sega Genesis, Sega Master System II, NEO GEO AES, Amiga consoles, SNK consoles, and many other things.
+     - `CXA1645` Used in some 2nd generation and all 3rd generation Sega Genesis, Sony Playstation 1, Genesis 3, Sega Saturn, NeoGeo CD/CDZ.
+- `--crtdemod`: Specifies the composite-to-R'G'B' demodulator chip in the CRT television. CRT "color correction" is accomplished via the demodulation angles and gains built into this chip. Possible values are:
+     - `none` Assume an ideal "straight" demodulator. (default)
+     - `dummy` Same as `none`. Use this for chips implementing "no color correction" standards such as EBU and SMPTE-C.
+     - `CXA1464AS` Used in Japan Sony Trinitron ~1993-1995.
+     - `CXA1465AS` Used in U.S. Sony Trinitron ~1993-1995.
+     - `CXA1870S_JP` Used in Japan Sony Trinitron ~1996.
+     - `CXA1870S_US` Used in U.S. Sony Trinitron ~1996.
+     - `CXA2060BS_JP` Likely used in Japan Sony Trinitron ~1997.
+     - `CXA2060BS_US` Likely used in U.S. Sony Trinitron ~1997.
+     - `CXA2060BS_PAL` Likely used in Europe Sony Trinitron ~1997.
+     - `CXA2025AS_JP` Used in Japan Sony Trinitron ~1997.
+     - `CXA2025AS_US` Used in U.S. Sony Trinitron ~1997.
+     - `CXA1213AS` Probably used in Sony Trinitron ~1992. Unclear if this chip was meant for Japan, U.S., or both.
+     - `TDA8362` Used in Hitachi CMT2187/2196/2198/2199 ~1994. Unclear if this television used different whitepoints in U.S. and Japan.
+- `--crtdemodfixes`: Specificies whether to assume low-precision values for demodulator angles and gains that are near "straight" demodulation were intended to mean "straight" demodulation and automatically correct them to exact values. Possible values are `true` (default) or `false`.
+- `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
+- `--crtyuvconst`: Set the precision for the white balance constants used in demodulation equations. Possible values are `2digit` (truncated constants from 1953 standard), `3digit` (less truncated constants from 1994 SMPTE-C (170M) standard)(default), or `exact` (compute precise constants from 1953 primaries and Illuminant C).
+- `--crtclamplow`: Specifies low clamping level for out-of-bounds R'G'B' output from demodulation. Floating point number -0.1 to 0. Default -0.1.
+- `--crtclamphighrgb`: Specifies whether to clamp high out-of-bounds R'G'B' output from demodulation. Possible values are `true` (default) or `false`.
+- `--crtclamphigh`: Specifies high clamping level for out-of-bounds R'G'B' output from demodulation. Floating point number >= 1.0. Default 1.1. Sane values are 1.0 to 1.2, particularly 1.0, 1.04, and 1.1. Does nothing unless `--crtclamphighrgb true`.
+- `--crtblack`: Specifies black level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 0.0001. Sane values are 0.0001 to 0.001 (0.01 to 0.1 cd/m^2). The default is probably close to a properly calibrated Sony Trinitron.
+- `--crtwhite`: Specifies white level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 1.71. Sane values are around 1.8 (180 cd/m^2). The default is probably close to a properly calibrated Sony Trinitron.
+
+**Gamut Parameters:**
+- `--source-primaries` or `-s`: Specifies the color primaries of the source gamut. Possible values are:
+     - `srgb_spec` The sRGB/bt709 specification. Used by modern (SDR) computer monitors and modern HD video.
+     - `ntsc_spec` The original 1953 NTSC color primaries. Used for the U.S. broadcast specification until 1994 (actually still in use until 2000ish) and the Japanese broadcast specification for the entire lifetime of SDR television.
+     - `smptec_spec` The SMPTE-C (170M) specification. U.S. broadcast/phosphor specification from 1994. (Widespread adoption achieved 2000ish.)
+     - `ebu_spec` The EBU specification. European broadcast/phosphor specification.
+     - `rec2020_spec` Wide gamut specification for modern HDR monitors.
+     - `P22_average` "Average" P22 phosphors used by grade.slang shader for Retroarch. Described as a "[m]ix between averaging KV-20M20, KDS VS19, Dell D93, 4-TR-B09v1_0.pdf and Phosphor Handbook 'P22'" See [insert cite].
+     - `P22_trinitron` Official chromaticity coordinates for P22 phosphors in Trinitron CRT computer monitor provided by Sony to the authors of [insert cite], published in 1995. It's plausible that the same phosphors were used in Trinitron CRT televisions from the same time period. Default.
+     - `P22_trinitron_bohnsack` Measurements of a GDM-17SE1 Trinitron CRT computer monitor (model launched 1994) reported in [insert cite]. Very close to `P22_trinitron`.
+     - `P22_trinitron_raney1` Measurements of a Sony PVM 20M2U professional-grade CRT television (model launched ~1996). See [insert cite].
+     - `P22_trinitron_raney2` Measurements of a Sony PVM 20L2MDU professional-grade CRT television (model launched 2002). See [insert cite].
+     - `P22_trinitron_mixandmatch` Mixes values from `P22_trinitron` and `P22_trinitron_raney1`, picking those nearest the `ntsc_spec` coordinates. An idealized (and perhaps slightly fictional) Trinitron professional-grade CRT television.
+     - `P22_nec_multisync_c400` Measurements (?) of a NEC MULTISYNC C400 computer monitor (model launched ~1996), stated without citation in [insert cite].
+     - `P22_dell` Described as "Dell computer monitor (all monitors except 21" Mitsubishi p/n 65532)" without citation in [insert cite].
+     - `P22_japan_specific` "Japan Specific Phosphor" described in ARIB TR B9 v1.0 (1998).
+     - `P22_kds_vs19` Measurements (?) of a KDS VS19 computer monitor (model launched mid 90s?), stated without citation in [insert cite].
+     - `P22_ebuish` EBUish phosphors noted in a 1992 Toshiba patent. [insert cite]
+     - `P22_hitachi` Official chromaticity coordinates for P22 phosphors in CM2198 CRT computer monitor provided by Hitachi to the authors of [insert cite], published in 1995. Hitachi also made a CMT2198 CRT television, and it's plausible that the same phosphors were used.
+     - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
+- `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
+- `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
+     - `D65` Whitepoint for modern sRGB, rec2020, and HD specifications, U.S. SD television specification post-1994, and European SD television specification. Some CRTs with a nominal D65 whitepoint had a higher temperature whitepoint in practice. Such as ~6900K or ~7000K in Europe and 7000K-7500K in the U.S.
+     - `9300K27mpcd` Whitepoint for Japanese SD television reciever specification. Some CRTs with a nominal 9300K+27mpcd whitepoint had a lower temperature whitepoint in practice, such as 9300K+8mpcd, 8800K, or 8500K. Default.
+     - `9300K8mpcd` Whitepoint for Japanese SD television broadcast specification. Also very common in practice for Japanese professional-grade CRT televisions, and for computer monitors worldwide.
+     - `illuminantC` Nominal whitepoint for U.S. SD television pre-1994. Replaced by D65 in practice decades earlier.
+     - `6900K` Approximate actual whitepoint of some "D65" CRTs.
+     - `7000K` Approximate actual whitepoint of some "D65" CRTs.
+     - `7100K` Approximate actual whitepoint of some "D65" CRTs.
+     - `7250K` Approximate actual whitepoint of some "D65" CRTs.
+     - `D75` Approximate actual whitepoint of some "D65" CRTs.
+     - `8500K` Approximate actual whitepoint of some "9300K" CRTs.
+     - `8800K` Approximate actual whitepoint of some "9300K" CRTs.
+     - `trinitron_93k_bohnsack` Measured whitepoint of a GDM-17SE1 Trinitron computer monitor (model launched 1994). See [insert cite]. Very near 9300K+8mpcd.
+     - `trinitron_d65_soniera` Measured whitepoint of a Sony Trinitron PVM-20L5 professional-grade CRT television (model launched 2002). See [insert cite]. 6480K, near D65.
+     - `diamondpro_d65_fairchild` Measured whitepoint of a Mitsubishi Diamond Pro (unspecified model number) computer monitor with Trinitron tube in D65 mode. See [insert cite]. Rather far off D65.
+     - `diamondpro_93k_fairchild` Measured whitepoint of a Mitsubishi Diamond Pro (unspecified model number) computer monitor with Trinitron tube in 9300K mode. See [insert cite]. Near 9300K+27mpcd.
+     - `nec_multisync_c400_93k` Measured whitepoint of a NEC MultiSync C400 computer monitor. See [insert cite]. Near 9300K+27mpcd.
+     - `kds_vs19_93k` Whitepoint for KDS VS19 computer monitor. Probably not an actual measurement, since exactly equal to 9300K+27mpcd.
+     - `customcoord` Use the coordinants supplied by the user via `--source-whitepoint-custom-coords`.
+     - `customtemp` Derive coordinants from color temperature supplied by user via `--source-whitepoint-custom-temp`.
+- `--source-whitepoint-custom-coords` or `--swcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the source gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--source-whitepoint customcoord`.
+- `--source-whitepoint-custom-temp` or `--swct`: Specify color temperature for the whitepoint of the source gamut, and coordinates will be estimated automatically. Floating point number. Does nothing unless `--source-whitepoint customtemp`.
+- `--dest-primaries` or `-d`: Specifies the color primaries of the destination gamut. Possible values are the same as for source gamut. Default is `srgb_spec`.
+- `--dest-primaries-custom-coords` or `-dpcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the destination gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--dest-primaries customcoord`.
+- `--dest-whitepoint` or `--dw`: Specifies the whitepoint of the destination gamut. Possible values are the same as for `--source-whitepoint`. Default `D65`.
+- `--dest-whitepoint-custom-coords` or `--dwcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the destination gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--dest-whitepoint customcoord`.
+- `--dest-whitepoint-custom-temp` or `--dwct`: Specify color temperature for the whitepoint of the destination gamut, and coordinates will be estimated automatically. Floating point number. Does nothing unless `--dest-whitepoint customtemp`.
+
+**Chromatic Adaptation Parameters:**
+- `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing whitepoints. Possible values are `cat16` (default) or `bradford`.
+
+**Spiral CARISMA Parameters:**
+- `--spiral-carisma` or `--sc`: Perform selective hue rotation on certain high-saturation colors prior to gamut compression. Possible values are `true` (default) or `false`. Automatically disabled for NES palette generation.
+- `--scfunction` or `--scf`: Interpolation function to use for Spiral CARISMA. Possible values are `cubichermite` (default) or `exponential`.
+- `--scfloor` or `--scfl`: Specify the floor for the interpolation function used by Spiral CARISMA on a scale of 0.0 to 1.0 relative to the saturation of the cusp at any given hue. Colors less saturated than this will not be rotated at all. Floating point number. Default 0.7.
+- `--scceiling` or `--sccl`: Specify the ceiling for the interpolation function used by Spiral CARISMA on a scale of 0.0 to 1.0 relative to the saturation of the cusp at any given hue. Colors more saturated than this will receive full rotation. Floating point number. Default 1.0.
+- `--scexponent` or `--scxp`: Specify the exponent to use when Spiral CARISMA is configured to use an exponential function for interpolation (`--scfunction exponential`). Floating point number. 1.0 is linear. Values less than 1.0 are not recommended. Default 1.2.
+- `--scmax` or `--scm`: Specify scaling factor applied to Spiral CARISMA's max rotation. Floating point number. 1.0 is full strength. 0.0 effectively disables Spiral CARISMA. Default 1.0.
+
+**Gamut Compression Parameters:**
 - `--map-mode` or `-m`: Specifies gamut mapping mode. Possible values are:
-     - `clip`: No gamut mapping is performed and linear RGB output is simply clipped to 0, 1. Detail in the out-of-bounds range will be lost.
-     - `compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving some of the out-of-bounds detail. Default.
-     - `expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. (Also, reverses the order of the steps in the `vp` and `vpr` algorithms.) The only use for this is to prepare an image for a "roundtrip" conversion. For example, if you want to display a sRGB image as-is in FFNx's NTSC-J mode, you would convert from sRGB to NTSC-J using `expand` in preparation for FFNx doing the inverse operation.
+     - `clip`: No gamut mapping is performed and linear RGB output is simply clipped to 0, 1. Hue will be altered and detail in the out-of-bounds range will be lost. Not recommended.
+     - `compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving hue and some of the out-of-bounds detail. Default.
+     - `expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. (Also, reverses the order of the steps in the `vp`, `vpr`, and `vprc` algorithms.) The only use for this is to prepare an image for a "roundtrip" conversion. Does not work well with CRT simulation. In the future, I plan to deprecate this mode in favor of a flow-blown inverse color search mode.
 - `--gamut-mapping-algorithm` or `--gma`: Specifies which gamut mapping algorithm to use. (Does nothing if `--map-mode clip`.) Possible values are:
      - `cusp`: The CUSP algorithm decribed in [1], but with tunable compression parameters discussed below.
      - `hlpcm`: The HLPCM algorithm described in [2], but with tunable compression parameters discussed below.
      - `vp`: The VP algorithm described in [3], but with linear light scaling and tunable compression parameters discussed below.
-     - `vpr`: VPR, a modification of the VP algorithm created for gamutthingy. The modifications are discussed below. Default. 
+     - `vpr`: VPR, a modification of the VP algorithm created for gamutthingy. The modifications are discussed below.
+     - `vprc`: VPRC, a further modification of the VP algorithm created for gamutthingy. The modifications are discussed below. Default.
 - `--safe-zone-type` or `-z`: Specifies how the outer zone subject to remapping and the inner "safe zone" exempt from remapping are defined. Possible values are:
      - `const-fidelity`: The standard approach in which the zones are defined relative to the distance from the "center of gravity" to the destination gamut boundary. Yields consistent colorimetric fidelity, with variable detail preservation.
      - `const-detail`: The approach described in [4] in which the remapping zone is defined relative to the difference between the distances from the "center of gravity" to the source and destination gamut boundaries. As implemented here, an overriding minimum size for the "safe zone" (relative to the destination gamut boundary) may also be enforced. Yields consistent detail preservation, with variable colorimetric fidelity (setting aside the override option).  Default.
-     - Note that the behavior when `--safe-zone-type const-detail` is used in conjunction with a high minimum safe zone set by `--remap-limit` is somewhat unintuitive. This mode will never preserve more detail than `--safe-zone-type const-fidelity` with the same limit. Rather it will preserve less detail, in exchange for greater colorimetric fidelity, where the gamut boundary differences are small and presumably "enough" detail is already preserved. 
-- `--remap-factor` or `--rf`: Specifies the size of the remapping zone relative to the difference between the distances from the "center of gravity" to the source and destination gamut boundaries. (Does nothing if `--safe-zone-type const-fidelity`.) Default 0.4.
-- `--remap-limit` or `--rl`: Specifies the size of the safe zone (exempt from remapping) relative to the distance from the "center of gravity" to the destination gamut boundary. If `--safe-zone-type const-detail`, this serves as a minimum size limit when application of `--remap-factor` would lead to a smaller safe zone. Default 0.9.
-- `--knee` or `-k`: Specifies the type of knee function used for compression, `hard` or `soft`. Default `soft`.
-- `--knee-factor` or `--kf`: Specifies the width of the soft knee relative to the size of the remapping zone. (Does nothing if `--knee hard`.) Note that the soft knee is centered at the knee point, so half the width extends into the safe zone, thus expanding the area that is remapped. Default 0.4.
-- `--dither` or `--di`: Specifies whether to apply dithering to the ouput, `true` or `false`. Uses Martin Roberts' quasirandom dithering algorithm described in [5]. Dithering should be used for images in general, but should not be used for LUTs.  Default `true`.
-- `--verbosity` or `-v`: Specify verbosity level. Integers 0-5. Default 2.
+     - Note that the behavior when `--safe-zone-type const-detail` is used in conjunction with a high minimum safe zone set by `--remap-limit` is somewhat unintuitive. This mode will never preserve more detail than `--safe-zone-type const-fidelity` with the same limit. Rather it will sometimes preserve less detail, in exchange for greater colorimetric fidelity, where the gamut boundary differences are small and presumably "enough" detail is already preserved.
+- `--remap-factor` or `--rf`: Specifies the size of the remapping zone relative to the difference between the distances from the "center of gravity" to the source and destination gamut boundaries. (Does nothing if `--safe-zone-type const-fidelity`.) Floating point number 0.0 to 1.0. Default 0.4.
+- `--remap-limit` or `--rl`: Specifies the size of the safe zone (exempt from remapping) relative to the distance from the "center of gravity" to the destination gamut boundary. If `--safe-zone-type const-detail`, this serves as a minimum size limit when application of `--remap-factor` would lead to a smaller safe zone. Floating point number 0.0 to 1.0.  Default 0.9.
+- `--knee` or `-k`: Specifies the type of knee function used for compression, `hard` or `soft` (default).
+- `--knee-factor` or `--kf`: Specifies the width of the soft knee relative to the size of the remapping zone. (Does nothing if `--knee hard`.) Note that the soft knee is centered at the knee point, so half the width extends into the safe zone, thus expanding the area that is remapped. Floating point number 0.0 to 1.0. Default 0.4.
 
-**General Usage:**
-- To prepare a LUT compatible with FFNx: Process the supplied neutral LUT, 64.png, using selected parameters. Gamma should linear and dithering should be off. For example: `gamutthingy -i 64.png -o output.png -g linear -s ntscj -d srgb --map-mode compress --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di false`
-- To prepare a sRGB image for use in FFNx's NTSC-J mode: Convert from sRGB to NTSC-J with `--map-mode expand`. The LUTs that ship with FFNx were made with the default settings, so use the defaults unless you've replaced the LUTs. For example: `gamutthingy -i input.png -o output.png -g srgb -s srgb -d ntscj --map-mode expand --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di true`. You might wish to disable dithering for things like fonts and stretching/repeating UI elements where it might be noticable. Use `--map-mode compress` rather than `expand` when targeting HDR mode.
-- To prepare a NTSC-J image for use in FFNx's sRGB mode: Convert from NTSC-J to sRGB with `--map-mode compress`. The LUTs that ship with FFNx were made with the default settings, so use the defaults unless you've replaced the LUTs. For example: `gamutthingy -i input.png -o output.png -g srgb -s ntscj -d srgb --map-mode compress --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di true`. You might wish to disable dithering for things like fonts and stretching/repeating UI elements where it might be noticable.
-- To compute hardcoded colors for things like hext files and mark.dat in FFNx's NTSC-J mode use `--color` to convert a single color. Example: `gamutthingy -c 0xABCDEF -g srgb -s srgb -d ntscj --map-mode expand --gma vpr --safe-zone-type const-detail --remap-factor 0.4 --remap-limit 0.9 --knee soft --knee-factor 0.4 --di false`. Use `--map-mode compress` rather than `expand` when targeting HDR mode.
+**Output Parameters:**
+- `--outfile` or `-o`: Specifies output file. For .png file conversion and LUT generation, the output will be a .png file. For NES palette generation, the output will be a .pal file usable by most NES emulators.
+- `--neshtmloutputfile`: Specifies a secondary output file for writing a NES palette in human-readable html.
+- `--gamma-out` or `--gout`: Specifies the inverse gamma function to be applied to the output. Possible values are `srgb` (default), `linear`, and `rec2084`. Will be ignored if CRT simulation after gamut conversion is enabled (`--crtemu back`) since the CRT inverse EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png output isn't supported yet.)
+- `--hdr-sdr-max-nits` or `--hsmn`: Specific max nits used to display SDR white on a HDR monitor for rec2084 gamma. Floating point number. Default 200.0. Sane values are ~150 to ~200. This should be documented in your monitor's user manual. Google Chrome defaults to 200 if autodetection fails [insert cite].
+- `--dither` or `--di`: Specifies whether to apply dithering to the output. Possible values are `true` (default) or `false`. Uses Martin Roberts' quasirandom dithering algorithm described in [5]. Automatically disabled for single-color input, LUT generation, and NES palette generation.
+
+**Misc Parameters:**
+- `--help` or `-h`: Displays help.
+- `--verbosity` or `-v`: Specify verbosity level. Integer numbers 0-5. Default 2.
+
+#### Usage Tips
+- There are two general approaches to color grading CRT-era games: Matching a television you personally used to own, or matching a television similar to what the graphic artist used when making the game. In the latter case, you generally need to know when the game was developed and in what country.
+     - **Japan:** P22 phosphors, whitepoint near 9300K, color correction via Japan mode/model demodulator chip. Some example combinations that look plausible in practice:
+          - `--source-primaries P22_trinitron --source-whitepoint 9300K27mpcd --crtemu front --crtdemod CXA1464AS`
+          - `--source-primaries P22_trinitron_mixandmatch --source-whitepoint 9300K8mpcd --crtemu front --crtdemod CXA2060BS_JP`
+	- **U.S.:** The SMPTE-C 170M standard was issued in 1994, but adoption was not instantaneous. Many (most?) mid-90s CRT televisions still had color correction suitable for broadcasts using the old standard. For games made by U.S. developers from 1994 to 2000ish, you may have to try both possibilities and see which looks more plausible.
+	     - Old standard: P22 phosphors, whitepoint near D65, color correction via U.S. mode/model demodulator chip. Some example combinations that look plausible in practice:
+	          - `--source-primaries P22_trinitron_mixandmatch --source-whitepoint 7100K --crtemu front --crtdemod CXA2060BS_US`
+	          - TODO: Another good looking US example
+        - New standard: P22 phosphors, whitepoint near D65, no color correction. For expensive/professional models, SPMTE-C spec phosphors, whitepoint exactly D65, no color correction.
+   - **Europe/Australia:** P22 phosphors, whitepoint near D65, no color correction. For expensive/professional models, EBU spec phosphors, whitepoint exactly D65, no color correction. Plausible looking example:
+        - `--source-primaries ebu_spec --source-whitepoint D65 --crtemu front --crtdemod dummy`
+- Unfortunately, while we have several data points in the categories of phosphor chromaticities, whitepoint chromaticity, and color correction behavior, we do not have any cases where we can say with certainty that a particular trio of phosphors, whitepoint, and color correction were used together in a particular model of television. So you will have to guess. Yellow is most strongly impacted by color correction behavior. If you can find a combination where yellows are neither too orange nor too green, then everything else will probably look good too. Some hints for calibrating around yellow:
+     - Toggle Spiral CARISMA. Generally Spiral CARISMA makes primary/secondary colors look better, but occasionally things look better without it.
+     - Lower whitepoint temperature makes yellows oranger; higher whitepoint temperature makes them greener.
+     - Clipping demodulator output closer to 1.0 makes yellows oranger; clipping higher or not clipping at all makes them greener. (Clipping lower also makes red darker but more saturated, and reduces red-on-red detail.)
+     - Try a different demodulator. You can see the angles and gains by looking in the source code in constants.h. Larger red and green angles make yellows oranger; smaller angles make them greener. Red and green gains have proportionate effects, obviously.
+     - Some combinations simply do not work. Each demodulator chip was intended to pair with a particular set of phosphors (and whitepoint). If you try use certain phosphors with a demodulator intended for very different phosphors, there may be no set of parameters that look good.
+     - Some combinations may be missing pieces. Each demodulator chip was intended to pair with a particular set of phosphors (and whitepoint). But there is no guarantee that both the phosphors and demodulator are represented here.
+- Destination primaries and whitepoint should generally be sRGB spec and D65. (Unless you're trying to prepare something for roundtrip conversion.)
+- To compute hardcoded colors for things like FFNX hext files and mark.dat in FFNx's NTSC-J mode use `--color` to convert a single color.
+- LUT generation while simulating a CRT can only produces LUTs that use R'G'B' input. The program using the LUT must perform linearization in order to compute correct weights for interpolating between the 8 nearest lookup values.
+- When generating a LUT, you may wish to use sRGB output gamma so that more bandwidth is dedicated to darker colors. (Dark blue, in particular, tends to develop artifacts if starved of bandwidth.) However, if you do so, then the program using the LUT must linearize the lookup values before interpolating between them.
+- Unfortunately, Retroarch does not support 256x256x256 LUTs. 128x128x128 works though.
 
 **Implementation Details:**
-- When converting between gamuts with different white points, chromatic adaptation is done via the "Bradford method" described in [6] (see also [7]) or the "CAT16" method described in [10]. CAT16 is the default.
+- When converting between gamuts with different white points, chromatic adaptation is done via the the "CAT16" method described in [10] or the "Bradford method" described in [6] (see also [7]). CAT16 is the default.
 - Gamut mapping operations are done in the JzCzhz colorspace, the polar cousin to Jzazbz, described in [8]. A couple notes on JzCzhz:
      - Scaling the units of the XYZ input to set the absolute brightness causes the hue angles to rotate. Most of this rotation happens at very low brightness. For example, linear RGB red (1,0,0) rotates about 10 degrees going from 1 nit to 100 nits, but only about 1 degree going from 100 nits to 10,000 nits. I don't know if this is just a flaw in Jzazbz's design or an accurate depiction of some brightness-hue interaction like the Bezold–Brücke shift, or something else entirely. In part to avoid any problems here, everything is scaled to 200 nits.
      - The inverse PQ function used in Jzazbz -> XYZ conversion can sometimes produce NAN outputs. Without doing a formal analysis and proof, I *assume* this is *always* the result of asking pow() to do something that leads to an imaginary or complex number, and *only* happens on inputs that fall outside any possible gamut.
@@ -68,8 +194,21 @@ Supercedes ntscjpng and ntscjguess.
 - Dithering is done using Martin Roberts' quasirandom dithering algorithm described in [5].
 - PNG plumbing shamelessly borrowed from png2png example by John Cunningham Bowler.
 
-**About Color Correction Circuits:**  
-Japanese CRT television sets in the 1980s and 90s typically used P22 phosphors, which deviated significantly from the NTSC-J specification, in tandem with a "color correction circuit" to compensate for that deviation. Unfortunately, the behavior of these color correction circuits is not well documented, with patent filings appearing to be the best source of information. It appears that 1970s-era color correction circuits simply distorted the YUV demodulation to make flesh tones look accurate at the expense of everything else. A patent from 1999 ([link](https://patentimages.storage.googleapis.com/de/f2/7b/a7fb8ca4a4454d/US5867286.pdf)) entails something that sounds like a proper gamut conversion with rudimentary gamut compression. Presumably, color correction circuits from the intervening years had intermediate levels of sophistication and color accuracy. The behavior of later color correction circuits that resemble a proper gamut conversion can be roughly simulated by doing a gamut conversion from `ntscjr` to `ntscjp22` followed by another conversion from `ntscjp22` to the target gamut. However, the end result is not terribly different from a direct conversion from `ntscjr` to the final gamut, and is not necessarily more accurate either. Unfortunately, there is often no way of knowing which model of television set a particular game or piece of media was mastered on, which color correction circuit that model of television used, or what that particular color correction circuit actually did.
+TODO: document Spiral CARISMA
+
+TODO: document VPRC
+
+**About Color Correction Circuits:**
+TODO: rewrite this as summary of CRT simulation
+TODO: document modulation
+TODO: document demodulation
+TODO: document clipping
+TODO: document gamma function (including poyton on PAL not being 2.8)
+
+TODO: document NES simulation
+
+TODO: fill in missing citations
+
 
 **References:**
 - [1] Morovic, Ján. "To Develop a Universal Gamut Mapping Algorithm." Ph.D. Thesis. University of Derby, October 1998. ([Link](https://ethos.bl.uk/OrderDetails.do?did=1&uin=uk.bl.ethos.302487))
@@ -83,7 +222,6 @@ Japanese CRT television sets in the 1980s and 90s typically used P22 phosphors, 
 - [9] Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. ([Link](https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694))
 - [10] Li, Changjun, Li, Zhiqiang, Wang, Zhifeng, Xu, Yang, Luo, Ming Ronnier, Cui, Guihua, Melgosa, Manuel, & Pointer, Michael. "A Revision of CIECAM02 and its CAT and UCS." *Proc. IS&T 24th Color and Imaging Conf.*, pp. 208-212 ([Link](https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/24/1/art00035))
 
-
 **Building:**
 
 Linux:
@@ -93,4 +231,44 @@ Linux:
 Windows:
 - Either install libpng >= 1.6.0 where your linker knows to find it, or edit the #includes to use a local copy.
 - TODO make a visual studio project file
+
+
+TODO: cite NES stuff, cite CRT color correction, cite poyton PAL gamma, CRT gamma section, add res tof modulator chips, explain spiracl charisma, explain vprc, cite gamut sources
+
+cite this
+The Effect of Ultrafine Pigment Color Filters on Cathode Ray Tube Brightness, Contrast, and Color Purity
+
+Katsutoshi Ohno1 and Tsuneo Kusunoki1
+
+© 1996 ECS - The Electrochemical Society
+Journal of The Electrochemical Society, Volume 143, Number 3 Citation Katsutoshi Ohno and Tsuneo Kusunoki 1996 J. Electrochem. Soc. 143 1063
+https://iopscience.iop.org/article/10.1149/1.1836583
+
+
+full cite for color .originally
+Color Management: Current Practice and The Adoption of a New Standard.
+カラー管理 現行の実情と新標準の適用
+
+    Publisher site Copy service
+    Access JDreamⅢ for advanced search and analysis.
+
+Clips
+Author (2)： HAS M
+(International Color Consortium)
+,  NEWMAN T
+(International Color Consortium)
+
+Material： TAGA Proceedings (Technical Association of Graphic Arts)  (TAGA Proc (Tech Assoc Graphic Arts))
+
+Volume： 1995  Issue： Vol 2  Page： 748-771  Publication year： 1995
+JST Material Number： B0702A  CODEN： TAPRA  Document type： Proceedings
+Article type： 原著論文  Country of issue： United States (USA)  Language： ENGLISH (EN)
+https://jglobal.jst.go.jp/en/detail?JGLOBAL_ID=200902173358671326
+Michael Has and Todd Newman
+
+https://www.displaymate.com/ShootOut_Part_1.htm
+Sony PVM-20L5 black 0.01 cd/m2 to white 176 cd/m2
+
+cite grade
+https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang
 
