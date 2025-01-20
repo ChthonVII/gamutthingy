@@ -189,17 +189,17 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
     tempnode.blue = goalblue;
     frontier.push_back(tempnode);
 
-    printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
+    //printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
     // for as long as we have something left to check in the frontier, check one
     while(!frontier.empty()){
         // pop the front of the queue
         frontiernode examnode = frontier.front();
         frontier.pop_front();
-        printf("popped %i, %i, %i\n", examnode.red, examnode.green, examnode.blue);
+        //printf("popped %i, %i, %i\n", examnode.red, examnode.green, examnode.blue);
 
         // skip if we've already visited this node (this should never happen)
         if (inversesearchvisitlist[examnode.red][examnode.green][examnode.blue]){
-            printf("\tskipping because visited\n");
+            //printf("\tskipping because visited\n");
             continue;
         }
 
@@ -223,7 +223,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         // did we hit exactly?
         if ((testresultred == goalred) && (testresultgreen == goalgreen) && (testresultblue == goalblue)){
             bestnode = examnode;
-            printf("\tEXACT HIT!\n");
+            //printf("\tEXACT HIT!\n");
             break;
         }
 
@@ -235,7 +235,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         double testdistancergb = sqrt((deltared * deltared) + (deltagreen * deltagreen) + (deltablue * deltablue));
         // figure Jzazbz error
         // reverse the output gamma
-        printf("\trgb errors: %i, %i, %i, overall: %f\n", deltared, deltagreen, deltablue, testdistancergb);
+        //printf("\trgb errors: %i, %i, %i, overall: %f\n", deltared, deltagreen, deltablue, testdistancergb);
         vec3 testtresultlinear = testtresult;
         if (destgamut.crtemumode == CRT_EMU_BACK){
             testtresultlinear = destgamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(testtresultlinear);
@@ -251,10 +251,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         double deltaaz = testresultJzazbz.y - goalJzazbz.y;
         double deltabz = testresultJzazbz.z - goalJzazbz.z;
         double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
-        printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
+        //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
         if (testdistance < bestdist){
-            printf("\t BEST SO FAR\n");
+            //printf("\t BEST SO FAR\n");
             isbest = true;
             bestdist = testdistance;
             bestnode = examnode;
@@ -264,12 +264,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         // Are we too far off the best to continue searching this direction?
         // The last condition is a bit flexible since bestdistrgb is inflated
         if (!isbest && (testdistance > (bestdist * 1.05)) && (testdistancergb > bestdistrgb)){
-            printf("\tNOT queuing neighbors.\n");
+            //printf("\tNOT queuing neighbors.\n");
             continue;
         }
 
         // If we're still here, then add neighbbors to the frontier
-        printf("\tqueuing neighbors\n");
+        //printf("\tqueuing neighbors\n");
 
         // figure out which rgb error is worst, and in what direction
         bool redplus = (deltared > 0);
@@ -287,203 +287,272 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         bool redworst = ((deltared > deltagreen) && (deltared > deltablue));
         bool greenworst = ((deltared < deltagreen) && (deltagreen > deltablue));
         bool blueworst = ((deltablue > deltagreen) && (deltared < deltablue));
+        bool redonly = (redworst && ((deltared > deltagreen+2) && (deltared > deltablue+2)));
+        bool greenonly = (greenworst && ((deltared+2 < deltagreen) && (deltagreen > deltablue+2)));
+        bool blueonly = (blueworst && ((deltablue > deltagreen+2) && (deltared+2 < deltablue)));
 
-        std::deque<frontiernode> fourpointers;
-        std::deque<frontiernode> threepointers;
-        std::deque<frontiernode> twopointers;
-        std::deque<frontiernode> onepointers;
-        std::deque<frontiernode> zeropointers;
-        int redscore = 0;
-        int greenscore = 0;
-        int bluescore = 0;
-        int totalscore = 0;
+        // if one axis has a much bigger error than the others, go that way and don't bother with other neighbors
+        bool onedirection = false;
+        frontiernode onedirectionnode = examnode;
+        if (redonly){
+            if (redplus){
+                onedirectionnode.red--;
+            }
+            else if (redminus){
+                onedirectionnode.red++;
+            }
+            if ((onedirectionnode.red >= 0) && (onedirectionnode.red <= 255)){
+                onedirection = true;
+            }
+        }
+        else if (greenonly){
+            if (greenplus){
+                onedirectionnode.green--;
+            }
+            else if (greenminus){
+                onedirectionnode.green++;
+            }
+            if ((onedirectionnode.green >= 0) && (onedirectionnode.green <= 255)){
+                onedirection = true;
+            }
+        }
+        else if (blueonly){
+            if (blueplus){
+                onedirectionnode.blue--;
+            }
+            else if (blueminus){
+                onedirectionnode.blue++;
+            }
+            if ((onedirectionnode.blue >= 0) && (onedirectionnode.blue <= 255)){
+                onedirection = true;
+            }
+        }
+        if (onedirection){
+            //printf("\t\tWant to push %i, %i, %i as the ONLY DIRECTION\n", onedirectionnode.red, onedirectionnode.green, onedirectionnode.blue);
+            bool skip = false;
+            // skip if already visited
+            if (inversesearchvisitlist[onedirectionnode.red][onedirectionnode.green][onedirectionnode.blue]){
+                //printf("\t\tskipping already visited\n");
+                skip = true;
+            }
+            // skip if already in the frontier queue
+            for (unsigned int i=0; i<frontier.size(); i++){
+                if ((onedirectionnode.red == frontier[i].red) && (onedirectionnode.green == frontier[i].green) && (onedirectionnode.blue == frontier[i].blue)){
+                    //printf("\t\tskipping already queued\n");
+                    skip = true;
+                    break;
+                }
+            }
+            if (!skip){
+                //printf("\t\tpushing\n");
+                if (isbest){
+                    frontier.push_front(onedirectionnode);
+                }
+                else {
+                    frontier.push_back(onedirectionnode);
+                }
+            }
+        }
+        // full neighbor search (not onedirection)
+        else {
 
-        for (int offsetred = -1;  offsetred <= 1; offsetred++){
-            int nextred = examnode.red + offsetred;
-            // skip if out of bounds
-            if ((nextred < 0) || (nextred > 255)) {
-                printf("\t\tskipping red outof bounds.\n");
-                continue;
-            }
-            // skip if wrong direction relative to largest error
-            if (redworst){
-                if (redplus && (offsetred > 0)){
-                    printf("\t\tskipping red wrong direction\n");
-                    continue;
-                }
-                else if (redminus && (offsetred < 0)){
-                    printf("\t\tskipping red wrong direction\n");
-                    continue;
-                }
-            }
-            // score this axis so we can roughly sort the possible moves before queuing them
-            if ((redplus && (offsetred < 0)) || (redminus && (offsetred > 0)) || (redzero && (offsetred == 0))){
-                redscore = 1;
-                if (redworst){
-                    redscore = 2;
-                }
-            }
-            else {
-                redscore = 0;
-            }
-            for (int offsetgreen = -1;  offsetgreen <= 1; offsetgreen++){
-                int nextgreen = examnode.green + offsetgreen;
+            std::deque<frontiernode> fourpointers;
+            std::deque<frontiernode> threepointers;
+            std::deque<frontiernode> twopointers;
+            std::deque<frontiernode> onepointers;
+            std::deque<frontiernode> zeropointers;
+            int redscore = 0;
+            int greenscore = 0;
+            int bluescore = 0;
+            int totalscore = 0;
+
+            for (int offsetred = -1;  offsetred <= 1; offsetred++){
+                int nextred = examnode.red + offsetred;
                 // skip if out of bounds
-                if ((nextgreen < 0) || (nextgreen > 255)) {
-                    printf("\t\tskipping green outof bounds.\n");
+                if ((nextred < 0) || (nextred > 255)) {
+                    //printf("\t\tskipping red outof bounds.\n");
                     continue;
                 }
                 // skip if wrong direction relative to largest error
-                if (greenworst){
-                    if (greenplus && (offsetgreen > 0)){
-                        printf("\t\tskipping green wrong direction\n");
+                if (redworst){
+                    if (redplus && (offsetred > 0)){
+                        //printf("\t\tskipping red wrong direction\n");
                         continue;
                     }
-                    else if (greenminus && (offsetgreen < 0)){
-                        printf("\t\tskipping green wrong direction\n");
+                    else if (redminus && (offsetred < 0)){
+                        //printf("\t\tskipping red wrong direction\n");
                         continue;
                     }
                 }
                 // score this axis so we can roughly sort the possible moves before queuing them
-                if ((greenplus && (offsetgreen < 0)) || (greenminus && (offsetgreen > 0)) || (greenzero && (offsetgreen == 0))){
-                    greenscore = 1;
-                    if (greenworst){
-                        greenscore = 2;
+                if ((redplus && (offsetred < 0)) || (redminus && (offsetred > 0)) || (redzero && (offsetred == 0))){
+                    redscore = 1;
+                    if (redworst){
+                        redscore = 2;
                     }
                 }
                 else {
-                    greenscore = 0;
+                    redscore = 0;
                 }
-                for (int offsetblue = -1;  offsetblue <= 1; offsetblue++){
-                    int nextblue = examnode.blue + offsetblue;
+                for (int offsetgreen = -1;  offsetgreen <= 1; offsetgreen++){
+                    int nextgreen = examnode.green + offsetgreen;
                     // skip if out of bounds
-                    if ((nextblue < 0) || (nextblue > 255)) {
-                        printf("\t\tskipping blue outof bounds.\n");
+                    if ((nextgreen < 0) || (nextgreen > 255)) {
+                        //printf("\t\tskipping green outof bounds.\n");
                         continue;
                     }
                     // skip if wrong direction relative to largest error
-                    if (blueworst){
-                        if (blueplus && (offsetblue > 0)){
-                            printf("\t\tskipping blue wrong direction\n");
+                    if (greenworst){
+                        if (greenplus && (offsetgreen > 0)){
+                            //printf("\t\tskipping green wrong direction\n");
                             continue;
                         }
-                       else if (blueminus && (offsetblue < 0)){
-                            printf("\t\tskipping blue wrong direction\n");
+                        else if (greenminus && (offsetgreen < 0)){
+                            //printf("\t\tskipping green wrong direction\n");
                             continue;
                         }
                     }
-
                     // score this axis so we can roughly sort the possible moves before queuing them
-                    if ((blueplus && (offsetblue < 0)) || (blueminus && (offsetblue > 0)) || (bluezero && (offsetblue == 0))){
-                        bluescore = 1;
+                    if ((greenplus && (offsetgreen < 0)) || (greenminus && (offsetgreen > 0)) || (greenzero && (offsetgreen == 0))){
+                        greenscore = 1;
+                        if (greenworst){
+                            greenscore = 2;
+                        }
+                    }
+                    else {
+                        greenscore = 0;
+                    }
+                    for (int offsetblue = -1;  offsetblue <= 1; offsetblue++){
+                        int nextblue = examnode.blue + offsetblue;
+                        // skip if out of bounds
+                        if ((nextblue < 0) || (nextblue > 255)) {
+                            //printf("\t\tskipping blue outof bounds.\n");
+                            continue;
+                        }
+                        // skip if wrong direction relative to largest error
                         if (blueworst){
-                            bluescore = 2;
+                            if (blueplus && (offsetblue > 0)){
+                                //printf("\t\tskipping blue wrong direction\n");
+                                continue;
+                            }
+                        else if (blueminus && (offsetblue < 0)){
+                                //printf("\t\tskipping blue wrong direction\n");
+                                continue;
+                            }
                         }
-                    }
-                    else {
-                        bluescore = 0;
-                    }
 
-                    // skip if all offsets are 0
-                    if ((offsetred == 0) && (offsetgreen == 0) && (offsetblue == 0)){
-                        printf("\t\tskipping zero offsets\n");
-                        continue;
-                    }
-                    // skip if already visited
-                    if (inversesearchvisitlist[nextred][nextgreen][nextblue]){
-                        printf("\t\tskipping already visited\n");
-                        continue;
-                    }
-                    // skip if already in the frontier queue
-                    bool skipflag = false;
-                    for (unsigned int i=0; i<frontier.size(); i++){
-                        if (((unsigned int)nextred == frontier[i].red) && ((unsigned int)nextgreen == frontier[i].green) && ((unsigned int)nextblue == frontier[i].blue)){
-                            skipflag = true;
-                            break;
+                        // score this axis so we can roughly sort the possible moves before queuing them
+                        if ((blueplus && (offsetblue < 0)) || (blueminus && (offsetblue > 0)) || (bluezero && (offsetblue == 0))){
+                            bluescore = 1;
+                            if (blueworst){
+                                bluescore = 2;
+                            }
                         }
-                    }
-                    if (skipflag){
-                        printf("\t\tskipping already in queue\n");
-                        continue;
-                    }
+                        else {
+                            bluescore = 0;
+                        }
 
-                    // if we haven't skipped by this point, queue this neighbor
-                    frontiernode nextnode;
-                    nextnode.red = nextred;
-                    nextnode.green = nextgreen;
-                    nextnode.blue = nextblue;
-                    /*
-                    if (isbest){
-                        frontier.push_front(nextnode);
-                    }
-                    else {
-                        frontier.push_back(nextnode);
-                    }
-                    */
-                    // push into temporary queues for binning
-                    totalscore = redscore + greenscore + bluescore;
-                    printf("\t\tpushing %i, %i, %i score %i\n", nextred, nextgreen, nextblue, totalscore);
-                    switch (totalscore){
-                        case 4:
-                            fourpointers.push_back(nextnode);
-                            break;
-                        case 3:
-                            threepointers.push_back(nextnode);
-                            break;
-                        case 2:
-                            twopointers.push_back(nextnode);
-                            break;
-                        case 1:
-                            onepointers.push_back(nextnode);
-                            break;
-                        default:
-                            zeropointers.push_back(nextnode);
-                            break;
-                    };
+                        // skip if all offsets are 0
+                        if ((offsetred == 0) && (offsetgreen == 0) && (offsetblue == 0)){
+                            //printf("\t\tskipping zero offsets\n");
+                            continue;
+                        }
+                        // skip if already visited
+                        if (inversesearchvisitlist[nextred][nextgreen][nextblue]){
+                            //printf("\t\tskipping already visited\n");
+                            continue;
+                        }
+                        // skip if already in the frontier queue
+                        bool skipflag = false;
+                        for (unsigned int i=0; i<frontier.size(); i++){
+                            if (((unsigned int)nextred == frontier[i].red) && ((unsigned int)nextgreen == frontier[i].green) && ((unsigned int)nextblue == frontier[i].blue)){
+                                skipflag = true;
+                                break;
+                            }
+                        }
+                        if (skipflag){
+                            //printf("\t\tskipping already in queue\n");
+                            continue;
+                        }
+
+                        // if we haven't skipped by this point, queue this neighbor
+                        frontiernode nextnode;
+                        nextnode.red = nextred;
+                        nextnode.green = nextgreen;
+                        nextnode.blue = nextblue;
+                        /*
+                        if (isbest){
+                            frontier.push_front(nextnode);
+                        }
+                        else {
+                            frontier.push_back(nextnode);
+                        }
+                        */
+                        // push into temporary queues for binning
+                        totalscore = redscore + greenscore + bluescore;
+                        //printf("\t\tpushing %i, %i, %i score %i\n", nextred, nextgreen, nextblue, totalscore);
+                        switch (totalscore){
+                            case 4:
+                                fourpointers.push_back(nextnode);
+                                break;
+                            case 3:
+                                threepointers.push_back(nextnode);
+                                break;
+                            case 2:
+                                twopointers.push_back(nextnode);
+                                break;
+                            case 1:
+                                onepointers.push_back(nextnode);
+                                break;
+                            default:
+                                zeropointers.push_back(nextnode);
+                                break;
+                        };
 
 
-                } // end for offsetblue
-            } // end for offsetgreen
-        } // end for offsetred
+                    } // end for offsetblue
+                } // end for offsetgreen
+            } // end for offsetred
 
-        // push our binned neighbors into the frontier queue
-        // push to front if this is the best node so far
-        if (isbest){
-            // reverse order since we're pushing to front
-            for (unsigned int i=0; i<zeropointers.size(); i++){
-                frontier.push_front(zeropointers[i]);
+            // push our binned neighbors into the frontier queue
+            // push to front if this is the best node so far
+            if (isbest){
+                // reverse order since we're pushing to front
+                for (unsigned int i=0; i<zeropointers.size(); i++){
+                    frontier.push_front(zeropointers[i]);
+                }
+                for (unsigned int i=0; i<onepointers.size(); i++){
+                    frontier.push_front(onepointers[i]);
+                }
+                for (unsigned int i=0; i<twopointers.size(); i++){
+                    frontier.push_front(twopointers[i]);
+                }
+                for (unsigned int i=0; i<threepointers.size(); i++){
+                    frontier.push_front(threepointers[i]);
+                }
+                for (unsigned int i=0; i<fourpointers.size(); i++){
+                    frontier.push_front(fourpointers[i]);
+                }
             }
-            for (unsigned int i=0; i<onepointers.size(); i++){
-                frontier.push_front(onepointers[i]);
+            else {
+                for (unsigned int i=0; i<fourpointers.size(); i++){
+                    frontier.push_back(fourpointers[i]);
+                }
+                for (unsigned int i=0; i<threepointers.size(); i++){
+                    frontier.push_back(threepointers[i]);
+                }
+                for (unsigned int i=0; i<twopointers.size(); i++){
+                    frontier.push_back(twopointers[i]);
+                }
+                for (unsigned int i=0; i<onepointers.size(); i++){
+                    frontier.push_back(onepointers[i]);
+                }
+                for (unsigned int i=0; i<zeropointers.size(); i++){
+                    frontier.push_back(zeropointers[i]);
+                }
             }
-            for (unsigned int i=0; i<twopointers.size(); i++){
-                frontier.push_front(twopointers[i]);
-            }
-            for (unsigned int i=0; i<threepointers.size(); i++){
-                frontier.push_front(threepointers[i]);
-            }
-            for (unsigned int i=0; i<fourpointers.size(); i++){
-                frontier.push_front(fourpointers[i]);
-            }
-        }
-        else {
-            for (unsigned int i=0; i<fourpointers.size(); i++){
-                frontier.push_back(fourpointers[i]);
-            }
-            for (unsigned int i=0; i<threepointers.size(); i++){
-                frontier.push_back(threepointers[i]);
-            }
-            for (unsigned int i=0; i<twopointers.size(); i++){
-                frontier.push_back(twopointers[i]);
-            }
-            for (unsigned int i=0; i<onepointers.size(); i++){
-                frontier.push_back(onepointers[i]);
-            }
-            for (unsigned int i=0; i<zeropointers.size(); i++){
-                frontier.push_back(zeropointers[i]);
-            }
-        }
 
+        } //end else clause -- full neighbor search (not onedirection)
 
     } //end while !frontier.empty()
 
@@ -1976,7 +2045,7 @@ int main(int argc, const char **argv){
     }
 
     if (nesmode && backwardsmode){
-        printf("\nWARNING: You've specified NES palette generation in combination with backwards search. The output will be nonsense.\n");
+        printf("\nWARNING: You've specified NES palette generation in combination with backwards search. The output will likely be useless.\n");
     }
 
     if (filemode || lutgen || nesmode){
@@ -2102,6 +2171,15 @@ int main(int argc, const char **argv){
         else {
             printf("Input color: %s\n", inputcolorstring);
         }
+
+        printf("Backwards search mode: ");
+        if (backwardsmode){
+            printf("ENABLED. (Treats user-supplied input as the desired output and searches for an input that yields that output, or nearest match.)\n");
+        }
+        else {
+            printf("disabled\n");
+        }
+
         switch (gammamodein){
             case GAMMA_LINEAR:
                 printf("Input gamma function: linear\n");
@@ -2476,7 +2554,12 @@ int main(int argc, const char **argv){
         greenout = toRGB8nodither(outcolor.y);
         blueout = toRGB8nodither(outcolor.z);
         if (verbosity >= VERBOSITY_MINIMAL){
-            printf("Input color %s (red %f, green %f, blue %f; red %i, green %i, blue %i) converts to 0x%02X%02X%02X (red %f, green %f, blue %f; red: %i, green: %i, blue: %i)\n", inputcolorstring, inputcolor.x, inputcolor.y, inputcolor.z,  toRGB8nodither(inputcolor.x), toRGB8nodither(inputcolor.y), toRGB8nodither(inputcolor.z), redout, greenout, blueout, outcolor.x, outcolor.y, outcolor.z, redout, greenout, blueout);
+            if (backwardsmode){
+                printf("To reach the desired output color of %s (red %f, green %f, blue %f; red %i, green %i, blue %i), use an input color of 0x%02X%02X%02X (red %f, green %f, blue %f; red: %i, green: %i, blue: %i)\n", inputcolorstring, inputcolor.x, inputcolor.y, inputcolor.z,  toRGB8nodither(inputcolor.x), toRGB8nodither(inputcolor.y), toRGB8nodither(inputcolor.z), redout, greenout, blueout, outcolor.x, outcolor.y, outcolor.z, redout, greenout, blueout);
+            }
+            else {
+                printf("Input color %s (red %f, green %f, blue %f; red %i, green %i, blue %i) converts to 0x%02X%02X%02X (red %f, green %f, blue %f; red: %i, green: %i, blue: %i)\n", inputcolorstring, inputcolor.x, inputcolor.y, inputcolor.z,  toRGB8nodither(inputcolor.x), toRGB8nodither(inputcolor.y), toRGB8nodither(inputcolor.z), redout, greenout, blueout, outcolor.x, outcolor.y, outcolor.z, redout, greenout, blueout);
+            }
         }
         else {
             printf("%02X%02X%02X", redout, greenout, blueout);
@@ -2508,6 +2591,10 @@ int main(int argc, const char **argv){
             htmlfile << "\t\t\tPalette saved to: " << outputfilename << "<BR>\n";
 
             htmlfile << "\t\t\tParameters:<BR>\n";
+
+            if (backwardsmode){
+                htmlfile << "\t\t\tBackwards search mode enabled. (Output is likely useless.)<BR>\n";
+            }
 
             htmlfile << "\t\t\tNES simulate PAL phase alternation: " << (nesispal ? "true" : "false") << "<BR>\n";
             htmlfile << "\t\t\tNES normalize chroma to colorburst: " << (nescbc ? "true" : "false") << "<BR>\n";
