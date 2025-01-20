@@ -21,6 +21,7 @@ Four general modes of operation:
 - `--nespalgen`: Generate a NES/Famicom palette. Possible values are `true` or `false`(default). Output will be saved to the output file specified with `-o` or `--outfile`.
 
 **Input-Related Parameters:**
+- `--backwards` or `-b`: Enables backwards search mode. Possible values are `true` or `false`(default). In backwards search mode, the user-supplied input is treated as the desired output and gamutthingy searches for an input that yields that output (or as close as possible). This is equivalent to performing the inverse of the specified operations. This is useful for roundtrip conversions and two-step conversions. Backward search mode does not work in combination with `--ielut`. Backwards search mode "works" with NES palette generation, but the output is  likely useless. WARNING: Backwards search mode is VERY SLOW. (`--map-mode expand` also performs inverse operations. However backwards search mode is preferred because (1) backward search mode *guarantees* the closest possible match after RGB8 quantization, while `--map-mode expand` merely assumes its inverse functions will quantize to best matches, and (2) backwards search mode works in combination with CRT simulation, while `--map-mode expand` generally does not.)
 - `--gamma-in` or `--gin`: Specifies the gamma function to be applied to the input. Possible values are `srgb` (default), `linear`, and `rec2084`. Will be ignored if CRT simulation before gamut conversion is enabled (`--crtemu front`) since the CRT EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png input isn't supported yet.)
 - `--hdr-sdr-max-nits` or `--hsmn`: See same in "Output Parameters," below.
 - `--lutsize`: Specifies the size of the LUT to generate. E.g., `--lutsize 64` will result in a 64x64x64 LUT. Integer number. Default 128.
@@ -124,7 +125,7 @@ Four general modes of operation:
 - `--map-mode` or `-m`: Specifies gamut mapping mode. Possible values are:
      - `clip`: No gamut mapping is performed and linear RGB output is simply clipped to 0, 1. Hue will be altered and detail in the out-of-bounds range will be lost. Not recommended.
      - `compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving hue and some of the out-of-bounds detail. Default.
-     - `expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. (Also, reverses the order of the steps in the `vp`, `vpr`, and `vprc` algorithms.) The only use for this is to prepare an image for a "roundtrip" conversion. Does not work well with CRT simulation. In the future, I plan to deprecate this mode in favor of a flow-blown inverse color search mode.
+     - `expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. (Also, reverses the order of the steps in the `vp`, `vpr`, and `vprc` algorithms.) The only use for this is to prepare an image for a "roundtrip" conversion. Does not work well with CRT simulation. DEPRECATED. Use `--backwards true` instead.
 - `--gamut-mapping-algorithm` or `--gma`: Specifies which gamut mapping algorithm to use. (Does nothing if `--map-mode clip`.) Possible values are:
      - `cusp`: The CUSP algorithm decribed in [1], but with tunable compression parameters discussed below.
      - `hlpcm`: The HLPCM algorithm described in [2], but with tunable compression parameters discussed below.
@@ -262,6 +263,8 @@ TODO: gamut pruning to match correction circuit
 TODO: document NES simulation
 
 TODO: fill in missing citations
+
+TODO: document whitepoint color temp function
 
 
 **References:**
