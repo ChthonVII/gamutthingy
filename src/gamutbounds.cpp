@@ -726,6 +726,24 @@ vec3 gamutdescriptor::JzCzhzToLinearRGB(vec3 input){
     return output;
 }
 
+vec3 gamutdescriptor::linearRGBtoJzazbz(vec3 input){
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("Linear RGB input is: ");
+        input.printout();
+    }
+    vec3 output = linearRGBtoXYZ(input);
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("XYZ is: ");
+        output.printout();
+    }
+    output = XYZtoJzazbz(output);
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("Jzazbz is: ");
+        output.printout();
+    }
+    return output;
+}
+
 /*
 vec3 gamutdescriptor::linearRGBtoLCh(vec3 input){
     if (verbosemode >= VERBOSITY_EXTREME){

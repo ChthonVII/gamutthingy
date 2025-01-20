@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <math.h>
 #include <fstream>
+#include <deque>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -24,7 +25,6 @@ void printhelp(){
     return;
 }
 
-
 typedef struct memo{
     bool known;
     vec3 data;
@@ -33,6 +33,9 @@ typedef struct memo{
 // keep memos so we don't have to process the same color over and over in file mode
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
+
+// visited list for backwards search
+bool inversesearchvisitlist[256][256][256];
 
 // Do the full conversion process on a given color
 vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode, double hdrsdrmaxnits){
@@ -137,6 +140,272 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
     }
     return outcolor;
 }
+
+// Search backwards for an input that yields the chosen output when run through processcolor(),
+// Or closest possible if none exists.
+// Uses a constrained breadth-first search.
+// WARNING: VERY SLOW!!!
+vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode, double hdrsdrmaxnits){
+
+    typedef struct frontiernode{
+        unsigned int red;
+        unsigned int green;
+        unsigned int blue;
+    } frontiernode;
+
+
+    int goalred = toRGB8nodither(inputcolor.x);
+    int goalgreen = toRGB8nodither(inputcolor.y);
+    int goalblue = toRGB8nodither(inputcolor.z);
+
+
+    // get our goal into Jzazbz so we can measure error
+    vec3 tempgoal = inputcolor;
+    // reverse the output gamma
+    if (destgamut.crtemumode == CRT_EMU_BACK){
+        tempgoal = destgamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(tempgoal);
+    }
+    else if (gammamodeout == GAMMA_SRGB){
+        tempgoal = vec3(tolinear(tempgoal.x), tolinear(tempgoal.y), tolinear(tempgoal.z));
+    }
+    else if (gammamodeout == GAMMA_REC2084){
+        tempgoal = vec3(rec2084tolinear(tempgoal.x, hdrsdrmaxnits), rec2084tolinear(tempgoal.y, hdrsdrmaxnits), rec2084tolinear(tempgoal.z, hdrsdrmaxnits));
+    }
+    vec3 goalJzazbz = destgamut.linearRGBtoJzazbz(tempgoal);
+
+
+    std::deque<frontiernode> frontier;
+    frontiernode bestnode;
+    double bestdistrgb = 500; //impossibly big
+    double bestdist = 1000000000.0; //impossibly big
+
+    // clear the visited list
+    // this is too big for stack, so it's global
+    memset(&inversesearchvisitlist, 0, sizeof(bool) * 256 * 256 * 256);
+
+    // start with the goal as the first guess, since it's probably close to the right answer
+    frontiernode tempnode;
+    tempnode.red = goalred;
+    tempnode.green = goalgreen;
+    tempnode.blue = goalblue;
+    frontier.push_back(tempnode);
+
+    printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
+    // for as long as we have something left to check in the frontier, check one
+    while(!frontier.empty()){
+        // pop the front of the queue
+        frontiernode examnode = frontier.front();
+        frontier.pop_front();
+        printf("popped %i, %i, %i\n", examnode.red, examnode.green, examnode.blue);
+
+        // skip if we've already visited this node (this should never happen)
+        if (inversesearchvisitlist[examnode.red][examnode.green][examnode.blue]){
+            printf("\tskipping because visited\n");
+            continue;
+        }
+
+        // mark as visited
+        inversesearchvisitlist[examnode.red][examnode.green][examnode.blue] = true;
+
+        // evaluate the current color
+        vec3 testcolor;
+
+        testcolor.x = examnode.red/255.0;
+        testcolor.y = examnode.green/255.0;
+        testcolor.z = examnode.blue/255.0;
+
+        vec3 testtresult = processcolor(testcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilutmode, nesmode, hdrsdrmaxnits);
+
+        // quantize and see how far off we are in RGB space
+        int testresultred = toRGB8nodither(testtresult.x);
+        int testresultgreen = toRGB8nodither(testtresult.y);
+        int testresultblue = toRGB8nodither(testtresult.z);
+
+        // did we hit exactly?
+        if ((testresultred == goalred) && (testresultgreen == goalgreen) && (testresultblue == goalblue)){
+            bestnode = examnode;
+            printf("\tEXACT HIT!\n");
+            break;
+        }
+
+        // are we the best so far?
+        // figure rgb error
+        int deltared = testresultred - goalred;
+        int deltagreen = testresultgreen - goalgreen;
+        int deltablue = testresultblue - goalblue;
+        double testdistancergb = sqrt((deltared * deltared) + (deltagreen * deltagreen) + (deltablue * deltablue));
+        // figure Jzazbz error
+        // reverse the output gamma
+        printf("\trgb errors: %i, %i, %i, overall: %f\n", deltared, deltagreen, deltablue, testdistancergb);
+        vec3 testtresultlinear = testtresult;
+        if (destgamut.crtemumode == CRT_EMU_BACK){
+            testtresultlinear = destgamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(testtresultlinear);
+        }
+        else if (gammamodeout == GAMMA_SRGB){
+            testtresultlinear = vec3(tolinear(testtresultlinear.x), tolinear(testtresultlinear.y), tolinear(testtresultlinear.z));
+        }
+        else if (gammamodeout == GAMMA_REC2084){
+            testtresultlinear = vec3(rec2084tolinear(testtresultlinear.x, hdrsdrmaxnits), rec2084tolinear(testtresultlinear.y, hdrsdrmaxnits), rec2084tolinear(testtresultlinear.z, hdrsdrmaxnits));
+        }
+        vec3 testresultJzazbz = destgamut.linearRGBtoJzazbz(testtresultlinear);
+        double deltaJz = testresultJzazbz.x - goalJzazbz.x;
+        double deltaaz = testresultJzazbz.y - goalJzazbz.y;
+        double deltabz = testresultJzazbz.z - goalJzazbz.z;
+        double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
+        printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
+        bool isbest = false;
+        if (testdistance < bestdist){
+            printf("\t BEST SO FAR\n");
+            isbest = true;
+            bestdist = testdistance;
+            bestnode = examnode;
+            bestdistrgb = ceil(testdistancergb) + 1.5; // inflate the rgb distance so we can wander a bit when deciding which neighbors to check
+        }
+
+        // Are we too far off the best to continue searching this direction?
+        // The last condition is a bit flexible since bestdistrgb is inflated
+        if (!isbest && (testdistance > bestdist) && (testdistancergb > bestdistrgb)){
+            printf("\tNOT queuing neighbors.\n");
+            continue;
+        }
+
+        // If we're still here, then add neighbbors to the frontier
+        printf("\tqueuing neighbors\n");
+
+        // figure out which rgb error is worst, and in what direction
+        bool redplus = (deltared >= 0);
+        bool greenplus = (deltagreen >= 0);
+        bool blueplus = (deltablue >= 0);
+        deltared = abs(deltared);
+        deltagreen = abs(deltagreen);
+        deltablue = abs(deltablue);
+        bool redworst = ((deltared > deltagreen) && (deltared > deltablue));
+        bool greenworst = ((deltared < deltagreen) && (deltagreen > deltablue));
+        bool blueworst = ((deltablue > deltagreen) && (deltared < deltablue));
+
+        for (int offsetred = -1;  offsetred <= 1; offsetred++){
+            int nextred = examnode.red + offsetred;
+            // skip if out of bounds
+            if ((nextred < 0) || (nextred > 255)) {
+                printf("\t\tskipping red outof bounds.\n");
+                continue;
+            }
+            // skip if wrong direction relative to largest error
+            if (redworst){
+                if (redplus){
+                    if (offsetred > 0){
+                        printf("\t\tskipping red wrong direction\n");
+                        continue;
+                    }
+                }
+                else if (offsetred < 0){
+                    printf("\t\tskipping red wrong direction\n");
+                    continue;
+                }
+            }
+            for (int offsetgreen = -1;  offsetgreen <= 1; offsetgreen++){
+                int nextgreen = examnode.green + offsetgreen;
+                // skip if out of bounds
+                if ((nextgreen < 0) || (nextgreen > 255)) {
+                    printf("\t\tskipping green outof bounds.\n");
+                    continue;
+                }
+                // skip if wrong direction relative to largest error
+                if (greenworst){
+                    if (greenplus){
+                        if (offsetgreen > 0){
+                            printf("\t\tskipping green wrong direction\n");
+                            continue;
+                        }
+                    }
+                    else if (offsetgreen < 0){
+                        printf("\t\tskipping green wrong direction\n");
+                        continue;
+                    }
+                }
+                for (int offsetblue = -1;  offsetblue <= 1; offsetblue++){
+                    int nextblue = examnode.blue + offsetblue;
+                    // skip if out of bounds
+                    if ((nextblue < 0) || (nextblue > 255)) {
+                        printf("\t\tskipping blue outof bounds.\n");
+                        continue;
+                    }
+                    // skip if wrong direction relative to largest error
+                    if (blueworst){
+                        if (blueplus){
+                            if (offsetblue > 0){
+                                printf("\t\tskipping blue wrong direction\n");
+                                continue;
+                            }
+                        }
+                        else if (offsetblue < 0){
+                            printf("\t\tskipping blue wrong direction\n");
+                            continue;
+                        }
+                    }
+
+                    // skip if all offsets are 0
+                    if ((offsetred == 0) && (offsetgreen == 0) && (offsetblue == 0)){
+                        printf("\t\tskipping zero offsets\n");
+                        continue;
+                    }
+                    // skip if already visited
+                    if (inversesearchvisitlist[nextred][nextgreen][nextblue]){
+                        printf("\t\tskipping already visited\n");
+                        continue;
+                    }
+                    // skip if already in the frontier queue
+                    bool skipflag = false;
+                    for (unsigned int i=0; i<frontier.size(); i++){
+                        if (((unsigned int)nextred == frontier[i].red) && ((unsigned int)nextgreen == frontier[i].green) && ((unsigned int)nextblue == frontier[i].blue)){
+                            skipflag = true;
+                            break;
+                        }
+                    }
+                    if (skipflag){
+                        printf("\t\tskipping already in queue\n");
+                        continue;
+                    }
+
+                    // if we haven't skipped by this point, queue this neighbor
+                    printf("\t\tpushing %i, %i, %i\n", nextred, nextgreen, nextblue);
+                    frontiernode nextnode;
+                    nextnode.red = nextred;
+                    nextnode.green = nextgreen;
+                    nextnode.blue = nextblue;
+                    if (isbest){
+                        frontier.push_front(nextnode);
+                    }
+                    else {
+                        frontier.push_back(nextnode);
+                    }
+
+                } // end for offsetblue
+            } // end for offsetgreen
+        } // end for offsetred
+
+
+    } //end while !frontier.empty()
+
+
+    // bestnode should now contain the input that yields the result closest to the goal output
+    // convert to double so we can have same return type as processcolor()
+    vec3 output = vec3(bestnode.red / 255.0, bestnode.green / 255.0, bestnode.blue / 255.0);
+
+    return output;
+}
+
+vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
+    vec3 output;
+    if (backwardsmode){
+        output = inverseprocesscolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilutmode, nesmode, hdrsdrmaxnits);
+    }
+    else {
+        output = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilutmode, nesmode, hdrsdrmaxnits);
+    }
+    return output;
+}
+
 
 // structs for holding our ever-growing list of parameters
 typedef struct boolparam{
@@ -280,8 +549,9 @@ int main(int argc, const char **argv){
     double nesskewstep = 2.5;
     bool neswritehtml = false;
     char* neshtmlfilename;
+    bool backwardsmode = false;
     
-    const boolparam params_bool[11] = {
+    const boolparam params_bool[13] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -336,6 +606,16 @@ int main(int argc, const char **argv){
             "--crtdemodfixes",                     //std::string paramstring; // parameter's text
             "Correct CRT demodulator angles/gains near \"straight\" demodulation to those exact values",           //std::string prettyname; // name for pretty printing
             &crtdemodfixes                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--backwards",                     //std::string paramstring; // parameter's text
+            "Backwards Search Mode",           //std::string prettyname; // name for pretty printing
+            &backwardsmode                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "-b",                     //std::string paramstring; // parameter's text
+            "Backwards Search Mode",           //std::string prettyname; // name for pretty printing
+            &backwardsmode                //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -1590,6 +1870,15 @@ int main(int argc, const char **argv){
         eilut = false;
     }
 
+    if (eilut && backwardsmode){
+        printf("\nBackwards search is not compatible with eilut. Aborting.\n");
+        return ERROR_BAD_PARAM_IMPOSSIBLE_COMBO;
+    }
+
+    if (nesmode && backwardsmode){
+        printf("\nWARNING: You've specified NES palette generation in combination with backwards search. The output will be nonsense.\n");
+    }
+
     if (filemode || lutgen || nesmode){
         bool failboat = false;
         if (!infileset && !lutgen && !nesmode){
@@ -2081,7 +2370,7 @@ int main(int argc, const char **argv){
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits);
+        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode);
 
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
@@ -2280,7 +2569,7 @@ int main(int argc, const char **argv){
                 }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
-                    vec3 outcolor = processcolor(nesrgb, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true, hdrsdrmaxnits);
+                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true, hdrsdrmaxnits, backwardsmode);
                     // for now screen barf
                     //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
                     //nesrgb.printout();
@@ -2444,7 +2733,7 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, false, hdrsdrmaxnits);
+                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, false, hdrsdrmaxnits, backwardsmode);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*

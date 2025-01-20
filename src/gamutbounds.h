@@ -172,6 +172,7 @@ public:
     
     vec3 linearRGBtoXYZ(vec3 input);
     vec3 XYZtoLinearRGB(vec3 input);
+    vec3 linearRGBtoJzazbz(vec3 input);
     vec3 linearRGBtoJzCzhz(vec3 input);
     vec3 JzCzhzToLinearRGB(vec3 input);
     
