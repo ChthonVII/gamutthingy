@@ -93,6 +93,9 @@ extern const vec3 D65;
 #define Vdownscale 0.877283
 #define Uupscale (1.0/Udownscale)
 #define Vupscale (1.0/Vdownscale)
+// NTSC-J uses different bandwidth, and, accordingly, different scale factors, such that U and V are about 8% bigger
+// But we can ignore this since the difference is the same ~8% factor for U and V, and we're normalizing U's gain to 1 anyway
+// See Jack, Keith. "Video Demystified: A Handbook for the Digital Engineer." 4th Ed. pp. 432-33 Elsevier. Burlington, MA. (2005) ISBN: 0-7506-7822-4
 
 #define YUV_CONSTANT_PRECISION_CRAP 0 // truncated constants from 1953 standard
 #define YUV_CONSTANT_PRECISION_MID 1 // less truncated constants from 1994 SMPTE-C (170M) standard
@@ -344,6 +347,8 @@ const double gamutpoints[17][3][3] = {
 
     // NEC_MULTISYNC_C400 computer monitor
     // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    // which stole it from https://web.archive.org/web/20190613001950/http://efg2.com/Lab/Graphics/Colors/Chromaticity.htm
+    // which short cites a source but forgot to put it in the bibliography
     {
         {0.610, 0.35, 0.04}, //red
         {0.307, 0.595, 0.098}, //green
@@ -352,6 +357,7 @@ const double gamutpoints[17][3][3] = {
 
     // KDS_VS19 computer monitor
     // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    // which stole it from https://web.archive.org/web/20190613001950/http://efg2.com/Lab/Graphics/Colors/Chromaticity.htm
     {
         {0.625, 0.34, 0.035}, //red
         {0.285, 0.605, 0.11}, //green
@@ -361,6 +367,8 @@ const double gamutpoints[17][3][3] = {
     // Dell computer monitor (all monitors except 21" Mitsubishi p/n 65532)
     // Use with 9300K whitepoint (unclear which)
     // from https://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+    // which stole it from https://web.archive.org/web/20190613001950/http://efg2.com/Lab/Graphics/Colors/Chromaticity.htm
+    // which cites https://web.archive.org/web/20171114044833/http://www.efg2.com/Lab/Graphics/Colors/DellInfo.txt
     {
         {0.625, 0.34, 0.035}, //red
         {0.275, 0.605, 0.12}, //green
