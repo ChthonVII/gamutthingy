@@ -57,6 +57,6 @@ double inversepowermap(double floor, double ceiling, double input, double power)
 double inversehermite(double input);
 
 // Compute xy coordinates from CCT
-vec3 xycoordfromfromCCT(double cct);
+vec3 xycoordfromfromCCT(double cct, int locus);
 
 #endif

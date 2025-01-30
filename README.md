@@ -104,11 +104,13 @@ Four general modes of operation:
      - `customtemp` Derive coordinants from color temperature supplied by user via `--source-whitepoint-custom-temp`.
 - `--source-whitepoint-custom-coords` or `--swcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the source gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--source-whitepoint customcoord`.
 - `--source-whitepoint-custom-temp` or `--swct`: Specify color temperature for the whitepoint of the source gamut, and coordinates will be estimated automatically. Floating point number. Does nothing unless `--source-whitepoint customtemp`.
+- `--source-whitepoint-custom-temp-locus` or `--swctl`: Specify locus to use for estimating coordinates from color temperature. Possible values are `daylight` (used by the D series illuminants (e.g., D65)) (default) or `plankian` (black body). Does nothing unless `--source-whitepoint customtemp`.
 - `--dest-primaries` or `-d`: Specifies the color primaries of the destination gamut. Possible values are the same as for source gamut. Default is `srgb_spec`.
 - `--dest-primaries-custom-coords` or `-dpcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the destination gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--dest-primaries customcoord`.
 - `--dest-whitepoint` or `--dw`: Specifies the whitepoint of the destination gamut. Possible values are the same as for `--source-whitepoint`. Default `D65`.
 - `--dest-whitepoint-custom-coords` or `--dwcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the destination gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--dest-whitepoint customcoord`.
 - `--dest-whitepoint-custom-temp` or `--dwct`: Specify color temperature for the whitepoint of the destination gamut, and coordinates will be estimated automatically. Floating point number. Does nothing unless `--dest-whitepoint customtemp`.
+- `--dest-whitepoint-custom-temp-locus` or `--dwctl`: Specify locus to use for estimating coordinates from color temperature. Possible values are `daylight` (used by the D series illuminants (e.g., D65)) (default) or `plankian` (black body). Does nothing unless `--dest-whitepoint customtemp`.
 
 **Chromatic Adaptation Parameters:**
 - `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing whitepoints. Possible values are `cat16` (default) or `bradford`.

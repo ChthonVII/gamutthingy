@@ -666,12 +666,14 @@ int main(int argc, const char **argv){
     double sourcecustomwhitex = 0.2838;
     double sourcecustomwhitey = 0.2981;
     double sourcecustomwhitetemp = 9177.98;
+    int sourcecustomwhitelocus = DAYLIGHTLOCUS;
     vec3 sourcecustomwhitefromtemp;
     int sourcewhitepointindex = WHITEPOINT_9300K27MPCD;
     int destwhitepointindex = WHITEPOINT_D65;
     double destcustomwhitex = 0.312713;
     double destcustomwhitey = 0.329016;
     double destcustomwhitetemp =  6503.512;
+    int destcustomwhitelocus = DAYLIGHTLOCUS;
     vec3 destcustomwhitefromtemp;
     int safezonetype = RMZONE_DELTA_BASED;
     char* inputfilename;
@@ -1214,7 +1216,19 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[29] = {
+    const paramvalue locustypelist[2] = {
+        {
+            "plankian",
+            PLANKIANLOCUS
+        },
+        {
+            "daylight",
+            DAYLIGHTLOCUS
+        },
+    };
+
+
+    const selectparam params_select[33] = {
         {
             "--source-primaries",            //std::string paramstring; // parameter's text
             "Source Primaries",             //std::string prettyname; // name for pretty printing
@@ -1417,6 +1431,34 @@ int main(int argc, const char **argv){
             &crtyuvconstantprecision,          //int* vartobind; // pointer to variable whose value to set
             yuvprecisionlist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(yuvprecisionlist)/sizeof(yuvprecisionlist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--source-whitepoint-custom-temp-locus",            //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature Locus",             //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitelocus,          //int* vartobind; // pointer to variable whose value to set
+            locustypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(locustypelist)/sizeof(locustypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--swctl",            //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature Locus",             //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitelocus,          //int* vartobind; // pointer to variable whose value to set
+            locustypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(locustypelist)/sizeof(locustypelist[0])  //int tablesize; // number of items in the table
+        },
+                {
+            "--dest-whitepoint-custom-temp-locus",            //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature Locus",             //std::string prettyname; // name for pretty printing
+            &destcustomwhitelocus,          //int* vartobind; // pointer to variable whose value to set
+            locustypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(locustypelist)/sizeof(locustypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--dwctl",            //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature Locus",             //std::string prettyname; // name for pretty printing
+            &destcustomwhitelocus,          //int* vartobind; // pointer to variable whose value to set
+            locustypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(locustypelist)/sizeof(locustypelist[0])  //int tablesize; // number of items in the table
         }
     };
 
@@ -2128,11 +2170,11 @@ int main(int argc, const char **argv){
     }
 
     if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-        sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp);
+        sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp, sourcecustomwhitelocus);
     }
 
     if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-        destcustomwhitefromtemp = xycoordfromfromCCT(destcustomwhitetemp);
+        destcustomwhitefromtemp = xycoordfromfromCCT(destcustomwhitetemp, destcustomwhitelocus);
     }
 
     sourcecustomgamut[0][2] = 1.0 - sourcecustomgamut[0][0] - sourcecustomgamut[0][1];
@@ -2216,7 +2258,13 @@ int main(int argc, const char **argv){
         }
 
         if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-            printf("Source whitepoint: custom temperature %fK (x=%f, y=%f)\n", sourcecustomwhitetemp, sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
+            printf("Source whitepoint: custom temperature %fK (x=%f, y=%f)", sourcecustomwhitetemp, sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
+            if (sourcecustomwhitelocus == DAYLIGHTLOCUS){
+                printf(" (daylight locus)\n");
+            }
+            else {
+                printf(" (Plankian locus)\n");
+            }
         }
         else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
             printf("Source whitepoint: custom coordinates x=%f, y=%f\n", sourcecustomwhitex, sourcecustomwhitey);
@@ -2233,7 +2281,13 @@ int main(int argc, const char **argv){
         }
 
         if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-            printf("Destination whitepoint: custom temperature %fK (x=%f, y=%f)\n", destcustomwhitetemp, destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
+            printf("Destination whitepoint: custom temperature %fK (x=%f, y=%f)", destcustomwhitetemp, destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
+            if (destcustomwhitelocus == DAYLIGHTLOCUS){
+                printf(" (daylight locus)\n");
+            }
+            else {
+                printf(" (Plankian locus)\n");
+            }
         }
         else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
             printf("Destination whitepoint: custom coordinates x=%f, y=%f\n", destcustomwhitex, destcustomwhitey);
@@ -2642,7 +2696,13 @@ int main(int argc, const char **argv){
             }
 
             if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-                htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K (x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")<BR>\n";
+                htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K (x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")";
+                if (sourcecustomwhitelocus == DAYLIGHTLOCUS){
+                    htmlfile << " (daylight locus)<BR>\n";
+                }
+                else {
+                    htmlfile << " (Plankian locus)<BR>\n";
+                }
             }
             else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
                 htmlfile << "\t\t\tSource whitepoint: custom coordinates x=" << sourcecustomwhitex << ", y=" << sourcecustomwhitey << "<BR>\n";
@@ -2659,7 +2719,13 @@ int main(int argc, const char **argv){
             }
 
             if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-                htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K (x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")<BR>\n";
+                htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K (x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")";
+                if (destcustomwhitelocus == DAYLIGHTLOCUS){
+                    htmlfile << " (daylight locus)<BR>\n";
+                }
+                else {
+                    htmlfile << " (Plankian locus)<BR>\n";
+                }
             }
             else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
                 htmlfile << "\t\t\tDestination whitepoint: custom coordinates x=" << destcustomwhitex << ", y=" << destcustomwhitey << "<BR>\n";

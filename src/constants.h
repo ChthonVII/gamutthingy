@@ -74,6 +74,9 @@ extern const vec3 D65;
 #define SC_EXPONENTIAL 0
 #define SC_CUBIC_HERMITE 1
 
+#define DAYLIGHTLOCUS 0
+#define PLANKIANLOCUS 1
+
 #define LOCKRED 0
 #define LOCKGREEN 1
 #define LOCKBLUE 2
