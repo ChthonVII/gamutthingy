@@ -169,7 +169,10 @@ const double whitepoints[17][3] = {
     // 9300K + 27MPCD
     {0.281, 0.311, 0.408},
     // 9300K + 8MPCD
-    {0.2838, 0.2981, 0.4181},
+    // Average of coordinates stated in:
+    //      * Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." テレビジョン (Television), Vol. 31, No. 11, pp. 883-888. 1977.
+    //      * Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." テレビジョン学会誌 (Journal of the Television Society), Vol. 33, No. 12, pp. 1013-1020. 1979.
+    {0.28345, 0.29775, 0.4188},
     // Illuminant C
     {0.310063, 0.316158, 0.373779},
     // 6900K (Dogway claims, without citation, that consumer Euro CRTs' D65 was often 7100K in practice

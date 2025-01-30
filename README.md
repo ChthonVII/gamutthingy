@@ -85,7 +85,7 @@ Four general modes of operation:
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
      - `D65` Whitepoint for modern sRGB, rec2020, and HD specifications, U.S. SD television specification post-1994, and European SD television specification. Some CRTs with a nominal D65 whitepoint had a higher temperature whitepoint in practice. Such as ~6900K or ~7000K in Europe and ~7000K-7500K in the U.S. [new5]
      - `9300K27mpcd` Whitepoint for Japanese SD television reciever specification. [new7] Some CRTs with a nominal 9300K+27mpcd whitepoint had a lower temperature whitepoint in practice, such as 9300K+8mpcd, 8800K, or 8500K. Default. [new5]
-     - `9300K8mpcd` Whitepoint for Japanese SD television broadcast master monitors. [new7] Also very common in practice for Japanese professional-grade CRT televisions, and for computer monitors worldwide.
+     - `9300K8mpcd` Whitepoint for Japanese SD television broadcast master monitors. [new7] Also very common in practice for Japanese professional-grade CRT televisions, some Japanese consumer televisions, and for computer monitors worldwide. Average of coordinates stated in [new7] and [new13].
      - `illuminantC` Nominal whitepoint for U.S. SD television pre-1994. Replaced by D65 in practice decades earlier.
      - `6900K` Approximate actual whitepoint of some "D65" CRTs.
      - `7000K` Approximate actual whitepoint of some "D65" CRTs.
@@ -283,12 +283,13 @@ TODO: fill in missing citations, then alphabetize
 - [new4] Has, Michael and Newman, Todd. "Color Management: Current Practice and The Adoption of a New Standard."  *TAGA (Technical Association of Graphic Arts) Proceedings*, Vol. 2, pp. 748-771. 1995. ([Link](https://www.color.org/wpaper1.xalter))
 - [new5] Glynn II, Earl F. "efg's Chromaticity Lab Report." *efg's Computer Lab*. July 2009. ([Link](https://web.archive.org/web/20190613001950/http://efg2.com/Lab/Graphics/Colors/Chromaticity.htm))
 - [new6] Espy, Rance. E-mail to Earl F. Glynn II, "Re: Case #: 19990110193351 - Monitor." January, 1999. ([Link](https://web.archive.org/web/20171114044833/http://www.efg2.com/Lab/Graphics/Colors/DellInfo.txt))
-- [new7] Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." *Kyokai Joho Imeji Zasshi* (*Journal of the Institute of Image Information and Television Engineers*), Vol. 31, No. 11 pp. 883-888. 1977. ([Link](https://www.jstage.jst.go.jp/article/itej1954/31/11/31_11_883/_article/-char/ja/)) TODO: Find kanji for Kyokai Joho Imeji Zasshi
+- [new7] Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." *テレビジョン* (*Television*), Vol. 31, No. 11, pp. 883-888. 1977. ([Link](https://www.jstage.jst.go.jp/article/itej1954/31/11/31_11_883/_article/-char/ja/))
 - [new8] Parker, Norman W. "An Analysis of the Necessary Decoder Corrections for Color Receiver Operation with Non-Standard Receiver Primaries." *IEEE Transactions on Consumer Electronics*, Vol. CE-28, No. 1, pp. 74-83. February 1982. ([Link](https://ieeexplore.ieee.org/document/4179914))
 - [new9] CRT Database ([link](https://crtdatabase.com/))
 - [new10] International Telecommunication Union. "Recommendation ITU-R BT.1886: Reference electro-optical transfer function for flat panel displays used in HDTV studio production." March, 2011. ([Link](https://www.itu.int/rec/R-REC-BT.1886-0-201103-I/en))
 - [new11]  Matsumoto, Tatsuhiko, Shimpuku, Yoshihide, Nakatsue, Takehiro, Haga, Shuichi, Eto, Hiroaki, Akiyama, Yoshiyuki, and Katoh, Naoya. "xvYCC: A New Standard for Video Systems using Extended-Gamut YCC Color Space." *Society for Information Display Symposium Digest of Technical Papers 2006*. 19.2, pp. 1130–1133. 2006. ([Link](https://sid.onlinelibrary.wiley.com/doi/abs/10.1889/1.2433175)) 
 - [new12] Poyton, Charles. "Colour Appearance Issues in Digital Video, HD/UHD, and D‑cinema." Ph.D. Thesis. Simon Frasier University. Summer 2018. p. 125 ([Link](https://poynton.ca/PDFs/Poynton-2018-PhD.pdf))
+- [new13] Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." *テレビジョン学会誌* (*Journal of the Television Society*), Vol. 33, No. 12, pp. 1013-1020. 1979. ([Link](https://www.jstage.jst.go.jp/article/itej1978/33/12/33_12_1013/_article/-char/ja/))
 
 
 **Building:**
