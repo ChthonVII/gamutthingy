@@ -80,6 +80,7 @@ Four general modes of operation:
      - `P22_kds_vs19` Chromaticity coordinates (measurements?) for P22 phosphors in a KDS VS19 computer monitor (model launched mid 90s?), stated without citation in [new5].
      - `P22_ebuish` EBUish phosphors noted in a 1992 Toshiba patent. [insert cite]
      - `P22_hitachi` Official chromaticity coordinates for P22 phosphors in CM2198 CRT computer monitor provided by Hitachi to the authors of [new4], published in 1995. Hitachi also made a CMT2198 CRT television, and it's plausible that the same phosphors were used.
+     - `P22_apple_multiscan1705` Official chromaticity coordinates for P22 phosphors in Apple Multiple Scan 1705 computer monitor (manufactured 1995-1997). Whitepoint was 9300K+8mpcd. [new14], [new15]
      - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
 - `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
@@ -290,6 +291,8 @@ TODO: fill in missing citations, then alphabetize
 - [new11]  Matsumoto, Tatsuhiko, Shimpuku, Yoshihide, Nakatsue, Takehiro, Haga, Shuichi, Eto, Hiroaki, Akiyama, Yoshiyuki, and Katoh, Naoya. "xvYCC: A New Standard for Video Systems using Extended-Gamut YCC Color Space." *Society for Information Display Symposium Digest of Technical Papers 2006*. 19.2, pp. 1130–1133. 2006. ([Link](https://sid.onlinelibrary.wiley.com/doi/abs/10.1889/1.2433175)) 
 - [new12] Poyton, Charles. "Colour Appearance Issues in Digital Video, HD/UHD, and D‑cinema." Ph.D. Thesis. Simon Frasier University. Summer 2018. p. 125 ([Link](https://poynton.ca/PDFs/Poynton-2018-PhD.pdf))
 - [new13] Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." *テレビジョン学会誌* (*Journal of the Television Society*), Vol. 33, No. 12, pp. 1013-1020. 1979. ([Link](https://www.jstage.jst.go.jp/article/itej1978/33/12/33_12_1013/_article/-char/ja/))
+- [new14] Apple Computer, Inc. "Multiple Scan 1705 Display: CIE Phosphor Settings." *AppleCare Tech Info Library*, Article ID 24445. March 30, 1998. ([Link](https://til-2001.mirror.kb1max.com/techinfo.nsf/artnum/n24445/index.html))
+- [new15] Apple Wiki. "Apple Multiple Scan Display." ([Link](https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display))
 
 
 **Building:**

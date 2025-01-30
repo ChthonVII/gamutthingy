@@ -836,7 +836,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[18] = {
+    const paramvalue gamutlist[19] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -904,6 +904,10 @@ int main(int argc, const char **argv){
         {
             "P22_hitachi",
             GAMUT_P22_HITACHI
+        },
+        {
+            "P22_apple_multiscan1705",
+            GAMUT_P22_APPLE_MULTISCAN1705
         },
         {
             "customcoord",

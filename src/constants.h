@@ -244,8 +244,9 @@ const double whitepoints[17][3] = {
 #define GAMUT_P22_TRINITRON_RANEY2 14
 #define GAMUT_P22_TRINITRON_MIXANDMATCH 15
 #define GAMUT_P22_TRINITRON_BOHNSACK 16
+#define GAMUT_P22_APPLE_MULTISCAN1705 17
 
-const std::string gamutnames[17] = {
+const std::string gamutnames[18] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -263,9 +264,10 @@ const std::string gamutnames[17] = {
     "P22 phosphors, Trinitron, Raney Measurement 2",
     "P22 phosphors, Trinitron, Mix-and-Match",
     "P22 phosphors, Trinitron, Bohnsack Measurement",
+    "P22 phosphors, Apple Multiple Scan 1705",
 };
 
-const double gamutpoints[17][3][3] = {
+const double gamutpoints[18][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -421,6 +423,17 @@ const double gamutpoints[17][3][3] = {
         {0.6233, 0.339, 0.0377}, //red
         {0.2838, 0.5895, 0.1267}, //green
         {0.1519, 0.0669, 0.7812} //blue
+    },
+
+    // Apple Multiple Scan 1705 Monitor (1995-1997)
+    // values are +/- 0.015
+    // pairs with 9300K+8mpcd white point
+    // https://til-2001.mirror.kb1max.com/techinfo.nsf/artnum/n24445/index.html
+    // https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display
+    {
+        {0.625, 0.34, 0.035}, //red
+        {0.285, 0.605, 0.11}, //green
+        {0.15, 0.065, 0.785} //blue
     },
 
     // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
