@@ -39,8 +39,8 @@ Four general modes of operation:
      - `CXA1145` Extremely common. Used in most 1st generation and some 2nd generation Sega Genesis, Sega Master System II, NEO GEO AES, Amiga consoles, SNK consoles, and many other things. [insert cite]
      - `CXA1645` Used in some 2nd generation and all 3rd generation Sega Genesis, Sony Playstation 1, Genesis 3, Sega Saturn, NeoGeo CD/CDZ. [insert cite]
 - `--crtdemod`: Specifies the composite-to-R'G'B' demodulator chip in the CRT television. CRT "color correction" is accomplished via the demodulation angles and gains built into this chip. Possible values are:
-     - `none` Assume an ideal "plain-vanilla" demodulator. (default)
-     - `dummy` Same as `none`. Use this for chips implementing "no color correction" standards such as EBU and SMPTE-C.
+     - `none` Do not simulation demodulation. Equivalent to an ideal "plain-vanilla" demodulator. (default)
+     - `dummy` Assume an ideal "plain-vanilla" demodulator. Use this for chips implementing "no color correction" standards such as EBU and SMPTE-C. Same as `none` unless `--crt-hue-knob` is non-zero.
      - `CXA1464AS` Used in Japan Sony Trinitron ~1993-1995.
      - `CXA1465AS` Used in U.S. Sony Trinitron ~1993-1995.
      - `CXA1870S_JP` Used in Japan Sony Trinitron ~1996.
@@ -54,6 +54,7 @@ Four general modes of operation:
      - `TDA8362` Used in Hitachi CMT2187/2196/2198/2199 ~1994. Unclear if this television used different whitepoints in U.S. and Japan.
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
+- `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
 - `--crtyuvconst`: Set the precision for the white balance constants used in demodulation equations. Possible values are `2digit` (truncated constants from 1953 standard), `3digit` (less truncated constants from 1994 SMPTE-C (170M) standard)(default), or `exact` (compute precise constants from 1953 primaries and Illuminant C).
 - `--crtclamplow`: Specifies low clamping level for out-of-bounds R'G'B' output from demodulation. Floating point number -0.1 to 0. Default -0.1.
 - `--crtclamphighenable`: Specifies whether to clamp high out-of-bounds R'G'B' output from demodulation. Possible values are `true` (default) or `false`.

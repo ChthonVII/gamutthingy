@@ -721,6 +721,7 @@ int main(int argc, const char **argv){
     bool neswritehtml = false;
     char* neshtmlfilename;
     bool backwardsmode = false;
+    double crthueknob = 0.0;
     
     const boolparam params_bool[13] = {
         {
@@ -1467,7 +1468,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[28] = {
+    const floatparam params_float[30] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -1603,6 +1604,17 @@ int main(int argc, const char **argv){
             "Max Nits for SDR White on HDR Monitor",        //std::string prettyname; // name for pretty printing
             &hdrsdrmaxnits           //double* vartobind; // pointer to variable whose value to set
         },
+        {
+            "--crt-hue-knob",         //std::string paramstring; // parameter's text
+            "CRT Hue Knob",        //std::string prettyname; // name for pretty printing
+            &crthueknob           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--chk",         //std::string paramstring; // parameter's text
+            "CRT Hue Knob",        //std::string prettyname; // name for pretty printing
+            &crthueknob           //double* vartobind; // pointer to variable whose value to set
+        },
+
 
 
         // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
@@ -2173,6 +2185,22 @@ int main(int argc, const char **argv){
         printf("Forcing crtclamphighenable to true because eilut is true. Clamping CRT R'G'B' high output to %f.\n", crtclamphigh);
     }
 
+    if ((crthueknob != 0.0) && ((crtemumode == CRT_EMU_NONE) || (crtdemodindex == CRT_DEMODULATOR_NONE))){
+        printf("Ignoring CRT hue knob because not simulating demodulation.\n");
+        crthueknob = 0.0;
+    }
+    else {
+        while (crthueknob > 360.0){
+            crthueknob -= 360.0;
+        }
+        while (crthueknob < -360){
+            crthueknob += 360.0;
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // process custom constants
+
     if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
         sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp, sourcecustomwhitelocus);
     }
@@ -2452,6 +2480,7 @@ int main(int argc, const char **argv){
             }
             else {
                  printf("%s\n", demodulatornames[crtdemodindex].c_str());
+                 printf("CRT hue knob at %f degrees.\n", crthueknob);
             }
             printf("CRT R'G'B' high low values clamped to %f.\n", crtclamplow);
             if (crtdoclamphigh){
@@ -2484,7 +2513,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -2677,9 +2706,10 @@ int main(int argc, const char **argv){
             }
             else {
                  htmlfile << demodulatornames[crtdemodindex] << "<BR>\n";
+                 htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
             }
 
-            htmlfile << "\t\t\tCRT R'G'B' high low values clamped to " << crtclamplow << ".<BR>\n";
+            htmlfile << "\t\t\tCRT R'G'B' high low output values clamped to " << crtclamplow << ".<BR>\n";
             if (crtdoclamphigh){
                 htmlfile << "\t\t\tCRT R'G'B' high output values clamped to " << crtclamphigh << ".<BR>\n";
             }

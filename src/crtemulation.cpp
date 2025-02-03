@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -28,6 +28,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     demodulatorindex = demodulatorindex_in;
     demodulatorrenormalization = renorm;
     demodfixes = dodemodfixes;
+    globalehueoffset = hueknob;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -366,7 +367,7 @@ bool crtdescriptor::InitializeDemodulator(){
     double greengain = demodulatorinfo[demodulatorindex][1][1];
     double bluegain = demodulatorinfo[demodulatorindex][1][2];
     // if red or green looks like it would be unmodified but for rounding/truncation in the datasheet, restore the full precision value
-    if (demodfixes){
+    if (demodfixes || (demodulatorindex == CRT_DEMODULATOR_DUMMY)){
         if ((redgain >= 0.55) && (redgain < 0.57)){
             printf("Assuming red gain of %f really meant %f\n", redgain, Vupscale / Uupscale);
             redgain = Vupscale / Uupscale;
@@ -395,6 +396,14 @@ bool crtdescriptor::InitializeDemodulator(){
         }
     }
 
+    // apply the analog hue knob
+    // we do this after autocorrection since it will change the green angle
+    // but before renormalizing, since we might want to renormalize after rotating blue
+    if (globalehueoffset != 0.0){
+        redangle += globalehueoffset * (std::numbers::pi_v<long double>/ 180.0);
+        greenangle += globalehueoffset * (std::numbers::pi_v<long double>/ 180.0);
+        blueangle += globalehueoffset * (std::numbers::pi_v<long double>/ 180.0);
+    }
 
     // gains are probably normalized to blue, probably to 1.0.
     // if blue is near 2.03, then it's not normalized. Let's guess 1.8 for a good cutoff.
@@ -549,6 +558,8 @@ bool crtdescriptor::InitializeDemodulator(){
 
     // copy our correction matrix
     // (or the identity matrix if dummy demodulator)
+    // don't do this anymore because we might apply hue change to dummy
+    /*
     if (demodulatorindex == CRT_DEMODULATOR_DUMMY){
         demodulatorMatrix[0][0] = 1.0;
         demodulatorMatrix[0][1] = 0.0;
@@ -560,9 +571,10 @@ bool crtdescriptor::InitializeDemodulator(){
         demodulatorMatrix[2][1] = 0.0;
         demodulatorMatrix[2][2] = 1.0;
     }
-    else {
+    */
+    //else {
         memcpy(demodulatorMatrix, correctionMatrix, 3 * 3 * sizeof(double));
-    }
+    //}
 
     // screen barf
     if (verbosity >= VERBOSITY_SLIGHT){
