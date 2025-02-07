@@ -38,15 +38,16 @@ memo memos[256][256][256];
 bool inversesearchvisitlist[256][256][256];
 
 // Do the full conversion process on a given color
-vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode, double hdrsdrmaxnits){
+vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
-        if (eilutmode){
+        if (lutmode == LUTMODE_POSTCC){
             linearinputcolor = sourcegamut.attachedCRT->tolinear1886appx1vec3(inputcolor);
         }
-        else {
+        else if ((lutmode == LUTMODE_NONE)||(lutmode == LUTMODE_NORMAL)) {
             linearinputcolor = sourcegamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(inputcolor);
         }
+        // do nothing if lutmode == LUTMODE_POSTGAMMA, since input color is already linear RGB
     }
     else if (gammamodein == GAMMA_SRGB){
         linearinputcolor = vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z));
@@ -60,7 +61,7 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
     // CUSP and VPR-alike GMA algorithms will pull down stuff that's above 1.0 luminosity.
     // But desaturation-only algorithms (HLPCM) must have luminosity clamped.
     // NES may also have out-of-bounds luminosity
-    if ((eilutmode || nesmode) && (mapdirection == MAP_HLPCM)){
+    if (((lutmode == LUTMODE_POSTCC) || nesmode) && (mapdirection == MAP_HLPCM)){
         linearinputcolor = sourcegamut.ClampLuminosity(linearinputcolor);
     }
 
@@ -144,7 +145,7 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
 // Search backwards for an input that yields the chosen output when run through processcolor(),
 // Or closest possible if none exists.
 // WARNING: VERY SLOW!!!
-vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode, double hdrsdrmaxnits){
+vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
 
     typedef struct frontiernode{
         unsigned int red;
@@ -213,7 +214,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         testcolor.y = examnode.green/255.0;
         testcolor.z = examnode.blue/255.0;
 
-        vec3 testtresult = processcolor(testcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilutmode, nesmode, hdrsdrmaxnits);
+        vec3 testtresult = processcolor(testcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
 
         // quantize and see how far off we are in RGB space
         int testresultred = toRGB8nodither(testtresult.x);
@@ -564,13 +565,13 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
     return output;
 }
 
-vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, bool eilutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
+vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
     vec3 output;
     if (backwardsmode){
-        output = inverseprocesscolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilutmode, nesmode, hdrsdrmaxnits);
+        output = inverseprocesscolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
     }
     else {
-        output = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilutmode, nesmode, hdrsdrmaxnits);
+        output = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
     }
     return output;
 }
@@ -710,7 +711,7 @@ int main(int argc, const char **argv){
     double crtclamphigh = 1.1;
     double crtclamplow = -0.1;
     bool lutgen = false;
-    bool eilut = false;
+    int lutmode = LUTMODE_NORMAL;
     int lutsize = 128;
     bool nesmode = false;
     bool nesispal = false;
@@ -723,7 +724,7 @@ int main(int argc, const char **argv){
     bool backwardsmode = false;
     double crthueknob = 0.0;
     
-    const boolparam params_bool[13] = {
+    const boolparam params_bool[12] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -748,11 +749,6 @@ int main(int argc, const char **argv){
             "--lutgen",                     //std::string paramstring; // parameter's text
             "LUT Generation",           //std::string prettyname; // name for pretty printing
             &lutgen                  //bool* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--eilut",                     //std::string paramstring; // parameter's text
-            "Expanded Intermediate LUT Generation",           //std::string prettyname; // name for pretty printing
-            &eilut                  //bool* vartobind; // pointer to variable whose value to set
         },
         {
             "--nespalgen",                     //std::string paramstring; // parameter's text
@@ -1232,8 +1228,22 @@ int main(int argc, const char **argv){
         },
     };
 
+    const paramvalue luttypelist[3] = {
+        {
+            "normal",
+            LUTMODE_NORMAL
+        },
+        {
+            "postcc",
+            LUTMODE_POSTCC
+        },
+        {
+            "postgamma",
+            LUTMODE_POSTGAMMA
+        }
+    };
 
-    const selectparam params_select[33] = {
+    const selectparam params_select[35] = {
         {
             "--source-primaries",            //std::string paramstring; // parameter's text
             "Source Primaries",             //std::string prettyname; // name for pretty printing
@@ -1464,6 +1474,20 @@ int main(int argc, const char **argv){
             &destcustomwhitelocus,          //int* vartobind; // pointer to variable whose value to set
             locustypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(locustypelist)/sizeof(locustypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--lutmode",            //std::string paramstring; // parameter's text
+            "LUT mode",             //std::string prettyname; // name for pretty printing
+            &lutmode,          //int* vartobind; // pointer to variable whose value to set
+            luttypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(luttypelist)/sizeof(luttypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--lm",            //std::string paramstring; // parameter's text
+            "LUT mode",             //std::string prettyname; // name for pretty printing
+            &lutmode,          //int* vartobind; // pointer to variable whose value to set
+            luttypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(luttypelist)/sizeof(luttypelist[0])  //int tablesize; // number of items in the table
         }
     };
 
@@ -2090,16 +2114,36 @@ int main(int argc, const char **argv){
             printf("\nIgnoring input file because lutgen is true.\n");
             infileset = false;
         }
+        if ((crtemumode != CRT_EMU_FRONT) && (lutmode != LUTMODE_NORMAL)){
+            lutmode = LUTMODE_NORMAL;
+            printf("Forcing lutmode to normal because no CRT simulation.\n");
+        }
+    }
+    else {
+        lutmode = LUTMODE_NONE; // make sure we pass mode none if not lutgen
     }
 
-    if (eilut && !lutgen){
-        printf("\nForcing eilut to false because lutgen is false.\n");
-        eilut = false;
+    if (lutmode == LUTMODE_POSTGAMMA){
+        if (crtclamplow != 0.0){
+            printf("Forcing crtclamplow to 0.0 because lutmode is postgamma.\n");
+            crtclamplow = 0.0;
+        }
+        if (!crtdoclamphigh || (crtclamphigh != 1.0)){
+            printf("Forcing crtclamphigh to 1.0 because lutmode is postgamma.\n");
+            crtclamphigh = 1.0;
+            crtdoclamphigh = true;
+        }
     }
-
-    if (eilut && backwardsmode){
-        printf("\nBackwards search is not compatible with eilut. Aborting.\n");
-        return ERROR_BAD_PARAM_IMPOSSIBLE_COMBO;
+    else if ((lutmode == LUTMODE_POSTCC) && backwardsmode){
+        if (crtclamplow != 0.0){
+            printf("Forcing crtclamplow to 0.0 because lutmode is postcc and backwardsmode is enabled.\n");
+            crtclamplow = 0.0;
+        }
+        if (!crtdoclamphigh || (crtclamphigh != 1.0)){
+            printf("Forcing crtclamphigh to 1.0 because lutmode is postc and backwardsmode is enabled.\n");
+            crtclamphigh = 1.0;
+            crtdoclamphigh = true;
+        }
     }
 
     if (nesmode && backwardsmode){
@@ -2180,11 +2224,6 @@ int main(int argc, const char **argv){
         printf("CRT R'G'B' low output clamp must be at least -0.1; clamping to -0.1 instead.\n");
     }
 
-    if (eilut && !crtdoclamphigh){
-        crtdoclamphigh = true;
-        printf("Forcing crtclamphighenable to true because eilut is true. Clamping CRT R'G'B' high output to %f.\n", crtclamphigh);
-    }
-
     if ((crthueknob != 0.0) && ((crtemumode == CRT_EMU_NONE) || (crtdemodindex == CRT_DEMODULATOR_NONE))){
         printf("Ignoring CRT hue knob because not simulating demodulation.\n");
         crthueknob = 0.0;
@@ -2225,11 +2264,18 @@ int main(int argc, const char **argv){
         if (filemode){
             if (lutgen){
                 printf("LUT generation.\nLUT size: %i\nOutput file: %s\n", lutsize, outputfilename);
-                if (eilut){
-                    printf("LUT type: Expanded intermediate LUT\n");
+                printf("LUT type: ");
+                if (lutmode == LUTMODE_NORMAL){
+                    printf("LUT type: Normal LUT\n");
+                }
+                else if (lutmode == LUTMODE_POSTCC){
+                    printf("LUT type: Post-Color-Correction LUT\n");
+                }
+                else if (lutmode == LUTMODE_POSTGAMMA){
+                    printf("LUT type: Post-Gamma LUT\n");
                 }
                 else {
-                    printf("LUT type: Normal LUT\n");
+                    printf("Error!\n");
                 }
             }
             else {
@@ -2856,7 +2902,7 @@ int main(int argc, const char **argv){
                 }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
-                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, true, hdrsdrmaxnits, backwardsmode);
+                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode);
                     // for now screen barf
                     //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
                     //nesrgb.printout();
@@ -3003,7 +3049,7 @@ int main(int argc, const char **argv){
                                 bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
 
                                 // expanded intermediate LUT uses range specified by crt clamping parameters
-                                if (eilut){
+                                if (lutmode == LUTMODE_POSTCC){
                                     double scaleby = crtclamphigh - crtclamplow;
                                     redvalue = (redvalue * scaleby) + crtclamplow;
                                     greenvalue = (greenvalue * scaleby) + crtclamplow;
@@ -3020,7 +3066,7 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, eilut, false, hdrsdrmaxnits, backwardsmode);
+                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*

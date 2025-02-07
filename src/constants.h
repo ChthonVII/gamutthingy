@@ -74,6 +74,11 @@ extern const vec3 D65;
 #define SC_EXPONENTIAL 0
 #define SC_CUBIC_HERMITE 1
 
+#define LUTMODE_NONE 0
+#define LUTMODE_NORMAL 1
+#define LUTMODE_POSTCC 2
+#define LUTMODE_POSTGAMMA 3
+
 #define DAYLIGHTLOCUS 0
 #define PLANKIANLOCUS 1
 
