@@ -1093,54 +1093,45 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     }
 
     // work through each error and see if it is potentially fixable
-    // TODO: Make this work when there are two possible ways to fix one color, instead of just assuming the first option
-    double redchange = 0.0;
-    double greenchange = 0.0;
-    double bluechange = 0.0;
     bool happy = true;
     // assume we can't fix things by making an out-of-bounds color further out-of-bounds
     bool redlocked = (redhigh || redlow);
     bool greenlocked = (greenhigh || greenlow);
     bool bluelocked = (bluehigh || bluelow);
 
+    bool redforgreen = false;
+    bool redforblue = false;
+    bool greenforred = false;
+    bool greenforblue = false;
+    bool blueforred = false;
+    bool blueforgreen = false;
+
     if (redhigh){
         happy = false;
         // can we fix with green?
-        if (!happy && !greenlocked){
+        if (!greenlocked){
             // +green clip and -cofficient will subtract from red
             if (greencliphigh && (attachedCRT->inverseOverallMatrix[0][1] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
-                if (testchange > greenchange){
-                    greenchange = testchange;
-                }
+                greenforred = true;
             }
             // -green clip and +cofficient will substract from red
             else if (greencliplow && (attachedCRT->inverseOverallMatrix[0][1] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
-                if (testchange < greenchange){
-                    greenchange = testchange;
-                }
+                greenforred = true;
             }
         }
         // can we fix it with blue?
-        if (!happy && !bluelocked){
+        if (!bluelocked){
             // +blue clip and -cofficient will subtract from red
             if (bluecliphigh && (attachedCRT->inverseOverallMatrix[0][2] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
-                if (testchange > bluechange){
-                    bluechange = testchange;
-                }
+                blueforred = true;
             }
             // -blue clip and +cofficient will substract from red
             else if (bluecliplow && (attachedCRT->inverseOverallMatrix[0][2] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
-                if (testchange < bluechange){
-                    bluechange = testchange;
-                }
+                blueforred = true;
             }
         }
         // have we failed to find a potential fix?
@@ -1151,41 +1142,29 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     else if (redlow){
         happy = false;
         // can we fix with green?
-        if (!happy && !greenlocked){
+        if (!greenlocked){
             // +green clip and +cofficient will add to red
             if (greencliphigh && (attachedCRT->inverseOverallMatrix[0][1] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
-                if (testchange > greenchange){
-                    greenchange = testchange;
-                }
+                greenforred = true;
             }
             // -green clip and -cofficient will add to red
             else if (greencliplow && (attachedCRT->inverseOverallMatrix[0][1] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
-                if (testchange < greenchange){
-                    greenchange = testchange;
-                }
+                greenforred = true;
             }
         }
         // can we fix it with blue?
-        if (!happy && !bluelocked){
+        if (!bluelocked){
             // +blue clip and +cofficient will add to red
             if (bluecliphigh && (attachedCRT->inverseOverallMatrix[0][2] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
-                if (testchange > bluechange){
-                    bluechange = testchange;
-                }
+                blueforred = true;
             }
             // -blue clip and -cofficient will add to red
             else if (bluecliplow && (attachedCRT->inverseOverallMatrix[0][2] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
-                if (testchange < bluechange){
-                    bluechange = testchange;
-                }
+                blueforred = true;
             }
         }
         // have we failed to find a potential fix?
@@ -1197,41 +1176,29 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     if (greenhigh){
         happy = false;
         // can we fix with red?
-        if (!happy && !redlocked){
+        if (!redlocked){
             // +red clip and -cofficient will subtract from green
             if (redcliphigh && (attachedCRT->inverseOverallMatrix[1][0] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
-                if (testchange > redchange){
-                    redchange = testchange;
-                }
+                redforgreen = true;
             }
             // -red clip and +cofficient will substract from green
             else if (redcliplow && (attachedCRT->inverseOverallMatrix[1][0] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
-                if (testchange < redchange){
-                    redchange = testchange;
-                }
+                redforgreen = true;
             }
         }
         // can we fix it with blue?
-        if (!happy && !bluelocked){
+        if (!bluelocked){
             // +blue clip and -cofficient will subtract from green
             if (bluecliphigh && (attachedCRT->inverseOverallMatrix[1][2] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
-                if (testchange > bluechange){
-                    bluechange = testchange;
-                }
+                blueforgreen = true;
             }
             // -blue clip and +cofficient will substract from green
             else if (bluecliplow && (attachedCRT->inverseOverallMatrix[1][2] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
-                if (testchange < bluechange){
-                    bluechange = testchange;
-                }
+                blueforgreen = true;
             }
         }
         // have we failed to find a potential fix?
@@ -1242,41 +1209,29 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     else if (greenlow){
         happy = false;
         // can we fix with red?
-        if (!happy && !redlocked){
+        if (!redlocked){
             // +red clip and +cofficient will add to green
             if (redcliphigh && (attachedCRT->inverseOverallMatrix[1][0] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
-                if (testchange > redchange){
-                    redchange = testchange;
-                }
+                redforgreen = true;
             }
             // -red clip and -cofficient will add to green
             else if (redcliplow && (attachedCRT->inverseOverallMatrix[1][0] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
-                if (testchange < redchange){
-                    redchange = testchange;
-                }
+                redforgreen = true;
             }
         }
         // can we fix it with blue?
-        if (!happy && !bluelocked){
+        if (!bluelocked){
             // +blue clip and +cofficient will add to green
             if (bluecliphigh && (attachedCRT->inverseOverallMatrix[1][2] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
-                if (testchange > bluechange){
-                    bluechange = testchange;
-                }
+                blueforgreen = true;
             }
             // -blue clip and -cofficient will add to green
             else if (bluecliplow && (attachedCRT->inverseOverallMatrix[1][2] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[0][2]);
-                if (testchange < bluechange){
-                    bluechange = testchange;
-                }
+                blueforgreen = true;
             }
         }
         // have we failed to find a potential fix?
@@ -1288,41 +1243,29 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     if (bluehigh){
         happy = false;
         // can we fix with red?
-        if (!happy && !redlocked){
+        if (!redlocked){
             // +red clip and -cofficient will subtract from blue
             if (redcliphigh && (attachedCRT->inverseOverallMatrix[2][0] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
-                if (testchange > redchange){
-                    redchange = testchange;
-                }
+                redforblue = true;
             }
             // -red clip and +cofficient will substract from blue
             else if (redcliplow && (attachedCRT->inverseOverallMatrix[2][0] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
-                if (testchange < redchange){
-                    redchange = testchange;
-                }
+                redforblue = true;
             }
         }
         // can we fix it with green?
-        if (!happy && !greenlocked){
+        if (!greenlocked){
             // +green clip and -cofficient will subtract from blue
             if (greencliphigh && (attachedCRT->inverseOverallMatrix[2][1] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
-                if (testchange > greenchange){
-                    greenchange = testchange;
-                }
+                greenforblue = true;
             }
             // -green clip and +cofficient will substract from blue
             else if (greencliplow && (attachedCRT->inverseOverallMatrix[2][1] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
-                if (testchange < greenchange){
-                    greenchange = testchange;
-                }
+                greenforblue = true;
             }
         }
         // have we failed to find a potential fix?
@@ -1333,41 +1276,29 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     else if (bluelow){
         happy = false;
         // can we fix with red?
-        if (!happy && !redlocked){
+        if (!redlocked){
             // +red clip and +cofficient will add to blue
             if (redcliphigh && (attachedCRT->inverseOverallMatrix[2][0] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
-                if (testchange > redchange){
-                    redchange = testchange;
-                }
+                redforblue = true;
             }
             // -red clip and -cofficient will add to blue
             else if (redcliplow && (attachedCRT->inverseOverallMatrix[2][0] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
-                if (testchange < redchange){
-                    redchange = testchange;
-                }
+                redforblue = true;
             }
         }
         // can we fix it with green?
-        if (!happy && !greenlocked){
+        if (!greenlocked){
             // +green clip and +cofficient will add to blue
             if (greencliphigh && (attachedCRT->inverseOverallMatrix[2][1] > 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
-                if (testchange > greenchange){
-                    greenchange = testchange;
-                }
+                greenforblue = true;
             }
             // -green clip and -cofficient will add to blue
             else if (greencliplow && (attachedCRT->inverseOverallMatrix[2][1] < 0.0)){
                 happy = true;
-                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
-                if (testchange < greenchange){
-                    greenchange = testchange;
-                }
+                greenforblue = true;
             }
         }
         // have we failed to find a potential fix?
@@ -1376,36 +1307,180 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         }
     }
 
-    // Now let's see if our fix brought the problem component in-bounds without pushing something else out-of-bounds
-    vec3 unclippedcolor = gammargb;
-    unclippedcolor.x += redchange;
-    unclippedcolor.y += greenchange;
-    unclippedcolor.z += bluechange;
+    // Loop through and try each potential fix
+    // See if we can fix the errors without pushing another component out-of-bounds
+    // For each component, try each of the following if we flagged it above:
+    //      do nothing (doesn't need fixed)
+    //      change one other component
+    //      change the other other component
+    //      change both other components, splitting up responsiblity of the error in proportion to the magnitude of their coefficients
+    // If one component is used to fix both others, use the bigger change
+    // We don't handle the case where both one component has two possible fixes and one component is used to fix both others -- but that should be impossible with only 3 components that cannot fix themselves.
+    double redchangeforgreen = 0.0;
+    double redchangeforblue = 0.0;
+    double greenchangeforred = 0.0;
+    double greenchangeforblue = 0.0;
+    double bluechangeforred = 0.0;
+    double bluechangeforgreen = 0.0;
+    for (int rtype=0; rtype<4; rtype++){
+        // no change
+        if (rtype == 0){
+            if (greenforred || blueforred){
+                continue;
+            }
+            greenchangeforred = 0.0;
+            bluechangeforred = 0.0;
+        }
+        // green changes
+        else if (rtype == 1){
+            if (!greenforred){
+                continue;
+            }
+            greenchangeforred = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
+            bluechangeforred = 0.0;
+        }
+        // blue changes
+        else if (rtype == 2){
+            if (!blueforred){
+                continue;
+            }
+            bluechangeforred = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+            greenchangeforred = 0.0;
+        }
+        // both green and blue change
+        else if (rtype == 3){
+            if (!greenforred || !blueforred){
+                continue;
+            }
+            // split the error by weight, should give the smallest change for both components
+            double maga = fabs(1.0 / attachedCRT->inverseOverallMatrix[0][1]);
+            double magb = fabs(1.0 / attachedCRT->inverseOverallMatrix[0][2]);
+            double weighta = maga / (maga + magb);
+            double weightb = magb / (maga + magb);
+            greenchangeforred = weighta * -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
+            bluechangeforred = weightb * -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+        }
+        // now loop for green
+        for (int gtype=0; gtype<4; gtype++){
+            // no change
+            if (gtype == 0){
+                if (redforgreen || blueforgreen){
+                    continue;
+                }
+                redchangeforgreen = 0.0;
+                bluechangeforgreen = 0.0;
+            }
+            // red changes
+            else if (gtype == 1){
+                if (!redforgreen){
+                    continue;
+                }
+                redchangeforgreen = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
+                bluechangeforgreen = 0.0;
+            }
+            // blue changes
+            else if (gtype == 2){
+                if (!blueforgreen){
+                    continue;
+                }
+                bluechangeforgreen = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
+                redchangeforgreen = 0.0;
+            }
+            // both green and blue change
+            else if (gtype == 3){
+                if (!redforgreen || !blueforgreen){
+                    continue;
+                }
+                // split the error by weight, should give the smallest change for both components
+                double maga = fabs(1.0 / attachedCRT->inverseOverallMatrix[1][0]);
+                double magb = fabs(1.0 / attachedCRT->inverseOverallMatrix[1][2]);
+                double weighta = maga / (maga + magb);
+                double weightb = magb / (maga + magb);
+                redchangeforgreen = weighta * -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
+                bluechangeforgreen = weightb * -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
+            }
+            // now loop for blue
+            for (int btype=0; btype<4; btype++){
+                // no change
+                if (btype == 0){
+                    if (redforblue || greenforblue){
+                        continue;
+                    }
+                    redchangeforblue = 0.0;
+                    greenchangeforblue = 0.0;
+                }
+                // red changes
+                else if (btype == 1){
+                    if (!redforblue){
+                        continue;
+                    }
+                    redchangeforblue = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
+                    greenchangeforblue = 0.0;
+                }
+                // green changes
+                else if (btype == 2){
+                    if (!greenforblue){
+                        continue;
+                    }
+                    greenchangeforblue = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                    redchangeforblue = 0.0;
+                }
+                // both green and blue change
+                else if (btype == 3){
+                    if (!redforblue || !greenforblue){
+                        continue;
+                    }
+                    // split the error by weight, should give the smallest change for both components
+                    double maga = fabs(1.0 / attachedCRT->inverseOverallMatrix[2][0]);
+                    double magb = fabs(1.0 / attachedCRT->inverseOverallMatrix[2][1]);
+                    double weighta = maga / (maga + magb);
+                    double weightb = magb / (maga + magb);
+                    redchangeforblue = weighta * -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
+                    greenchangeforblue = weightb * -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                }
 
-    vec3 inverseunclipped = multMatrixByColor(attachedCRT->inverseOverallMatrix, unclippedcolor);
+                // finally time to do the analysis
 
-    if (inverseunclipped.x > 1.0){
-        return false;
-    }
-    else if (inverseunclipped.x < 0.0){
-        return false;
-    }
-    if (inverseunclipped.y > 1.0){
-        return false;
-    }
-    else if (inverseunclipped.y < 0.0){
-        return false;
-    }
-    if (inverseunclipped.z > 1.0){
-        return false;
-    }
-    else if (inverseunclipped.z < 0.0){
-        return false;
-    }
+                // if the same component is fixing two things, use the bigger change
+                double redchange = (fabs(redchangeforgreen) > fabs(redchangeforblue)) ? redchangeforgreen : redchangeforblue;
+                double greenchange = (fabs(greenchangeforred) > fabs(greenchangeforblue)) ? greenchangeforred : greenchangeforblue;
+                double bluechange = (fabs(bluechangeforred) > fabs(bluechangeforgreen)) ? bluechangeforred : bluechangeforgreen;
 
-    // if we haven't failed by now, we're in bounds
-    //printf("Gamma space input %f, %f, %f is out-of-bounds after inverse color correction, but %f, %f, %f clips to it, and is in-bounds after inverse color correction.\n", gammargb.x, gammargb.y, gammargb.z, unclippedcolor.x ,unclippedcolor.y, unclippedcolor.z);
-    return true;
+                // Now let's see if our fix brought the problem component(s) in-bounds without pushing something else out-of-bounds
+                vec3 unclippedcolor = gammargb;
+                unclippedcolor.x += redchange;
+                unclippedcolor.y += greenchange;
+                unclippedcolor.z += bluechange;
+
+                vec3 inverseunclipped = multMatrixByColor(attachedCRT->inverseOverallMatrix, unclippedcolor);
+
+                if (inverseunclipped.x > 1.0){
+                    continue;
+                }
+                else if (inverseunclipped.x < 0.0){
+                    continue;
+                }
+                if (inverseunclipped.y > 1.0){
+                    continue;
+                }
+                else if (inverseunclipped.y < 0.0){
+                    continue;
+                }
+                if (inverseunclipped.z > 1.0){
+                    continue;
+                }
+                else if (inverseunclipped.z < 0.0){
+                    continue;
+                }
+                // if we haven't failed by now, we're in bounds
+                //printf("Gamma space input %f, %f, %f is out-of-bounds after inverse color correction, but %f, %f, %f clips to it, and is in-bounds after inverse color correction.\n", gammargb.x, gammargb.y, gammargb.z, unclippedcolor.x ,unclippedcolor.y, unclippedcolor.z);
+                return true;
+
+            } // end for btype
+        } // end for gtype
+    } // end for rtype
+    // if we hit the end of the loop without returning true, then all attempted fixes failed
+    return false;
 }
 
 
