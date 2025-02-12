@@ -955,10 +955,11 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     }
 
     // CRT mode has extra steps
+    vec3 gammargb;
     if (crtemumode != CRT_EMU_NONE){
 
         // check if the gamma-space RGB would be outside the RGB clipping rule
-        vec3 gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
+        gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
         if (attachedCRT->clamphighrgb){
             if (gammargb.x > attachedCRT->rgbclamphighlevel){return false;}
             if (gammargb.y > attachedCRT->rgbclamphighlevel){return false;}
@@ -968,32 +969,442 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         if (gammargb.y < attachedCRT->rgbclamplowlevel){return false;}
         if (gammargb.z < attachedCRT->rgbclamplowlevel){return false;}
 
-        // invert the whole CRT process to get back to the original inputs for the next step
+        // Invert the whole CRT process to get back to the original inputs for the next step
+        // This is not exactly correct in all cases because of clipping.
+        // Which is dealt with in the horrible mess of code below.
         rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
 
     }
+    bool inbounds = true;
+    bool redhigh = false;
+    bool redlow = false;
+    bool greenhigh = false;
+    bool greenlow = false;
+    bool bluehigh = false;
+    bool bluelow = false;
     // normal check
     if (rgbcolor.x > 1.0){
-        return false;
+        inbounds = false;
+        redhigh = true;
     }
     else if (rgbcolor.x < 0.0){
-        return false;
+        inbounds = false;
+        redlow = true;
     }
     if (rgbcolor.y > 1.0){
-        return false;
+        inbounds = false;
+        greenhigh = true;
     }
     else if (rgbcolor.y < 0.0){
-        return false;
+        inbounds = false;
+        greenlow = true;
     }
     if (rgbcolor.z > 1.0){
-        return false;
+        inbounds = false;
+        bluehigh = true;
     }
     else if (rgbcolor.z < 0.0){
+        inbounds = false;
+        bluelow = true;
+    }
+    ////////////////////////////////////////////////////////////////////////
+    // *** Return now if in-bounds or no CRT headaches to consider ***
+    if (inbounds || (crtemumode == CRT_EMU_NONE)){
+        return inbounds;
+    }
+
+    // Now we must deal with the reeeeeally fugly case where
+    // the inverse color correction of gammargb is-out-of bounds,
+    // but maybe there exists some nearby value that clips to gammargb,
+    // and whose inverse color correction is in-bounds
+
+    // first rule out some easy cases
+    // you can't get an out-of-bounds value on account of matrixing unless there's a negative coefficient contributing to the out-of-bounds RGB component
+    // (You can't get <0 without a negative, and the other two can't total >1 without a negative.)
+    // ***SADLY, this is only true for the 0-1 clamping case.***
+    /*
+    if ((redhigh || redlow) && !attachedCRT->redfixable){
+        return false;
+    }
+    if ((greenhigh || greenlow) && !attachedCRT->greenfixable){
+        return false;
+    }
+    if ((bluehigh || bluelow) && !attachedCRT->bluefixable){
+        return false;
+    }
+    */
+
+
+    // Rule out cases where we could not have clipped to reach the input in the first place
+    // In order to avoid gamut extrusions that are infinitely thin,
+    // Treat anything that quantizes to the clamping value in RGB8 as potentially clamped
+    const double halfstep = 1.0/510.0;
+    const double highthreshhold = floor((attachedCRT->rgbclamphighlevel * 255.0) + 0.5)/255.0 - halfstep;
+    const double lowthreshhold = ceil((attachedCRT->rgbclamplowlevel * 255.0) - 0.5)/255.0 + halfstep;
+    bool redcliphigh = false;
+    bool redcliplow = false;
+    bool greencliphigh = false;
+    bool greencliplow = false;
+    bool bluecliphigh = false;
+    bool bluecliplow = false;
+    if (gammargb.x >= highthreshhold && (attachedCRT->clamphighrgb)){
+        redcliphigh = true;
+    }
+    else if (gammargb.x < lowthreshhold){
+        redcliplow = false;
+    }
+    if (gammargb.y >= highthreshhold && (attachedCRT->clamphighrgb)){
+        greencliphigh = true;
+    }
+    else if (gammargb.y < lowthreshhold){
+        greencliplow = false;
+    }
+    if (gammargb.z >= highthreshhold && (attachedCRT->clamphighrgb)){
+        bluecliphigh = true;
+    }
+    else if (gammargb.z < lowthreshhold){
+        bluecliplow = false;
+    }
+    if (!(redcliphigh || redcliplow || greencliphigh || greencliplow || bluecliphigh || bluecliplow)){
         return false;
     }
 
+    // Figure out our error sizes
+    double rederror = 0.0;
+    double greenerror = 0.0;
+    double blueerror = 0.0;
+    if (redhigh){
+        rederror = rgbcolor.x - 1.0;
+    }
+    else if (redlow){
+        rederror = rgbcolor.x;
+    }
+    if (greenhigh){
+        greenerror = rgbcolor.y - 1.0;
+    }
+    else if (greenlow){
+        greenerror = rgbcolor.y;
+    }
+    if (bluehigh){
+        blueerror = rgbcolor.z - 1.0;
+    }
+    else if (bluelow){
+        blueerror = rgbcolor.z;
+    }
+
+    // work through each error and see if it is potentially fixable
+    // TODO: Make this work when there are two possible ways to fix one color, instead of just assuming the first option
+    double redchange = 0.0;
+    double greenchange = 0.0;
+    double bluechange = 0.0;
+    bool happy = true;
+    // assume we can't fix things by making an out-of-bounds color further out-of-bounds
+    bool redlocked = (redhigh || redlow);
+    bool greenlocked = (greenhigh || greenlow);
+    bool bluelocked = (bluehigh || bluelow);
+
+    if (redhigh){
+        happy = false;
+        // can we fix with green?
+        if (!happy && !greenlocked){
+            // +green clip and -cofficient will subtract from red
+            if (greencliphigh && (attachedCRT->inverseOverallMatrix[0][1] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
+                if (testchange > greenchange){
+                    greenchange = testchange;
+                }
+            }
+            // -green clip and +cofficient will substract from red
+            else if (greencliplow && (attachedCRT->inverseOverallMatrix[0][1] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
+                if (testchange < greenchange){
+                    greenchange = testchange;
+                }
+            }
+        }
+        // can we fix it with blue?
+        if (!happy && !bluelocked){
+            // +blue clip and -cofficient will subtract from red
+            if (bluecliphigh && (attachedCRT->inverseOverallMatrix[0][2] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+                if (testchange > bluechange){
+                    bluechange = testchange;
+                }
+            }
+            // -blue clip and +cofficient will substract from red
+            else if (bluecliplow && (attachedCRT->inverseOverallMatrix[0][2] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+                if (testchange < bluechange){
+                    bluechange = testchange;
+                }
+            }
+        }
+        // have we failed to find a potential fix?
+        if (!happy){
+            return false;
+        }
+    }
+    else if (redlow){
+        happy = false;
+        // can we fix with green?
+        if (!happy && !greenlocked){
+            // +green clip and +cofficient will add to red
+            if (greencliphigh && (attachedCRT->inverseOverallMatrix[0][1] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
+                if (testchange > greenchange){
+                    greenchange = testchange;
+                }
+            }
+            // -green clip and -cofficient will add to red
+            else if (greencliplow && (attachedCRT->inverseOverallMatrix[0][1] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
+                if (testchange < greenchange){
+                    greenchange = testchange;
+                }
+            }
+        }
+        // can we fix it with blue?
+        if (!happy && !bluelocked){
+            // +blue clip and +cofficient will add to red
+            if (bluecliphigh && (attachedCRT->inverseOverallMatrix[0][2] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+                if (testchange > bluechange){
+                    bluechange = testchange;
+                }
+            }
+            // -blue clip and -cofficient will add to red
+            else if (bluecliplow && (attachedCRT->inverseOverallMatrix[0][2] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+                if (testchange < bluechange){
+                    bluechange = testchange;
+                }
+            }
+        }
+        // have we failed to find a potential fix?
+        if (!happy){
+            return false;
+        }
+    }
+
+    if (greenhigh){
+        happy = false;
+        // can we fix with red?
+        if (!happy && !redlocked){
+            // +red clip and -cofficient will subtract from green
+            if (redcliphigh && (attachedCRT->inverseOverallMatrix[1][0] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
+                if (testchange > redchange){
+                    redchange = testchange;
+                }
+            }
+            // -red clip and +cofficient will substract from green
+            else if (redcliplow && (attachedCRT->inverseOverallMatrix[1][0] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
+                if (testchange < redchange){
+                    redchange = testchange;
+                }
+            }
+        }
+        // can we fix it with blue?
+        if (!happy && !bluelocked){
+            // +blue clip and -cofficient will subtract from green
+            if (bluecliphigh && (attachedCRT->inverseOverallMatrix[1][2] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
+                if (testchange > bluechange){
+                    bluechange = testchange;
+                }
+            }
+            // -blue clip and +cofficient will substract from green
+            else if (bluecliplow && (attachedCRT->inverseOverallMatrix[1][2] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
+                if (testchange < bluechange){
+                    bluechange = testchange;
+                }
+            }
+        }
+        // have we failed to find a potential fix?
+        if (!happy){
+            return false;
+        }
+    }
+    else if (greenlow){
+        happy = false;
+        // can we fix with red?
+        if (!happy && !redlocked){
+            // +red clip and +cofficient will add to green
+            if (redcliphigh && (attachedCRT->inverseOverallMatrix[1][0] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
+                if (testchange > redchange){
+                    redchange = testchange;
+                }
+            }
+            // -red clip and -cofficient will add to green
+            else if (redcliplow && (attachedCRT->inverseOverallMatrix[1][0] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
+                if (testchange < redchange){
+                    redchange = testchange;
+                }
+            }
+        }
+        // can we fix it with blue?
+        if (!happy && !bluelocked){
+            // +blue clip and +cofficient will add to green
+            if (bluecliphigh && (attachedCRT->inverseOverallMatrix[1][2] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
+                if (testchange > bluechange){
+                    bluechange = testchange;
+                }
+            }
+            // -blue clip and -cofficient will add to green
+            else if (bluecliplow && (attachedCRT->inverseOverallMatrix[1][2] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[0][2]);
+                if (testchange < bluechange){
+                    bluechange = testchange;
+                }
+            }
+        }
+        // have we failed to find a potential fix?
+        if (!happy){
+            return false;
+        }
+    }
+
+    if (bluehigh){
+        happy = false;
+        // can we fix with red?
+        if (!happy && !redlocked){
+            // +red clip and -cofficient will subtract from blue
+            if (redcliphigh && (attachedCRT->inverseOverallMatrix[2][0] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
+                if (testchange > redchange){
+                    redchange = testchange;
+                }
+            }
+            // -red clip and +cofficient will substract from blue
+            else if (redcliplow && (attachedCRT->inverseOverallMatrix[2][0] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
+                if (testchange < redchange){
+                    redchange = testchange;
+                }
+            }
+        }
+        // can we fix it with green?
+        if (!happy && !greenlocked){
+            // +green clip and -cofficient will subtract from blue
+            if (greencliphigh && (attachedCRT->inverseOverallMatrix[2][1] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                if (testchange > greenchange){
+                    greenchange = testchange;
+                }
+            }
+            // -green clip and +cofficient will substract from blue
+            else if (greencliplow && (attachedCRT->inverseOverallMatrix[2][1] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                if (testchange < greenchange){
+                    greenchange = testchange;
+                }
+            }
+        }
+        // have we failed to find a potential fix?
+        if (!happy){
+            return false;
+        }
+    }
+    else if (bluelow){
+        happy = false;
+        // can we fix with red?
+        if (!happy && !redlocked){
+            // +red clip and +cofficient will add to blue
+            if (redcliphigh && (attachedCRT->inverseOverallMatrix[2][0] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
+                if (testchange > redchange){
+                    redchange = testchange;
+                }
+            }
+            // -red clip and -cofficient will add to blue
+            else if (redcliplow && (attachedCRT->inverseOverallMatrix[2][0] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
+                if (testchange < redchange){
+                    redchange = testchange;
+                }
+            }
+        }
+        // can we fix it with green?
+        if (!happy && !greenlocked){
+            // +green clip and +cofficient will add to blue
+            if (greencliphigh && (attachedCRT->inverseOverallMatrix[2][1] > 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                if (testchange > greenchange){
+                    greenchange = testchange;
+                }
+            }
+            // -green clip and -cofficient will add to blue
+            else if (greencliplow && (attachedCRT->inverseOverallMatrix[2][1] < 0.0)){
+                happy = true;
+                double testchange = -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                if (testchange < greenchange){
+                    greenchange = testchange;
+                }
+            }
+        }
+        // have we failed to find a potential fix?
+        if (!happy){
+            return false;
+        }
+    }
+
+    // Now let's see if our fix brought the problem component in-bounds without pushing something else out-of-bounds
+    vec3 unclippedcolor = gammargb;
+    unclippedcolor.x += redchange;
+    unclippedcolor.y += greenchange;
+    unclippedcolor.z += bluechange;
+
+    vec3 inverseunclipped = multMatrixByColor(attachedCRT->inverseOverallMatrix, unclippedcolor);
+
+    if (inverseunclipped.x > 1.0){
+        return false;
+    }
+    else if (inverseunclipped.x < 0.0){
+        return false;
+    }
+    if (inverseunclipped.y > 1.0){
+        return false;
+    }
+    else if (inverseunclipped.y < 0.0){
+        return false;
+    }
+    if (inverseunclipped.z > 1.0){
+        return false;
+    }
+    else if (inverseunclipped.z < 0.0){
+        return false;
+    }
 
     // if we haven't failed by now, we're in bounds
+    //printf("Gamma space input %f, %f, %f is out-of-bounds after inverse color correction, but %f, %f, %f clips to it, and is in-bounds after inverse color correction.\n", gammargb.x, gammargb.y, gammargb.z, unclippedcolor.x ,unclippedcolor.y, unclippedcolor.z);
     return true;
 }
 
