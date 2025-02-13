@@ -1331,6 +1331,7 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     double greenchangeforblue = 0.0;
     double bluechangeforred = 0.0;
     double bluechangeforgreen = 0.0;
+    bool doalert = false;
     for (int rtype=0; rtype<4; rtype++){
         // no change
         if (rtype == 0){
@@ -1368,6 +1369,7 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
             double weightb = magb / (maga + magb);
             greenchangeforred = weighta * -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][1]);
             bluechangeforred = weightb * -1.0 * (rederror / attachedCRT->inverseOverallMatrix[0][2]);
+            doalert = true;
         }
         // now loop for green
         for (int gtype=0; gtype<4; gtype++){
@@ -1407,6 +1409,7 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
                 double weightb = magb / (maga + magb);
                 redchangeforgreen = weighta * -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][0]);
                 bluechangeforgreen = weightb * -1.0 * (greenerror / attachedCRT->inverseOverallMatrix[1][2]);
+                doalert = true;
             }
             // now loop for blue
             for (int btype=0; btype<4; btype++){
@@ -1446,6 +1449,7 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
                     double weightb = magb / (maga + magb);
                     redchangeforblue = weighta * -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][0]);
                     greenchangeforblue = weightb * -1.0 * (blueerror / attachedCRT->inverseOverallMatrix[2][1]);
+                    doalert = true;
                 }
 
                 // finally time to do the analysis
@@ -1489,6 +1493,9 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         } // end for gtype
     } // end for rtype
     // if we hit the end of the loop without returning true, then all attempted fixes failed
+    if (doalert){
+        printf("\n\n---------------------------------------------\nHEY!!! Found a \"two possible fixes case\"! Please notify the developer of the parameters that got you here.\n---------------------------------------------\n\n");
+    }
     return false;
 }
 
