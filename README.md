@@ -42,7 +42,7 @@ Four general modes of operation:
      - `CXA1145` Extremely common. Used in most 1st generation and some 2nd generation Sega Genesis, Sega Master System II, NEO GEO AES, Amiga consoles, SNK consoles, and many other things. [insert cite]
      - `CXA1645` Used in some 2nd generation and all 3rd generation Sega Genesis, Sony Playstation 1, Genesis 3, Sega Saturn, NeoGeo CD/CDZ. [insert cite]
 - `--crtdemod`: Specifies the composite-to-R'G'B' demodulator chip in the CRT television. CRT "color correction" is accomplished via the demodulation angles and gains built into this chip. Possible values are:
-     - `none` Do not simulation demodulation. Equivalent to an ideal "plain-vanilla" demodulator. (default)
+     - `none` Do not simulate demodulation. Equivalent to an ideal "plain-vanilla" demodulator. (default)
      - `dummy` Assume an ideal "plain-vanilla" demodulator. Use this for chips implementing "no color correction" standards such as EBU and SMPTE-C. Same as `none` unless `--crt-hue-knob` is non-zero.
      - `CXA1464AS` Used in Japan Sony Trinitron ~1993-1995.
      - `CXA1465AS` Used in U.S. Sony Trinitron ~1993-1995.
