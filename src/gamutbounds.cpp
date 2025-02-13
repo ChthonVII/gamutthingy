@@ -1311,11 +1311,20 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     // See if we can fix the errors without pushing another component out-of-bounds
     // For each component, try each of the following if we flagged it above:
     //      do nothing (doesn't need fixed)
-    //      change one other component
-    //      change the other other component
-    //      change both other components, splitting up responsiblity of the error in proportion to the magnitude of their coefficients
-    // If one component is used to fix both others, use the bigger change
+    //      change one other component enough to fix the out-of-bounds one
+    //      change the other other component enough to fix the out-of-bounds one
+    //      change both other components, splitting up shares of error to fix in proportion to the magnitude of their coefficients
+
+    // If one component is used to fix both others, use the bigger change.
+
     // We don't handle the case where both one component has two possible fixes and one component is used to fix both others -- but that should be impossible with only 3 components that cannot fix themselves.
+
+    // We also don't try every combination when a component has two possible fixes,
+    // Rather we just try each extreme and the balanced middle case.
+    // Not completely sure this is good enough.
+    // Maybe sometimes an unbalanced split works when nothing else does.
+    // Also not sure this situation can actually arise from CRT emulation in the first place.
+    // I've not yet found a "two possible fixes" case in the wild.
     double redchangeforgreen = 0.0;
     double redchangeforblue = 0.0;
     double greenchangeforred = 0.0;
