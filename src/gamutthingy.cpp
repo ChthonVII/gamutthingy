@@ -723,6 +723,7 @@ int main(int argc, const char **argv){
     char* neshtmlfilename;
     bool backwardsmode = false;
     double crthueknob = 0.0;
+    double crtsaturationknob = 1.0;
     
     const boolparam params_bool[12] = {
         {
@@ -1492,7 +1493,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[30] = {
+    const floatparam params_float[32] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -1637,6 +1638,16 @@ int main(int argc, const char **argv){
             "--chk",         //std::string paramstring; // parameter's text
             "CRT Hue Knob",        //std::string prettyname; // name for pretty printing
             &crthueknob           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crt-saturation-knob",         //std::string paramstring; // parameter's text
+            "CRT Saturation Knob",        //std::string prettyname; // name for pretty printing
+            &crtsaturationknob           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--csk",         //std::string paramstring; // parameter's text
+            "CRT Saturation Knob",        //std::string prettyname; // name for pretty printing
+            &crtsaturationknob           //double* vartobind; // pointer to variable whose value to set
         },
 
 
@@ -2237,6 +2248,14 @@ int main(int argc, const char **argv){
         }
     }
 
+    if ((crtsaturationknob != 1.0) && (crtemumode == CRT_EMU_NONE)){
+        printf("Ignoring CRT saturation knob because not simulating CRT.\n");
+    }
+    else if (crtsaturationknob < 0.0){
+        printf("CRT saturation cannot be less than zero. Forcing to zero.\n");
+        crtsaturationknob = 0.0;
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 
@@ -2528,6 +2547,7 @@ int main(int argc, const char **argv){
                  printf("%s\n", demodulatornames[crtdemodindex].c_str());
                  printf("CRT hue knob at %f degrees.\n", crthueknob);
             }
+            printf("CRT saturation knob at %f times normal.\n", crtsaturationknob);
             printf("CRT R'G'B' high low values clamped to %f.\n", crtclamplow);
             if (crtdoclamphigh){
                 printf("CRT R'G'B' high output values clamped to %f.\n", crtclamphigh);
@@ -2559,7 +2579,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -2754,6 +2774,7 @@ int main(int argc, const char **argv){
                  htmlfile << demodulatornames[crtdemodindex] << "<BR>\n";
                  htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
             }
+            htmlfile << "\t\t\tCRT saturation knob at " << crtsaturationknob << " times normal.<BR>\n";
 
             htmlfile << "\t\t\tCRT R'G'B' high low output values clamped to " << crtclamplow << ".<BR>\n";
             if (crtdoclamphigh){

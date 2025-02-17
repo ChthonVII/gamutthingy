@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -29,6 +29,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     demodulatorrenormalization = renorm;
     demodfixes = dodemodfixes;
     globalehueoffset = hueknob;
+    globalsaturation = saturationknob;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -58,6 +59,29 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
         memcpy(overallMatrix, identity, 9 * sizeof(double));
     }
     
+    // Saturation knob
+    if (globalsaturation != 1.0){
+        // Roll together: Convert R'G'B'->Y'PbPr, multiply Pb and Pr by a factor, convert back Y'PbPr to R'G'B'
+        double saturationdelta = globalsaturation - 1.0;
+        double redmain = 1.0 + ((1.0 - ntsc1953_wr) * saturationdelta);
+        double greenmain = 1.0 + ((1.0 - ntsc1953_wg) * saturationdelta);
+        double bluemain = 1.0 + ((1.0 - ntsc1953_wb) * saturationdelta);
+        double redother = -1.0 * ntsc1953_wr * saturationdelta;
+        double greenother = -1.0 * ntsc1953_wg * saturationdelta;
+        double blueother = -1.0 * ntsc1953_wb * saturationdelta;
+        double saturationmatrix[3][3] = {
+            {redmain, greenother, blueother},
+            {redother, greenmain, blueother},
+            {blueother, greenother, bluemain}
+        };
+        // Assume saturation knob is applied to C before it's demodulated.
+        // (This might be incorrect. CRT might also demodulate first then apply the knob to R-Y and B-Y
+        // ... might need another parameter to pick which happens first...)
+        double newoverall[3][3];
+        mult3x3Matrices(overallMatrix, saturationmatrix, newoverall);
+        memcpy(overallMatrix, newoverall, 9 * sizeof(double));
+    }
+
     output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
 
     return output;
@@ -279,7 +303,6 @@ double crtdescriptor::togamma1886appx1(double input){
 
 // set the global variables for NTSC 1953 white balance
 // This is basically copy/paste from the first few steps of gamut boundary initialization.
-// Following refactor, this function is almost pointless, since the constants are now only used in one place...
 bool crtdescriptor::InitializeNTSC1953WhiteBalanceFactors(){
     
     bool output = true;
