@@ -834,7 +834,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[19] = {
+    const paramvalue gamutlist[20] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -908,6 +908,10 @@ int main(int argc, const char **argv){
             GAMUT_P22_APPLE_MULTISCAN1705
         },
         {
+            "P22_toshiba_backstripe_cf2005_patchy68k",
+            GAMUT_P22_BLACKSTRIPE
+        },
+        {
             "customcoord",
             GAMUT_CUSTOM
         }
@@ -916,7 +920,7 @@ int main(int argc, const char **argv){
         // see comment in constants.h
     };
 
-    const paramvalue whitepointlist[19] = {
+    const paramvalue whitepointlist[20] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -984,6 +988,10 @@ int main(int argc, const char **argv){
         {
             "kds_vs19_93k",
             WHITEPOINT_KDS_VS19
+        },
+        {
+            "toshiba_backstripe_cf2005_75k_patchy68k",
+            WHITEPOINT_75K_BLACKSTRIPE
         },
         {
             "customcoord",
@@ -1125,7 +1133,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue crtdemodulatorlist[13] = {
+    const paramvalue crtdemodulatorlist[14] = {
         {
             "none",
             CRT_DEMODULATOR_NONE
@@ -1177,6 +1185,10 @@ int main(int argc, const char **argv){
         {
             "TDA8362",
             CRT_DEMODULATOR_TDA8362
+        },
+        {
+            "toshiba_backstripe_cf2005",
+            CRT_DEMODULATOR_BLACKSTRIPE
         }
     };
 

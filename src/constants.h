@@ -147,8 +147,9 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_93K_FAIRCHILD 14
 #define WHITEPOINT_D65_FAIRCHILD 15
 #define WHITEPOINT_D65_DISPLAYMATE 16
+#define WHITEPOINT_75K_BLACKSTRIPE 17
 
-const std::string whitepointnames[17] = {
+const std::string whitepointnames[18] = {
     "D65",
     "9300K + 27mpcd",
     "9300K + 8mpcd",
@@ -165,10 +166,11 @@ const std::string whitepointnames[17] = {
     "KDS VS19 ~93K",
     "Diamond Pro/Trinitron ~93K (Fairchild measurement)",
     "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
-    "Trinitron ~D65 (DisplayMate measurement)"
+    "Trinitron ~D65 (DisplayMate measurement)",
+    "Toshiba Blackstripe CF2005 ~D75 (Patchy68k measurement)"
 };
 
-const double whitepoints[17][3] = {
+const double whitepoints[18][3] = {
     // D65
     {0.312713, 0.329016, 0.358271},
     // 9300K + 27MPCD
@@ -229,6 +231,10 @@ const double whitepoints[17][3] = {
     // https://www.displaymate.com/ShootOut_Part_1.htm
     // coords estimated via xycoordfromfromCCT()
     {0.313091, 0.329377, 0.357532},
+    // Toshiba Blackstripe CF2005 (manufactured 1985) ~75K
+    // measurements and math by Patchy68k
+    // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
+    {0.301, 0.308, 0.391},
 };
 
 #define GAMUT_CUSTOM -1
@@ -250,8 +256,9 @@ const double whitepoints[17][3] = {
 #define GAMUT_P22_TRINITRON_MIXANDMATCH 15
 #define GAMUT_P22_TRINITRON_BOHNSACK 16
 #define GAMUT_P22_APPLE_MULTISCAN1705 17
+#define GAMUT_P22_BLACKSTRIPE 18
 
-const std::string gamutnames[18] = {
+const std::string gamutnames[19] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -270,9 +277,10 @@ const std::string gamutnames[18] = {
     "P22 phosphors, Trinitron, Mix-and-Match",
     "P22 phosphors, Trinitron, Bohnsack Measurement",
     "P22 phosphors, Apple Multiple Scan 1705",
+    "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
 };
 
-const double gamutpoints[18][3][3] = {
+const double gamutpoints[19][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -441,6 +449,15 @@ const double gamutpoints[18][3][3] = {
         {0.15, 0.065, 0.785} //blue
     },
 
+    // Toshiba Blackstripe CF2005 (manufactured 1985) ~75K
+    // measurements and math by Patchy68k
+    // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
+    {
+        {0.623492333, 0.343975233, 0.032532434}, //red
+        {0.312266967, 0.590305267, 0.097427766}, //green
+        {0.153586233, 0.064531667, 0.7818821} //blue
+    },
+
     // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
     // Grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L728
     // Better explanation from Dogway: https://github.com/Dogway/Avisynth-Scripts/blob/258644dea7a1fbc9a71e7f39d6bb62234a80e1c7/TransformsPack%20-%20Main.avsi#L2348
@@ -537,8 +554,9 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_CXA2025AS_US 9
 #define CRT_DEMODULATOR_CXA1213AS 10
 #define CRT_DEMODULATOR_TDA8362 11
+#define CRT_DEMODULATOR_BLACKSTRIPE 12
 
-const std::string demodulatornames[12] = {
+const std::string demodulatornames[13] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -550,10 +568,11 @@ const std::string demodulatornames[12] = {
     "CXA2025AS (JP mode)",
     "CXA2025AS (US mode)",
     "CXA1213AS",
-    "TDA8362"
+    "TDA8362",
+    "Unknown Chip - Toshiba Blackstripe CF2005 (US)"
 };
 
-const double demodulatorinfo[12][2][3] = {
+const double demodulatorinfo[13][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -673,6 +692,18 @@ const double demodulatorinfo[12][2][3] = {
         {100, 235, -10}, // angles (degrees)
         {1.14, 0.3, 1.14} // gains
     },
+
+    // Unknown chip used in Toshiba Blackstripe CF2005 (manufactured 1985)
+    // US model
+    // calculated from measurements by Patchy68k
+    // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
+    // Patchy68k notes that this TV does indeed look terrible in real life.
+    // Also, probably no clipping CRT output.
+    {
+        {94.5488524399, 255.376054365, 0}, // angles (degrees)
+        {0.806809988011, 0.295471057738, 1.0} // gains
+    },
+
 };
 
 #endif
