@@ -601,6 +601,7 @@ bool crtdescriptor::InitializeDemodulator(){
 
     // screen barf
     if (verbosity >= VERBOSITY_SLIGHT){
+        printf("CRT matrix incorporating demodulation (color correction), hue knob, and saturation knob:\n");
         print3x3matrix(demodulatorMatrix);
         printf("\n----------\n");
     }
