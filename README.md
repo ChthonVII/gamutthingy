@@ -125,8 +125,7 @@ Four general modes of operation:
 - `--dest-whitepoint` or `--dw`: Specifies the whitepoint of the destination gamut. Possible values are the same as for `--source-whitepoint`. Default `D65`.
 - `--dest-whitepoint-custom-coords` or `--dwcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the destination gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--dest-whitepoint customcoord`.
 - `--dest-whitepoint-custom-temp` or `--dwct`: Specify color temperature for the whitepoint of the destination gamut, and coordinates will be estimated automatically. Floating point number. Does nothing unless `--dest-whitepoint customtemp`.
-- `--dest-whitepoint-custom-temp-locus` or `--dwctl`: Specify locus to use for estimating coordinates from color temperature. Does nothing unless `--dest-whitepoint customtemp`. Possible values are:
-     - `daylight` Used by the D series illuminants (e.g., D65). (default) or `plankian` (black body). 
+- `--dest-whitepoint-custom-temp-locus` or `--dwctl`: Specify locus to use for estimating coordinates from color temperature. Does nothing unless `--dest-whitepoint customtemp`. Possible values are the same as for `--source-whitepoint-custom-temp-locus`. 
 
 **Chromatic Adaptation Parameters:**
 - `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing whitepoints. Possible values are `cat16` (default) or `bradford`.
