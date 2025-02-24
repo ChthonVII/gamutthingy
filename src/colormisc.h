@@ -2,6 +2,7 @@
 #define COLORMISC_H
 
 #include "vec3.h"
+#include "vec2.h"
 
 #include <png.h> // Linux should have libpng-dev installed; Windows users can figure stuff out.
 
@@ -58,5 +59,14 @@ double inversehermite(double input);
 
 // Compute xy coordinates from CCT
 vec3 xycoordfromfromCCT(double cct, int locus);
+// subroutines for various loci
+vec3 xycoordfromfromCCTdaylight(double cct);
+vec3 xycoordfromfromCCTdaylightdogway(double cct);
+vec3 xycoordfromfromCCTplankian(double cct);
+
+// convert CIE1931 xy coords to CIE1960 uv coords and back
+// (used for CCT+MPCD calculations)
+vec2 xytocie1960uv(vec2 input);
+vec2 cie1960uvtoxy(vec2 input);
 
 #endif

@@ -366,40 +366,141 @@ double inversehermite(double input){
 // Either on daylight locus or on Plankian (black body) locus
 vec3 xycoordfromfromCCT(double cct, int locus){
 
-
-    // This approximation function is borrowed from grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang
-    // Unfortunately, grade doesn't cite where it came from.
-    // This approximation function gives more accurate results for D65 than either function on wikipedia:
-    // https://en.wikipedia.org/wiki/Standard_illuminant#Computation
-    // https://en.wikipedia.org/wiki/Planckian_locus#Approximation
-    if (locus == DAYLIGHTLOCUS){
-        const double temp3 = 1000.0 / cct;
-        const double temp6 = 1000000.0 / (cct * cct);
-        const double temp9 = 1000000000.0 / (cct * cct * cct);
-
-        double x;
-        if (cct < 5500){
-            x = 0.244058 + (0.0989971 * temp3) + (2.96545 * temp6) + (-4.59673 * temp9);
+    bool rectify = false;
+    switch (locus){
+        case DAYLIGHTLOCUS_OLD:
+            rectify = true;
+            locus = DAYLIGHTLOCUS;
+            break;
+        case DAYLIGHTLOCUS_DOGWAY_OLD:
+            rectify = true;
+            locus = DAYLIGHTLOCUS_DOGWAY;
+            break;
+        case PLANKIANLOCUS_OLD:
+            rectify = true;
+            locus = PLANKIANLOCUS;
+            break;
+        default:
+            break;
+    };
+    // The value of c2 has changed slightly as estimates of the Plank and Boltzmann constants have been improved
+    // We can rectify CCT specified on the pre-1968 scale by multiplying CCT by c2/oldc2,
+    // where oldc2 is 14.38 (1.438 adjusted to match the decimal point on our c2 without some needless zeroes)
+    // See https://en.wikipedia.org/wiki/Planckian_locus#International_Temperature_Scale
+    // See https://en.wikipedia.org/wiki/Standard_Illuminant
+    if (rectify){
+        if (locus == PLANKIANLOCUS){
+            // derivation of c2 copied from xycoordfromfromCCTplankian()
+            const double plank = 6.62607015; // *10^-34
+            const double lightspeed = 2.99792458; // *10^8
+            const double boltzmann = 1.380649; // * 10^-23
+            double c2 = (plank * lightspeed) / boltzmann; // *10^-3
+            cct *= (c2 / 14.38);
         }
-        else if (cct < 8000){
-            x = 0.200033 + (0.9545630 * temp3) + (-2.53169 * temp6) + (7.08578 * temp9);
+        else { // DAYLIGHT LOCUS
+            // After the 1968 revision of c2, CIE explicitly specified the value of c2 to be used so that illuminants wouldn't move again relative to their names.
+            // So use that c2 instead of modern c2.
+            // See CIE 15:2004 p69
+            cct *= (1.4388 / 1.438);
         }
-        else {
-            x = 0.237045 + (0.2437440 * temp3) + (1.94062 * temp6) + (-2.11004 * temp9);
-        }
-
-        double y = -0.275275 + (2.87396 * x) - (3.02034 * x * x) + (0.0297408 * x * x * x);
-
-        double z = 1.0 - x - y;
-
-        return vec3(x, y, z);
     }
 
+    vec3 output;
+    switch (locus){
+        case DAYLIGHTLOCUS:
+            output = xycoordfromfromCCTdaylight(cct);
+            break;
+        case DAYLIGHTLOCUS_DOGWAY:
+            output = xycoordfromfromCCTdaylightdogway(cct);
+            break;
+        case PLANKIANLOCUS:
+            output = xycoordfromfromCCTplankian(cct);
+            break;
+        default:
+            printf("Crap! Unreachable reached in xycoordfromfromCCT()!!\n");
+            break;
+    };
 
-    // black body calculation
-    // borrowed from Bruce Lindbroom's view-source:http://www.brucelindbloom.com/javascript/ColorConv.js
-    // With scientific constants updated to recent revisions
+    // TODO: add MPCD units, if if any
+    // notes on how to do that:
+    // 1. convert to CIE1960
+    // 2. Get slope... Not sure how best to do that...
 
+    // here is approximation function in uv space that is differentiable
+    // https://en.wikipedia.org/wiki/Planckian_locus#International_Temperature_Scale
+    // algorithm from 1985, not sure it's still good after scientific constant revisions
+    // eh... actually it's not differentiable with respect u or v, so useless
+
+    // take two nearby inputs and find slope, then reciprocal?
+
+    // take slope to point where isotherms all intersect?
+    // https://en.wikipedia.org/wiki/Correlated_color_temperature#Approximation
+
+    // MPCD unit is probably 0.0004 uv distance.
+    // Best cite I can find says it's 0.004, but that's 10x too big when looking at the commonly cited coords for 93K+8mpcd and 93k+27mpcd
+
+    // +MPCD is away from the convergence point, generally in the -u,+v direction
+
+
+    return output;
+
+}
+
+// The official equation for D Series illuminants from CIE 15:2004
+vec3 xycoordfromfromCCTdaylight(double cct){
+
+    const double temp3 = 1000.0 / cct;
+    const double temp6 = 1000000.0 / (cct * cct);
+    const double temp9 = 1000000000.0 / (cct * cct * cct);
+
+    double x;
+    if (cct <= 7000){
+        x = 0.244063 + (0.09911 * temp3) + (2.9678 * temp6) + (-4.6070 * temp9);
+    }
+    else {
+        x = 0.237040 + (0.24748 * temp3) + (1.9018 * temp6) + (-2.0064 * temp9);
+    }
+
+    double y = -0.275 + (2.870 * x) - (3.0 * x * x);
+
+    double z = 1.0 - x - y;
+
+    return vec3(x, y, z);
+}
+
+// This approximation function is borrowed from grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang
+// Unfortunately, grade doesn't cite where it came from.
+// This approximation function gives more accurate results for D65 than the official equation.
+// Presumably it's a better fit to the underlying experimental data in general because it uses 3 branches instead of 2.
+// Though it might not be ideal for reproducing what manufacturers called "D whatever," because they probably used the official equation.
+vec3 xycoordfromfromCCTdaylightdogway(double cct){
+
+    const double temp3 = 1000.0 / cct;
+    const double temp6 = 1000000.0 / (cct * cct);
+    const double temp9 = 1000000000.0 / (cct * cct * cct);
+
+    double x;
+    if (cct < 5500){
+        x = 0.244058 + (0.0989971 * temp3) + (2.96545 * temp6) + (-4.59673 * temp9);
+    }
+    else if (cct < 8000){
+        x = 0.200033 + (0.9545630 * temp3) + (-2.53169 * temp6) + (7.08578 * temp9);
+    }
+    else {
+        x = 0.237045 + (0.2437440 * temp3) + (1.94062 * temp6) + (-2.11004 * temp9);
+    }
+
+    double y = -0.275275 + (2.87396 * x) - (3.02034 * x * x) + (0.0297408 * x * x * x);
+
+    double z = 1.0 - x - y;
+
+    return vec3(x, y, z);
+}
+
+// black body calculation
+// borrowed from Bruce Lindbroom's calculator: http://www.brucelindbloom.com/javascript/ColorConv.js
+// With scientific constants updated to 2020 revisions
+vec3 xycoordfromfromCCTplankian(double cct){
     /* 360nm to 830nm in 5nm increments */
     double CIE1931StdObs_x[95] = {
         0.000129900000, 0.000232100000, 0.000414900000, 0.000741600000, 0.001368000000, 0.002236000000,
@@ -455,7 +556,6 @@ vec3 xycoordfromfromCCT(double cct, int locus){
     // where
     // X(), Y(), Z() are CIE standard observer matching functions (here representated as a table)
     // M(lambda, temp) = c1 / (lambda^5 * (exp(c2/(lambda * temp)) - 1))
-
     double X = 0.0;
     double Y = 0.0;
     double Z = 0.0;
@@ -480,4 +580,20 @@ vec3 xycoordfromfromCCT(double cct, int locus){
     double littlez = 1.0 - littlex - littley;
 
     return vec3(littlex, littley, littlez);
+}
+
+// CIE1931 x,y coordinates to CIE1960 u,v coordinates
+vec2 xytocie1960uv(vec2 input){
+    double divisor = (12.0 * input.y) - (2.0 * input.x) + 3.0;
+    double u = (4.0 * input.x) / divisor;
+    double v = (6.0 * input.y) / divisor;
+    return vec2(u, v);
+}
+
+// CIE1906 u,v coordinates to CIE1931 x,y coordinates
+vec2 cie1960uvtoxy(vec2 input){
+    double divisor = (2.0 * input.x) - (8.0 * input.y) + 4.0;
+    double x = (3.0 * input.x) / divisor;
+    double y = (2.0 * input.y) / divisor;
+    return vec2(x, y);
 }

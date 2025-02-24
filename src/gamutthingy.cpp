@@ -667,7 +667,7 @@ int main(int argc, const char **argv){
     double sourcecustomwhitex = 0.2838;
     double sourcecustomwhitey = 0.2981;
     double sourcecustomwhitetemp = 9177.98;
-    int sourcecustomwhitelocus = DAYLIGHTLOCUS;
+    int sourcecustomwhitelocus = DAYLIGHTLOCUS_OLD;
     vec3 sourcecustomwhitefromtemp;
     int sourcewhitepointindex = WHITEPOINT_9300K27MPCD;
     int destwhitepointindex = WHITEPOINT_D65;
@@ -1230,15 +1230,31 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue locustypelist[2] = {
+    const paramvalue locustypelist[6] = {
         {
             "plankian",
             PLANKIANLOCUS
         },
         {
+            "plankian-old",
+            PLANKIANLOCUS_OLD
+        },
+        {
             "daylight",
             DAYLIGHTLOCUS
         },
+        {
+            "daylight-old",
+            DAYLIGHTLOCUS_OLD
+        },
+        {
+            "daylight-dogway",
+            DAYLIGHTLOCUS_DOGWAY
+        },
+        {
+            "daylight-dogway-old",
+            DAYLIGHTLOCUS_DOGWAY_OLD
+        }
     };
 
     const paramvalue luttypelist[3] = {
@@ -2368,12 +2384,28 @@ int main(int argc, const char **argv){
 
         if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
             printf("Source whitepoint: custom temperature %fK (x=%f, y=%f)", sourcecustomwhitetemp, sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
-            if (sourcecustomwhitelocus == DAYLIGHTLOCUS){
-                printf(" (daylight locus)\n");
-            }
-            else {
-                printf(" (Plankian locus)\n");
-            }
+            switch (sourcecustomwhitelocus){
+                case DAYLIGHTLOCUS:
+                    printf(" (daylight locus (post-1968))\n");
+                    break;
+                case DAYLIGHTLOCUS_OLD:
+                    printf(" (daylight locus (pre-1968))\n");
+                    break;
+                case DAYLIGHTLOCUS_DOGWAY:
+                    printf(" (daylight locus (post-1968) (Dogway's approximation function))\n");
+                    break;
+                case DAYLIGHTLOCUS_DOGWAY_OLD:
+                    printf(" (daylight locus (pre-1968) (Dogway's approximation function))\n");
+                    break;
+                case PLANKIANLOCUS:
+                    printf(" (Plankian locus (modern))\n");
+                    break;
+                case PLANKIANLOCUS_OLD:
+                    printf(" (Plankian locus (pre-1968))\n");
+                    break;
+                default:
+                    break;
+            };
         }
         else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
             printf("Source whitepoint: custom coordinates x=%f, y=%f\n", sourcecustomwhitex, sourcecustomwhitey);
@@ -2391,12 +2423,28 @@ int main(int argc, const char **argv){
 
         if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
             printf("Destination whitepoint: custom temperature %fK (x=%f, y=%f)", destcustomwhitetemp, destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
-            if (destcustomwhitelocus == DAYLIGHTLOCUS){
-                printf(" (daylight locus)\n");
-            }
-            else {
-                printf(" (Plankian locus)\n");
-            }
+            switch (destcustomwhitelocus){
+                case DAYLIGHTLOCUS:
+                    printf(" (daylight locus (post-1968))\n");
+                    break;
+                case DAYLIGHTLOCUS_OLD:
+                    printf(" (daylight locus (pre-1968))\n");
+                    break;
+                case DAYLIGHTLOCUS_DOGWAY:
+                    printf(" (daylight locus (post-1968) (Dogway's approximation function))\n");
+                    break;
+                case DAYLIGHTLOCUS_DOGWAY_OLD:
+                    printf(" (daylight locus (pre-1968) (Dogway's approximation function))\n");
+                    break;
+                case PLANKIANLOCUS:
+                    printf(" (Plankian locus (modern))\n");
+                    break;
+                case PLANKIANLOCUS_OLD:
+                    printf(" (Plankian locus (pre-1968))\n");
+                    break;
+                default:
+                    break;
+            };
         }
         else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
             printf("Destination whitepoint: custom coordinates x=%f, y=%f\n", destcustomwhitex, destcustomwhitey);
@@ -2810,12 +2858,28 @@ int main(int argc, const char **argv){
 
             if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
                 htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K (x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")";
-                if (sourcecustomwhitelocus == DAYLIGHTLOCUS){
-                    htmlfile << " (daylight locus)<BR>\n";
-                }
-                else {
-                    htmlfile << " (Plankian locus)<BR>\n";
-                }
+                switch (sourcecustomwhitelocus){
+                    case DAYLIGHTLOCUS:
+                        htmlfile << " (daylight locus (post-1968))<BR>\n";
+                        break;
+                    case DAYLIGHTLOCUS_OLD:
+                        htmlfile << " (daylight locus (pre-1968))<BR>\n";
+                        break;
+                    case DAYLIGHTLOCUS_DOGWAY:
+                        htmlfile << " (daylight locus (post-1968) (Dogway's approximation function))<BR>\n";
+                        break;
+                    case DAYLIGHTLOCUS_DOGWAY_OLD:
+                        htmlfile << " (daylight locus (pre-1968) (Dogway's approximation function))<BR>\n";
+                        break;
+                    case PLANKIANLOCUS:
+                        htmlfile << " (Plankian locus (modern))<BR>\n";
+                        break;
+                    case PLANKIANLOCUS_OLD:
+                        htmlfile << " (Plankian locus (pre-1968))<BR>\n";
+                        break;
+                    default:
+                        break;
+                };
             }
             else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
                 htmlfile << "\t\t\tSource whitepoint: custom coordinates x=" << sourcecustomwhitex << ", y=" << sourcecustomwhitey << "<BR>\n";
@@ -2833,12 +2897,28 @@ int main(int argc, const char **argv){
 
             if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
                 htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K (x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")";
-                if (destcustomwhitelocus == DAYLIGHTLOCUS){
-                    htmlfile << " (daylight locus)<BR>\n";
-                }
-                else {
-                    htmlfile << " (Plankian locus)<BR>\n";
-                }
+                switch (destcustomwhitelocus){
+                    case DAYLIGHTLOCUS:
+                        htmlfile << " (daylight locus (post-1968))<BR>\n";
+                        break;
+                    case DAYLIGHTLOCUS_OLD:
+                        htmlfile << " (daylight locus (pre-1968))<BR>\n";
+                        break;
+                    case DAYLIGHTLOCUS_DOGWAY:
+                        htmlfile << " (daylight locus (post-1968) (Dogway's approximation function))<BR>\n";
+                        break;
+                    case DAYLIGHTLOCUS_DOGWAY_OLD:
+                        htmlfile << " (daylight locus (pre-1968) (Dogway's approximation function))<BR>\n";
+                        break;
+                    case PLANKIANLOCUS:
+                        htmlfile << " (Plankian locus (modern))<BR>\n";
+                        break;
+                    case PLANKIANLOCUS_OLD:
+                        htmlfile << " (Plankian locus (pre-1968))<BR>\n";
+                        break;
+                    default:
+                        break;
+                };
             }
             else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
                 htmlfile << "\t\t\tDestination whitepoint: custom coordinates x=" << destcustomwhitex << ", y=" << destcustomwhitey << "<BR>\n";
