@@ -385,7 +385,7 @@ vec3 xycoordfromfromCCT(double cct, int locus){
     };
     // The value of c2 has changed slightly as estimates of the Plank and Boltzmann constants have been improved
     // We can rectify CCT specified on the pre-1968 scale by multiplying CCT by c2/oldc2,
-    // where oldc2 is 14.38 (1.438 adjusted to match the decimal point on our c2 without some needless zeroes)
+    // where oldc2 is 1.438
     // See https://en.wikipedia.org/wiki/Planckian_locus#International_Temperature_Scale
     // See https://en.wikipedia.org/wiki/Standard_Illuminant
     if (rectify){
@@ -395,7 +395,7 @@ vec3 xycoordfromfromCCT(double cct, int locus){
             const double lightspeed = 2.99792458; // *10^8
             const double boltzmann = 1.380649; // * 10^-23
             double c2 = (plank * lightspeed) / boltzmann; // *10^-3
-            cct *= (c2 / 14.38);
+            cct *= (c2 / 14.38); // move the decimal place in old c2 to even them up
         }
         else { // DAYLIGHT LOCUS
             // After the 1968 revision of c2, CIE explicitly specified the value of c2 to be used so that illuminants wouldn't move again relative to their names.
