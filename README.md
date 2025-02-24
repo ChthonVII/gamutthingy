@@ -55,6 +55,7 @@ Four general modes of operation:
      - `CXA2025AS_US` Used in U.S. Sony Trinitron ~1997.
      - `CXA1213AS` Probably used in Sony Trinitron ~1992. Unclear if this chip was meant for Japan, U.S., or both.
      - `TDA8362` Used in Hitachi CMT2187/2196/2198/2199 ~1994. Unclear if this television used different whitepoints in U.S. and Japan.
+     - `toshiba_backstripe_cf2005` Unknown chip used in Toshiba Blackstripe CF2005 (US model, 1985). Behavior derived from empirical measurements [new16].
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
 - `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
@@ -86,6 +87,7 @@ Four general modes of operation:
      - `P22_ebuish` EBUish phosphors noted in a 1992 Toshiba patent. [insert cite]
      - `P22_hitachi` Official chromaticity coordinates for P22 phosphors in CM2198 CRT computer monitor provided by Hitachi to the authors of [new4], published in 1995. Hitachi also made a CMT2198 CRT television, and it's plausible that the same phosphors were used.
      - `P22_apple_multiscan1705` Official chromaticity coordinates for P22 phosphors in Apple Multiple Scan 1705 computer monitor (manufactured 1995-1997). Whitepoint was 9300K+8mpcd. [new14], [new15]
+     - `P22_toshiba_backstripe_cf2005_patchy68k` Measurements of a Toshiba Blackstripe CF2005 CRT television (US model, 1985). [new16]
      - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
 - `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
@@ -106,6 +108,7 @@ Four general modes of operation:
      - `diamondpro_93k_fairchild` Measured whitepoint of a Mitsubishi Diamond Pro (unspecified model number) computer monitor with Trinitron tube in 9300K mode. See [insert cite]. Near 9300K+27mpcd.
      - `nec_multisync_c400_93k` Measured whitepoint of a NEC MultiSync C400 computer monitor. See [insert cite]. Near 9300K+27mpcd.
      - `kds_vs19_93k` Whitepoint for KDS VS19 computer monitor. Probably not an actual measurement, since exactly equal to 9300K+27mpcd.
+     - `toshiba_backstripe_cf2005_75k_patchy68k` Measured whitepoint of a Toshiba Blackstripe CF2005 CRT television (US model, 1985). Near 7500K. [new16]
      - `customcoord` Use the coordinants supplied by the user via `--source-whitepoint-custom-coords`.
      - `customtemp` Derive coordinants from color temperature supplied by user via `--source-whitepoint-custom-temp`.
 - `--source-whitepoint-custom-coords` or `--swcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the source gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--source-whitepoint customcoord`.
@@ -298,6 +301,7 @@ TODO: fill in missing citations, then alphabetize
 - [new13] Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." *テレビジョン学会誌* (*Journal of the Television Society*), Vol. 33, No. 12, pp. 1013-1020. 1979. ([Link](https://www.jstage.jst.go.jp/article/itej1978/33/12/33_12_1013/_article/-char/ja/))
 - [new14] Apple Computer, Inc. "Multiple Scan 1705 Display: CIE Phosphor Settings." *AppleCare Tech Info Library*, Article ID 24445. March 30, 1998. ([Link](https://til-2001.mirror.kb1max.com/techinfo.nsf/artnum/n24445/index.html))
 - [new15] Apple Wiki. "Apple Multiple Scan Display." ([Link](https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display))
+- [new16] insert cite to patchy68k
 
 
 **Building:**
