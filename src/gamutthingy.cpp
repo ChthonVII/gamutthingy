@@ -1265,6 +1265,21 @@ int main(int argc, const char **argv){
         }
     };
 
+    const paramvalue mpcdtypelist[3] = {
+        {
+            "cie",
+            MPCD_CIE
+        },
+        {
+            "judd-macadam",
+            MPCD_JUDD_MACADAM
+        },
+        {
+            "judd",
+            MPCD_JUDD
+        }
+    };
+
     const paramvalue luttypelist[3] = {
         {
             "normal",
@@ -1280,7 +1295,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[35] = {
+    const selectparam params_select[39] = {
         {
             "--source-primaries",            //std::string paramstring; // parameter's text
             "Source Primaries",             //std::string prettyname; // name for pretty printing
@@ -1525,7 +1540,35 @@ int main(int argc, const char **argv){
             &lutmode,          //int* vartobind; // pointer to variable whose value to set
             luttypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(luttypelist)/sizeof(luttypelist[0])  //int tablesize; // number of items in the table
-        }
+        },
+        {
+            "--source-whitepoint-custom-mpcd-type",            //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature MPCD Type",             //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitempcdtype,          //int* vartobind; // pointer to variable whose value to set
+            mpcdtypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(mpcdtypelist)/sizeof(mpcdtypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--swcmpcdt",            //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature MPCD Type",             //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitempcdtype,          //int* vartobind; // pointer to variable whose value to set
+            mpcdtypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(mpcdtypelist)/sizeof(mpcdtypelist[0])  //int tablesize; // number of items in the table
+        },
+       {
+            "--dest-whitepoint-custom-mpcd-type",            //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature MPCD Type",             //std::string prettyname; // name for pretty printing
+            &destcustomwhitempcdtype,          //int* vartobind; // pointer to variable whose value to set
+            mpcdtypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(mpcdtypelist)/sizeof(mpcdtypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--dwcmpcdt",            //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature MPCD Type",             //std::string prettyname; // name for pretty printing
+            &destcustomwhitempcdtype,          //int* vartobind; // pointer to variable whose value to set
+            mpcdtypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(mpcdtypelist)/sizeof(mpcdtypelist[0])  //int tablesize; // number of items in the table
+        },
     };
 
 
@@ -2312,6 +2355,27 @@ int main(int argc, const char **argv){
         crtsaturationknob = 0.0;
     }
 
+
+    if (    (   (sourcecustomwhitempcd != 0.0) &&
+                (
+                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS) ||
+                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS_OLD) ||
+                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY) ||
+                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY_OLD)
+                )
+            ) ||
+            (   (destcustomwhitempcd != 0.0) &&
+                (
+                    (destcustomwhitempcdtype == DAYLIGHTLOCUS) ||
+                    (destcustomwhitempcdtype == DAYLIGHTLOCUS_OLD) ||
+                    (destcustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY) ||
+                    (destcustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY_OLD)
+                )
+            )
+    ){
+        printf("WARNING: You've specified a MPCD value with a non-Plankian locus. This is computable, but makes little sense.\n");
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 
@@ -2411,29 +2475,52 @@ int main(int argc, const char **argv){
         }
 
         if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-            printf("Source whitepoint: custom temperature %fK (x=%f, y=%f)", sourcecustomwhitetemp, sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
+            printf("Source whitepoint: custom temperature %fK ", sourcecustomwhitetemp);
+            if (sourcecustomwhitempcd != 0.0){
+                printf("+ %f MPCD ", sourcecustomwhitempcd);
+            }
+            printf("(x=%f, y=%f)", sourcecustomwhitefromtemp.x, sourcecustomwhitefromtemp.y);
             switch (sourcecustomwhitelocus){
                 case DAYLIGHTLOCUS:
-                    printf(" (daylight locus (post-1968))\n");
+                    printf(" (daylight locus (post-1968))");
                     break;
                 case DAYLIGHTLOCUS_OLD:
-                    printf(" (daylight locus (pre-1968))\n");
+                    printf(" (daylight locus (pre-1968))");
                     break;
                 case DAYLIGHTLOCUS_DOGWAY:
-                    printf(" (daylight locus (post-1968) (Dogway's approximation function))\n");
+                    printf(" (daylight locus (post-1968) (Dogway's approximation function))");
                     break;
                 case DAYLIGHTLOCUS_DOGWAY_OLD:
-                    printf(" (daylight locus (pre-1968) (Dogway's approximation function))\n");
+                    printf(" (daylight locus (pre-1968) (Dogway's approximation function))");
                     break;
                 case PLANKIANLOCUS:
-                    printf(" (Plankian locus (modern))\n");
+                    printf(" (Plankian locus (modern))");
                     break;
                 case PLANKIANLOCUS_OLD:
-                    printf(" (Plankian locus (pre-1968))\n");
+                    printf(" (Plankian locus (pre-1968))");
+                    break;
+                case PLANKIANLOCUS_VERYOLD:
+                    printf(" (Plankian locus (1931))");
                     break;
                 default:
                     break;
             };
+            if (sourcecustomwhitempcd != 0.0){
+                switch (sourcecustomwhitempcdtype){
+                    case MPCD_CIE:
+                        printf(" (CIE1960 MPCD units)");
+                        break;
+                    case MPCD_JUDD_MACADAM:
+                        printf(" (Judd1935 MPCD units (MacAdam transformation))");
+                        break;
+                    case MPCD_JUDD:
+                        printf(" (Judd1935 MPCD units (appendix transformation))");
+                        break;
+                    default:
+                        break;
+                }
+            }
+            printf("\n");
         }
         else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
             printf("Source whitepoint: custom coordinates x=%f, y=%f\n", sourcecustomwhitex, sourcecustomwhitey);
@@ -2450,29 +2537,52 @@ int main(int argc, const char **argv){
         }
 
         if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-            printf("Destination whitepoint: custom temperature %fK (x=%f, y=%f)", destcustomwhitetemp, destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
+            printf("Destination whitepoint: custom temperature %fK ", destcustomwhitetemp);
+            if (destcustomwhitempcd != 0.0){
+                printf("+ %f MPCD ", destcustomwhitempcd);
+            }
+            printf("(x=%f, y=%f)", destcustomwhitefromtemp.x, destcustomwhitefromtemp.y);
             switch (destcustomwhitelocus){
                 case DAYLIGHTLOCUS:
-                    printf(" (daylight locus (post-1968))\n");
+                    printf(" (daylight locus (post-1968))");
                     break;
                 case DAYLIGHTLOCUS_OLD:
-                    printf(" (daylight locus (pre-1968))\n");
+                    printf(" (daylight locus (pre-1968))");
                     break;
                 case DAYLIGHTLOCUS_DOGWAY:
-                    printf(" (daylight locus (post-1968) (Dogway's approximation function))\n");
+                    printf(" (daylight locus (post-1968) (Dogway's approximation function))");
                     break;
                 case DAYLIGHTLOCUS_DOGWAY_OLD:
-                    printf(" (daylight locus (pre-1968) (Dogway's approximation function))\n");
+                    printf(" (daylight locus (pre-1968) (Dogway's approximation function))");
                     break;
                 case PLANKIANLOCUS:
-                    printf(" (Plankian locus (modern))\n");
+                    printf(" (Plankian locus (modern))");
                     break;
                 case PLANKIANLOCUS_OLD:
-                    printf(" (Plankian locus (pre-1968))\n");
+                    printf(" (Plankian locus (pre-1968))");
+                    break;
+                case PLANKIANLOCUS_VERYOLD:
+                    printf(" (Plankian locus (1931))");
                     break;
                 default:
                     break;
             };
+            if (destcustomwhitempcd != 0.0){
+                switch (destcustomwhitempcdtype){
+                    case MPCD_CIE:
+                        printf(" (CIE1960 MPCD units)");
+                        break;
+                    case MPCD_JUDD_MACADAM:
+                        printf(" (Judd1935 MPCD units (MacAdam transformation))");
+                        break;
+                    case MPCD_JUDD:
+                        printf(" (Judd1935 MPCD units (appendix transformation))");
+                        break;
+                    default:
+                        break;
+                }
+            }
+            printf("\n");
         }
         else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
             printf("Destination whitepoint: custom coordinates x=%f, y=%f\n", destcustomwhitex, destcustomwhitey);
@@ -2885,29 +2995,52 @@ int main(int argc, const char **argv){
             }
 
             if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-                htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K (x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")";
+                htmlfile << "\t\t\tSource whitepoint: custom temperature " << sourcecustomwhitetemp << "K ";
+                if (sourcecustomwhitempcd != 0.0){
+                    htmlfile << "+ " << sourcecustomwhitempcd << " MPCD ";
+                }
+                htmlfile << "(x=" << sourcecustomwhitefromtemp.x << ", y=" << sourcecustomwhitefromtemp.y << ")";
                 switch (sourcecustomwhitelocus){
                     case DAYLIGHTLOCUS:
-                        htmlfile << " (daylight locus (post-1968))<BR>\n";
+                        htmlfile << " (daylight locus (post-1968))";
                         break;
                     case DAYLIGHTLOCUS_OLD:
-                        htmlfile << " (daylight locus (pre-1968))<BR>\n";
+                        htmlfile << " (daylight locus (pre-1968))";
                         break;
                     case DAYLIGHTLOCUS_DOGWAY:
-                        htmlfile << " (daylight locus (post-1968) (Dogway's approximation function))<BR>\n";
+                        htmlfile << " (daylight locus (post-1968) (Dogway's approximation function))";
                         break;
                     case DAYLIGHTLOCUS_DOGWAY_OLD:
-                        htmlfile << " (daylight locus (pre-1968) (Dogway's approximation function))<BR>\n";
+                        htmlfile << " (daylight locus (pre-1968) (Dogway's approximation function))";
                         break;
                     case PLANKIANLOCUS:
-                        htmlfile << " (Plankian locus (modern))<BR>\n";
+                        htmlfile << " (Plankian locus (modern))";
                         break;
                     case PLANKIANLOCUS_OLD:
-                        htmlfile << " (Plankian locus (pre-1968))<BR>\n";
+                        htmlfile << " (Plankian locus (pre-1968))";
+                        break;
+                    case PLANKIANLOCUS_VERYOLD:
+                        htmlfile << " (Plankian locus (1931))";
                         break;
                     default:
                         break;
                 };
+                if (sourcecustomwhitempcd != 0.0){
+                    switch (sourcecustomwhitempcdtype){
+                        case MPCD_CIE:
+                            htmlfile << " (CIE1960 MPCD units)";
+                            break;
+                        case MPCD_JUDD_MACADAM:
+                            htmlfile << " (Judd1935 MPCD units (MacAdam transformation))";
+                            break;
+                        case MPCD_JUDD:
+                            htmlfile << " (Judd1935 MPCD units (appendix transformation))";
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                htmlfile << "<BR>\n";
             }
             else if (sourcewhitepointindex == WHITEPOINT_CUSTOM_COORD){
                 htmlfile << "\t\t\tSource whitepoint: custom coordinates x=" << sourcecustomwhitex << ", y=" << sourcecustomwhitey << "<BR>\n";
@@ -2924,29 +3057,52 @@ int main(int argc, const char **argv){
             }
 
             if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-                htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K (x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")";
+                htmlfile << "\t\t\tDestination whitepoint: custom temperature " << destcustomwhitetemp << "K ";
+                if (destcustomwhitempcd != 0.0){
+                    htmlfile << "+ " << destcustomwhitempcd << " MPCD ";
+                }
+                htmlfile << "(x=" << destcustomwhitefromtemp.x << ", y=" << destcustomwhitefromtemp.y << ")";
                 switch (destcustomwhitelocus){
                     case DAYLIGHTLOCUS:
-                        htmlfile << " (daylight locus (post-1968))<BR>\n";
+                        htmlfile << " (daylight locus (post-1968))";
                         break;
                     case DAYLIGHTLOCUS_OLD:
-                        htmlfile << " (daylight locus (pre-1968))<BR>\n";
+                        htmlfile << " (daylight locus (pre-1968))";
                         break;
                     case DAYLIGHTLOCUS_DOGWAY:
-                        htmlfile << " (daylight locus (post-1968) (Dogway's approximation function))<BR>\n";
+                        htmlfile << " (daylight locus (post-1968) (Dogway's approximation function))";
                         break;
                     case DAYLIGHTLOCUS_DOGWAY_OLD:
-                        htmlfile << " (daylight locus (pre-1968) (Dogway's approximation function))<BR>\n";
+                        htmlfile << " (daylight locus (pre-1968) (Dogway's approximation function))";
                         break;
                     case PLANKIANLOCUS:
-                        htmlfile << " (Plankian locus (modern))<BR>\n";
+                        htmlfile << " (Plankian locus (modern))";
                         break;
                     case PLANKIANLOCUS_OLD:
-                        htmlfile << " (Plankian locus (pre-1968))<BR>\n";
+                        htmlfile << " (Plankian locus (pre-1968))";
+                        break;
+                    case PLANKIANLOCUS_VERYOLD:
+                        htmlfile << " (Plankian locus (1931))";
                         break;
                     default:
                         break;
                 };
+                if (destcustomwhitempcd != 0.0){
+                    switch (destcustomwhitempcdtype){
+                        case MPCD_CIE:
+                            htmlfile << " (CIE1960 MPCD units)";
+                            break;
+                        case MPCD_JUDD_MACADAM:
+                            htmlfile << " (Judd1935 MPCD units (MacAdam transformation))";
+                            break;
+                        case MPCD_JUDD:
+                            htmlfile << " (Judd1935 MPCD units (appendix transformation))";
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                htmlfile << "<BR>\n";
             }
             else if (destwhitepointindex == WHITEPOINT_CUSTOM_COORD){
                 htmlfile << "\t\t\tDestination whitepoint: custom coordinates x=" << destcustomwhitex << ", y=" << destcustomwhitey << "<BR>\n";

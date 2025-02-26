@@ -120,12 +120,20 @@ Four general modes of operation:
      - `daylight-dogway-old` Same as `daylight-old`, but uses a different approximation function that is probably more faithful to the underlying experimental data, but also probably not what CRT manufacturers were aiming for.
      - `plankian` Plankian (blackbody) radiator by which CCT is defined. Used for everything other than D-series illuminants. Uses up-to-date scientific constants (as of 2025). So CCT values differ slightly from historical practice during the CRT era. (E.g., what was "9300K" is now ~9305.02K.)
      - `plankian-old` Same as `plankian`, but uses pre-1968 scientific constants. So CCT values match their historical usage. (E.g., "9300K" means what it did back when NTSC-J whitepoints were selected.) 
+     - `plankian-veryold` Same as `plankian-old`, but uses even older scientific constants from when Illuminant A was defined. Not very useful.
+- `--source-whitepoint-custom-mpcd` or `--swcmpcd` Specify distance perpendicular to Plankian locus in MPCD units for source whitepoint when deriving coordinants from color temperature. Default 0.0.
+- `--source-whitepoint-custom-mpcd-type` or `--swcmpcdt` Specify the type of MPCD units to use for `--source-whitepoint-custom-mpcd`. Possible values are:
+     - `cie` 0.0004 delta-uv in the CIE1960 UCS. The most common meaning of "MPCD." Default.
+     - `judd-macadam` 0.0005 delta-uv in MacAdam's xy-to-uv transformation equivalent to Judd's 1935 UCS. This was probably used (with small rounding errors) to define the canonical "9300K+27MPCD" whitepoint.
+     - `judd` 0.0005 delta-xy in the Cartesian transform of Judd's 1935 UCS given in the appendix to that paper. Differs only slightly from `judd-macadam`. This was probably not used to define CRT whitepoints.
 - `--dest-primaries` or `-d`: Specifies the color primaries of the destination gamut. Possible values are the same as for source gamut. Default is `srgb_spec`.
 - `--dest-primaries-custom-coords` or `-dpcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the destination gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--dest-primaries customcoord`.
 - `--dest-whitepoint` or `--dw`: Specifies the whitepoint of the destination gamut. Possible values are the same as for `--source-whitepoint`. Default `D65`.
 - `--dest-whitepoint-custom-coords` or `--dwcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the destination gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--dest-whitepoint customcoord`.
 - `--dest-whitepoint-custom-temp` or `--dwct`: Specify color temperature for the whitepoint of the destination gamut, and coordinates will be estimated automatically. Floating point number. Does nothing unless `--dest-whitepoint customtemp`.
-- `--dest-whitepoint-custom-temp-locus` or `--dwctl`: Specify locus to use for estimating coordinates from color temperature. Does nothing unless `--dest-whitepoint customtemp`. Possible values are the same as for `--source-whitepoint-custom-temp-locus`. 
+- `--dest-whitepoint-custom-temp-locus` or `--dwctl`: Specify locus to use for estimating coordinates from color temperature. Does nothing unless `--dest-whitepoint customtemp`. Possible values are the same as for `--source-whitepoint-custom-temp-locus`.
+- `--dest-whitepoint-custom-mpcd` or `--dwcmpcd` Specify distance perpendicular to Plankian locus in MPCD units for destination whitepoint when deriving coordinants from color temperature. Default 0.0.
+- `--dest-whitepoint-custom-mpcd-type` or `--dwcmpcdt` Specify the type of MPCD units to use for `--dest-whitepoint-custom-mpcd`. Possible values are the same as for `--source-whitepoint-custom-mpcd-type`.
 
 **Chromatic Adaptation Parameters:**
 - `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing whitepoints. Possible values are `cat16` (default) or `bradford`.
