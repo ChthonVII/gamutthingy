@@ -667,13 +667,17 @@ int main(int argc, const char **argv){
     double sourcecustomwhitex = 0.2838;
     double sourcecustomwhitey = 0.2981;
     double sourcecustomwhitetemp = 9177.98;
+    double sourcecustomwhitempcd = 0.0;
+    int sourcecustomwhitempcdtype = MPCD_CIE;
     int sourcecustomwhitelocus = DAYLIGHTLOCUS_OLD;
     vec3 sourcecustomwhitefromtemp;
     int sourcewhitepointindex = WHITEPOINT_9300K27MPCD;
     int destwhitepointindex = WHITEPOINT_D65;
     double destcustomwhitex = 0.312713;
     double destcustomwhitey = 0.329016;
-    double destcustomwhitetemp =  6503.512;
+    double destcustomwhitetemp =  6500;
+    double destcustomwhitempcd = 0.0;
+    int destcustomwhitempcdtype = MPCD_CIE;
     int destcustomwhitelocus = DAYLIGHTLOCUS;
     vec3 destcustomwhitefromtemp;
     int safezonetype = RMZONE_DELTA_BASED;
@@ -1230,7 +1234,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue locustypelist[6] = {
+    const paramvalue locustypelist[7] = {
         {
             "plankian",
             PLANKIANLOCUS
@@ -1238,6 +1242,10 @@ int main(int argc, const char **argv){
         {
             "plankian-old",
             PLANKIANLOCUS_OLD
+        },
+        {
+            "plankian-veryold",
+            PLANKIANLOCUS_VERYOLD
         },
         {
             "daylight",
@@ -1521,7 +1529,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[32] = {
+    const floatparam params_float[36] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -1638,6 +1646,16 @@ int main(int argc, const char **argv){
             &sourcecustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
         },
         {
+            "--source-whitepoint-custom-mpcd",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature MPCD Offset",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitempcd           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--swcmpcd",         //std::string paramstring; // parameter's text
+            "Source Whitepoint Custom Temperature MPCD Offset",        //std::string prettyname; // name for pretty printing
+            &sourcecustomwhitempcd           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
             "--dest-whitepoint-custom-temp",         //std::string paramstring; // parameter's text
             "Destination Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
             &destcustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
@@ -1646,6 +1664,16 @@ int main(int argc, const char **argv){
             "--dwct",         //std::string paramstring; // parameter's text
             "Destination Whitepoint Custom Temperature",        //std::string prettyname; // name for pretty printing
             &destcustomwhitetemp           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dest-whitepoint-custom-mpcd",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature MPCD Offset",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitempcd           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--dwcmpcd",         //std::string paramstring; // parameter's text
+            "Destination Whitepoint Custom Temperature MPCD Offset",        //std::string prettyname; // name for pretty printing
+            &destcustomwhitempcd           //double* vartobind; // pointer to variable whose value to set
         },
         {
             "--hdr-sdr-max-nits",         //std::string paramstring; // parameter's text
@@ -2288,11 +2316,11 @@ int main(int argc, const char **argv){
     // process custom constants
 
     if (sourcewhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-        sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp, sourcecustomwhitelocus);
+        sourcecustomwhitefromtemp = xycoordfromfromCCT(sourcecustomwhitetemp, sourcecustomwhitelocus, sourcecustomwhitempcd, sourcecustomwhitempcdtype);
     }
 
     if (destwhitepointindex == WHITEPOINT_CUSTOM_TEMP){
-        destcustomwhitefromtemp = xycoordfromfromCCT(destcustomwhitetemp, destcustomwhitelocus);
+        destcustomwhitefromtemp = xycoordfromfromCCT(destcustomwhitetemp, destcustomwhitelocus, destcustomwhitempcd, destcustomwhitempcdtype);
     }
 
     sourcecustomgamut[0][2] = 1.0 - sourcecustomgamut[0][0] - sourcecustomgamut[0][1];

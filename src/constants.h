@@ -85,6 +85,11 @@ extern const vec3 D65;
 #define DAYLIGHTLOCUS_DOGWAY_OLD 3
 #define PLANKIANLOCUS 4
 #define PLANKIANLOCUS_OLD 5
+#define PLANKIANLOCUS_VERYOLD 6
+
+#define MPCD_CIE 0
+#define MPCD_JUDD 1
+#define MPCD_JUDD_MACADAM 2
 
 #define LOCKRED 0
 #define LOCKGREEN 1
@@ -181,8 +186,8 @@ const double whitepoints[18][3] = {
     {0.281, 0.311, 0.408},
     // 9300K + 8MPCD
     // Average of coordinates stated in:
-    //      * Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." テレビジョン (Television), Vol. 31, No. 11, pp. 883-888. 1977.
-    //      * Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." テレビジョン学会誌 (Journal of the Television Society), Vol. 33, No. 12, pp. 1013-1020. 1979.
+    //      * Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." テレビジョン (Television), Vol. 31, No. 11, pp. 883-888. 1977. x=0.2838+-0.002, y=0.2984+-0.002
+    //      * Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." テレビジョン学会誌 (Journal of the Television Society), Vol. 33, No. 12, pp. 1013-1020. 1979. x=0.2831, y=0.2971
     {0.28345, 0.29775, 0.4188},
     // Illuminant C
     {0.310063, 0.316158, 0.373779},

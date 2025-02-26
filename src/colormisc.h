@@ -58,7 +58,7 @@ double inversepowermap(double floor, double ceiling, double input, double power)
 double inversehermite(double input);
 
 // Compute xy coordinates from CCT
-vec3 xycoordfromfromCCT(double cct, int locus);
+vec3 xycoordfromfromCCT(double cct, int locus, double mpcd, int mpcdtype);
 // subroutines for various loci
 vec3 xycoordfromfromCCTdaylight(double cct);
 vec3 xycoordfromfromCCTdaylightdogway(double cct);
@@ -68,5 +68,14 @@ vec3 xycoordfromfromCCTplankian(double cct);
 // (used for CCT+MPCD calculations)
 vec2 xytocie1960uv(vec2 input);
 vec2 cie1960uvtoxy(vec2 input);
+
+// convert CIE1931 xy coords to Judd1935 coords and back
+// (used for CCT+MPCD calculations)
+vec2 xytojuddxy(vec2 input);
+vec2 juddxytoxy(vec2 input);
+
+// convert CIE1931 xy coords to MacAdam's transformation of Judd1935 coords and back
+vec2 xytojuddmacadamuv(vec2 input);
+vec2 juddmacadamuvtoxy(vec2 input);
 
 #endif

@@ -1,5 +1,6 @@
 #include "colormisc.h"
 #include "constants.h"
+#include "matrix.h"
 
 #include <math.h>
 #include <numbers>
@@ -364,9 +365,10 @@ double inversehermite(double input){
 
 // Compute xy coordinates from CCT
 // Either on daylight locus or on Plankian (black body) locus
-vec3 xycoordfromfromCCT(double cct, int locus){
+vec3 xycoordfromfromCCT(double cct, int locus, double mpcd, int mpcdtype){
 
     bool rectify = false;
+    bool veryold = false;
     switch (locus){
         case DAYLIGHTLOCUS_OLD:
             rectify = true;
@@ -380,12 +382,18 @@ vec3 xycoordfromfromCCT(double cct, int locus){
             rectify = true;
             locus = PLANKIANLOCUS;
             break;
+        case PLANKIANLOCUS_VERYOLD:
+            rectify = true;
+            veryold = true;
+            locus = PLANKIANLOCUS;
+            break;
         default:
             break;
     };
     // The value of c2 has changed slightly as estimates of the Plank and Boltzmann constants have been improved
     // We can rectify CCT specified on the pre-1968 scale by multiplying CCT by c2/oldc2,
     // where oldc2 is 1.438
+    // (Or very old c2 from 1931 when Illuminant A was defined was 1.435.)
     // See https://en.wikipedia.org/wiki/Planckian_locus#International_Temperature_Scale
     // See https://en.wikipedia.org/wiki/Standard_Illuminant
     if (rectify){
@@ -395,7 +403,12 @@ vec3 xycoordfromfromCCT(double cct, int locus){
             const double lightspeed = 2.99792458; // *10^8
             const double boltzmann = 1.380649; // * 10^-23
             double c2 = (plank * lightspeed) / boltzmann; // *10^-3
-            cct *= (c2 / 14.38); // move the decimal place in old c2 to even them up
+            if (veryold){
+                cct *= (c2 / 14.35); // move the decimal place in old c2 to even them up
+            }
+            else {
+                cct *= (c2 / 14.38); // move the decimal place in old c2 to even them up
+            }
         }
         else { // DAYLIGHT LOCUS
             // After the 1968 revision of c2, CIE explicitly specified the value of c2 to be used so that illuminants wouldn't move again relative to their names.
@@ -421,25 +434,170 @@ vec3 xycoordfromfromCCT(double cct, int locus){
             break;
     };
 
-    // TODO: add MPCD units, if if any
-    // notes on how to do that:
-    // 1. convert to CIE1960
-    // 2. Get slope... Not sure how best to do that...
+    // Add MPCD units perpendicular to blackbody curve
+    // Confusingly, there are two competing MPCD units -- 0.0004 in CIE1960 UCS or 0.0005 in Judd1935 UCS
+    if (mpcd != 0.0){
+        // MPCD is defined in CIE1960/Judd1935, so convert
+        vec2 outputxy = vec2(output.x, output.y);
+        vec2 outputuv;
+        switch (mpcdtype){
+            case MPCD_CIE:
+                outputuv = xytocie1960uv(outputxy);
+                break;
+            case MPCD_JUDD:
+                outputuv = xytojuddxy(outputxy);
+                break;
+            case MPCD_JUDD_MACADAM:
+                outputuv = xytojuddmacadamuv(outputxy);
+                break;
+            default:
+                break;
+        };
 
-    // here is approximation function in uv space that is differentiable
-    // https://en.wikipedia.org/wiki/Planckian_locus#International_Temperature_Scale
-    // algorithm from 1985, not sure it's still good after scientific constant revisions
-    // eh... actually it's not differentiable with respect u or v, so useless
+        // CCT isotherms almost converge off in purple land
+        // The direction from the best-fit convergence point to a point on the plankian locus
+        // is a fair approximation of the direction perpendicular to the locus at that point,
+        // in the +MPCD direction.
+        // HOWEVER, slope method works better.**************
+        // Using convergence points from Javier Hernandez-Andres, Raymond L. Lee, Jr., and Javier Romero, Calculating correlated color temperatures across the entire gamut of daylight and skylight chromaticities, 20 September 1999 y Vol. 38, No. 27 y APPLIED OPTICS 5703
+        /*
+        vec2 purplexy = vec2(0.3366, 0.1735);
+        if (cct > 50000.0){
+            purplexy = vec2(0.3356, 0.1691);
+        }
+        // Or alternative McCamy (xe = 0.3320, ye = 0.1858)
+        //vec2 purplexy = vec2(0.3320, 0.1858);
 
-    // take two nearby inputs and find slope, then reciprocal?
+        // this is in xy, so we need to convert it
+        vec2 purpleuv;
+        switch (mpcdtype){
+            case MPCD_CIE:
+                purpleuv = xytocie1960uv(purplexy);
+                break;
+            case MPCD_JUDD:
+                purpleuv = xytojuddxy(purplexy);
+                break;
+            case MPCD_JUDD_MACADAM:
+                purpleuv = xytojuddmacadamuv(purplexy);
+                break;
+            default:
+                break;
+        };
+        // subtract and normalize to get directional vector of size 1
+        vec2 move = outputuv - purpleuv;
+        move.normalize();
+        printf("convergnce-based move is %f, %f\n", move.x, move.y);
+        */
 
-    // take slope to point where isotherms all intersect?
-    // https://en.wikipedia.org/wiki/Correlated_color_temperature#Approximation
+        // alternate method using local slope
+        vec3 plusone;
+        vec3 minusone;
+        const double delta = 0.5;
+        switch (locus){
+            case DAYLIGHTLOCUS:
+                plusone = xycoordfromfromCCTdaylight(cct+delta);
+                minusone = xycoordfromfromCCTdaylight(cct-delta);
+                break;
+            case DAYLIGHTLOCUS_DOGWAY:
+                plusone = xycoordfromfromCCTdaylightdogway(cct+delta);
+                minusone = xycoordfromfromCCTdaylightdogway(cct-delta);
+                break;
+            case PLANKIANLOCUS:
+                plusone = xycoordfromfromCCTplankian(cct+delta);
+                minusone = xycoordfromfromCCTplankian(cct-delta);
+                break;
+            default:
+                printf("Crap! Unreachable reached in xycoordfromfromCCT()!!\n");
+                break;
+        };
+        vec2 plusonexy = vec2(plusone.x, plusone.y);
+        vec2 minusonexy = vec2(minusone.x, minusone.y);
+        vec2 plusoneuv;
+        vec2 minusoneuv;
+        switch (mpcdtype){
+            case MPCD_CIE:
+                plusoneuv = xytocie1960uv(plusonexy);
+                minusoneuv = xytocie1960uv(minusonexy);
+                break;
+            case MPCD_JUDD:
+                plusoneuv = xytojuddxy(plusonexy);
+                minusoneuv = xytojuddxy(minusonexy);
+                break;
+            case MPCD_JUDD_MACADAM:
+                plusoneuv = xytojuddmacadamuv(plusonexy);
+                minusoneuv = xytojuddmacadamuv(minusonexy);
+                break;
+            default:
+                break;
+        };
 
-    // MPCD unit is probably 0.0004 uv distance.
-    // Best cite I can find says it's 0.004, but that's 10x too big when looking at the commonly cited coords for 93K+8mpcd and 93k+27mpcd
+        // shortcut to negative reciprocal of slope
+        vec2 move = vec2(-1.0 * (minusoneuv.y - plusoneuv.y), minusoneuv.x - plusoneuv.x);
+        if (mpcdtype == MPCD_JUDD){
+            move.y *= -1.0; // axes are oriented differently
+        }
+        move.normalize();
+        //printf("slope-based move is %f, %f\n", move.x, move.y);
+        // full derviation of negative reciprocal
+        //double slope = (minusoneuv.y - plusoneuv.y) / (minusoneuv.x - plusoneuv.x);
+        //slope = -1.0 / slope;
+        //vec2 altslope = vec2(1.0, slope);
+        // Todo: Flip Y for Judd
+        //altslope.normalize();
+        //printf("altslope-based move is %f, %f\n", altslope.x, altslope.y);
 
-    // +MPCD is away from the convergence point, generally in the -u,+v direction
+
+        // a MPCD unit is probably 0.0004 delta-uv in CIE1960 UCS
+        // Appendix 201 to VESA Flat Panel Display Measurements Standard Version 2.0 claims its defined as 0.004
+        // But I think that's a typo, since it's 10x too big relative to the commonly cited coordinates for 9300K+8mpcd and 9300k+27mpcd
+
+        // a MPCD unit is 0.0005 in Judd1935 UCS according to B.R. Canty & G.P. Kirkpatrick, Color Temperature Diagram, J. Opt. Soc. Am. Vol 51, No. 10, p1130 (Oct 1961).
+        // (Rather, Canty & Kirkpatrick say Judd determined a MPCD was "0.0005 U.C.S. units" without citation.
+        // Elsewhere in the same sentence they cite to his 1935 paper.
+        // Judd's 1935 UCS is a trilinear coordinate system.
+        // There are 3 competing cartesian equivalents, and it's not clear which one Canty & Kirkpatrick meant.
+        //      1. The xy system given in the appendix to Judd's 1935 paper.
+        //      2. The uv transform by MacAdam in 3 D. L. MacAdam, "Projective Transformations of I.C.I. Color Specifications," J. Opt. Soc. Am. 27, 294 (1937). Also explained in Quantitative Data and Methods for Colorimetry J. Opt. Soc. Am. Vol 34, No. 11, p677 (Nov 1944).
+        //      3. Another uv transform by Breckenridge and Schaub in Rectangular Uniform-Chromaticity-Scale Coordinates, J. Opt. Soc. Am. Vol 29, No. 9, p370 (Sept 1939).
+        // I think the MacAdams version is the most likely, because:
+        // (a) Latter-day sources like wikipedia conflate MacAdam's transformation with Judd's UCS
+        // (b) Breckenridge & Schaub's transformation had its own independent name -- RUCS
+        // (c) The MacAdams version gives a result for 9300+27mpcd that is pretty close to the defined 0.281, 0.311.
+        // 9300+27mpcd was defined using Judd-space MPCD according to
+        // Development of the White-Standard Apparatus for Color Cathode-ray Tubes" by Yoshinobu Nayatani, Shoichi Hitani, Kyosuke Furukawa, Yutaka Kurioka and Isamu Ueda, Television, vol 24, No 2, p116 (1970)
+        double mpcdsize;
+        switch (mpcdtype){
+            case MPCD_CIE:
+                mpcdsize = 0.0004;
+                break;
+            case MPCD_JUDD: // fall through
+            case MPCD_JUDD_MACADAM:
+                mpcdsize = 0.0005;
+                break;
+            default:
+                break;
+        };
+        move = move*(mpcdsize * mpcd);
+        // add the mpcd offset to our original output
+        outputuv = outputuv + move;
+        // back to xy
+        switch (mpcdtype){
+            case MPCD_CIE:
+                outputxy = cie1960uvtoxy(outputuv);
+                break;
+            case MPCD_JUDD:
+                outputxy = juddxytoxy(outputuv);
+                break;
+            case MPCD_JUDD_MACADAM:
+                outputxy = juddmacadamuvtoxy(outputuv);
+                break;
+            default:
+                break;
+        };
+        // recalculate z
+        double z = 1.0 - outputxy.x - outputxy.y;
+        output = vec3(outputxy.x, outputxy.y, z);
+    }
 
 
     return output;
@@ -595,5 +753,92 @@ vec2 cie1960uvtoxy(vec2 input){
     double divisor = (2.0 * input.x) - (8.0 * input.y) + 4.0;
     double x = (3.0 * input.x) / divisor;
     double y = (2.0 * input.y) / divisor;
+    return vec2(x, y);
+}
+
+// CIE1931 x,y coordinates to Judd1935 x,y coordinates
+// DEANE B. JUDD, A Maxwell Triangle Yielding Uniform Chromaticity Scales,  J. Opt. Soc. Am. 25, 24 (1935).
+vec2 xytojuddxy(vec2 input){
+
+    // first convert from xy to XYZ
+    // use 1.0 for Y (it will drop out anyway)
+    double z = 1.0 - input.x - input.y;
+    double X = input.x / input.y;
+    double Y = 1.0;
+    double Z = z / input.y;
+    vec3 XYZ = vec3(X, Y, Z);
+
+    // multiply by the matrix from the paper
+    const double juddmatrix[3][3] = {
+        {3.1956, 2.4478, -0.1434},
+        {-2.5455, 7.0492, 0.9963},
+        {0.0, 0.0, 1.0}
+    };
+    // Judd names his coordinates as capital RGB with overscores and lowercase rgb, but these are **NOT** even remotely similar to the RGB colorspace
+    vec3 RGBoverscore = multMatrixByColor(juddmatrix, XYZ);
+
+    // normalize to get lowercase rgb
+    double sum = RGBoverscore.x + RGBoverscore.y + RGBoverscore.z;
+    //double r = RGBoverscore.x / sum; //not used
+    double g = RGBoverscore.y / sum;
+    double b = RGBoverscore.z / sum;
+
+    // Apply the equations in the appendix to convert from trilinear coordinates to cartesian coordinates
+    double x = ((2.0 * b) + g) / sqrt(3.0);
+    double y = g;
+
+    return vec2(x, y);
+}
+
+// Judd1935 x,y coordinates to CIE1931 x,y coordinates
+// DEANE B. JUDD, A Maxwell Triangle Yielding Uniform Chromaticity Scales,  J. Opt. Soc. Am. 25, 24 (1935).
+vec2 juddxytoxy(vec2 input){
+
+    // Judd names his coordinates as capital RGB with overscores and lowercase rgb, but these are **NOT** even remotely similar to the RGB colorspace
+
+    // first reverse the equations in the appendix to recover trilinear rgb from cartesian xy
+    double g = input.y;
+    double b = ((sqrt(3.0) * input.x) - input.y) / 2.0;
+    double r = 1.0 - g - b;
+    vec3 rgb = vec3(r, g, b);
+
+    // multiply by the in verse of the matrix in the paper to recover XYZ
+    // (or rather, the same chromaticity at a different Y)
+    const double juddmatrix[3][3] = {
+        {3.1956, 2.4478, -0.1434},
+        {-2.5455, 7.0492, 0.9963},
+        {0.0, 0.0, 1.0}
+    };
+    double inversejuddmatrix[3][3];
+    Invert3x3Matrix(juddmatrix, inversejuddmatrix);
+    vec3 XYZ = multMatrixByColor(inversejuddmatrix, rgb);
+
+    // convert XYZ to xyY, discarding Y
+    double sum = XYZ.x + XYZ.y + XYZ.z;
+    double x = XYZ.x / sum;
+    double y = XYZ.y / sum;
+
+    return vec2(x, y);
+}
+
+vec2 xytojuddmacadamuv(vec2 input){
+    const double a = 0.4661;
+    const double b = 0.1593;
+    const double c = -0.15735;
+    const double d = 0.2424;
+    const double e = 0.6581;
+    double denom = (input.y + (c * input.x) + d);
+    double u = ((a * input.x) + (b * input.y))/denom;
+    double v = (e * input.y) / denom;
+    return vec2 (u, v);
+}
+vec2 juddmacadamuvtoxy(vec2 input){
+    const double a = 0.4661;
+    const double b = 0.1593;
+    const double c = -0.15735;
+    const double d = 0.2424;
+    const double e = 0.6581;
+    double y = (input.y * d) / (e - input.y -((c * ((e * input.x) - (input.y * b))) / a));
+    double x = y * (((e * input.x) - (b * input.y))/(a * input.y));
     return vec2(x, y);
 }
