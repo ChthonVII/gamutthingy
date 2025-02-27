@@ -74,7 +74,7 @@ vec2 cie1960uvtoxy(vec2 input);
 vec2 xytojuddxy(vec2 input);
 vec2 juddxytoxy(vec2 input);
 
-// convert CIE1931 xy coords to MacAdam's transformation of Judd1935 coords and back
+// convert CIE1931 xy coords to MacAdam's xy-uv transformation equivalent to Judd1935 UCS and back
 vec2 xytojuddmacadamuv(vec2 input);
 vec2 juddmacadamuvtoxy(vec2 input);
 

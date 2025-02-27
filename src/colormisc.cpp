@@ -557,7 +557,7 @@ vec3 xycoordfromfromCCT(double cct, int locus, double mpcd, int mpcdtype){
         // Judd's 1935 UCS is a trilinear coordinate system.
         // There are 3 competing cartesian equivalents, and it's not clear which one Canty & Kirkpatrick meant.
         //      1. The xy system given in the appendix to Judd's 1935 paper.
-        //      2. The uv transform by MacAdam in 3 D. L. MacAdam, "Projective Transformations of I.C.I. Color Specifications," J. Opt. Soc. Am. 27, 294 (1937). Also explained in Quantitative Data and Methods for Colorimetry J. Opt. Soc. Am. Vol 34, No. 11, p677 (Nov 1944).
+        //      2. The uv transform by MacAdam explained in Quantitative Data and Methods for Colorimetry J. Opt. Soc. Am. Vol 34, No. 11, p677 (Nov 1944). (This is probably older than 1944 though. That article sounds like a recap of generally known techniques in the field. And MacAdam published the underlying projection transform math in "Projective Transformations of I.C.I. Color Specifications," J. Opt. Soc. Am. 27, 294 (1937).)
         //      3. Another uv transform by Breckenridge and Schaub in Rectangular Uniform-Chromaticity-Scale Coordinates, J. Opt. Soc. Am. Vol 29, No. 9, p370 (Sept 1939).
         // I think the MacAdams version is the most likely, because:
         // (a) Latter-day sources like wikipedia conflate MacAdam's transformation with Judd's UCS
@@ -821,6 +821,10 @@ vec2 juddxytoxy(vec2 input){
     return vec2(x, y);
 }
 
+// CIE1931 x,y coordinates to uv coordinates (almost) equivalent to Judd1935 UCS.
+// Judd1935 UCS - DEANE B. JUDD, A Maxwell Triangle Yielding Uniform Chromaticity Scales,  J. Opt. Soc. Am. 25, 24 (1935).
+// Equivalent xy-to-uv transform - Quantitative Data and Methods for Colorimetry J. Opt. Soc. Am. Vol 34, No. 11, p677 (Nov 1944). (This is probably older than 1944 though. That article sounds like a recap of generally known techniques in the field. And MacAdam published the underlying projection transform math in "Projective Transformations of I.C.I. Color Specifications," J. Opt. Soc. Am. 27, 294 (1937).)
+// Note: If reimplementing these functions, make sure to use high-bit-depth floating point types.
 vec2 xytojuddmacadamuv(vec2 input){
     const double a = 0.4661;
     const double b = 0.1593;
@@ -832,6 +836,11 @@ vec2 xytojuddmacadamuv(vec2 input){
     double v = (e * input.y) / denom;
     return vec2 (u, v);
 }
+
+// uv coordinates (almost) equivalent to Judd1935 UCS to CIE1931 x,y coordinates.
+// Judd1935 UCS - DEANE B. JUDD, A Maxwell Triangle Yielding Uniform Chromaticity Scales,  J. Opt. Soc. Am. 25, 24 (1935).
+// Equivalent xy-to-uv transform - Quantitative Data and Methods for Colorimetry J. Opt. Soc. Am. Vol 34, No. 11, p677 (Nov 1944). (This is probably older than 1944 though. That article sounds like a recap of generally known techniques in the field. And MacAdam published the underlying projection transform math in "Projective Transformations of I.C.I. Color Specifications," J. Opt. Soc. Am. 27, 294 (1937).)
+// Note: If reimplementing these functions, make sure to use high-bit-depth floating point types.
 vec2 juddmacadamuvtoxy(vec2 input){
     const double a = 0.4661;
     const double b = 0.1593;
