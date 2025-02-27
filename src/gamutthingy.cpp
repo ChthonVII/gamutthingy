@@ -2358,18 +2358,18 @@ int main(int argc, const char **argv){
 
     if (    (   (sourcecustomwhitempcd != 0.0) &&
                 (
-                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS) ||
-                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS_OLD) ||
-                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY) ||
-                    (sourcecustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY_OLD)
+                    (sourcecustomwhitelocus == DAYLIGHTLOCUS) ||
+                    (sourcecustomwhitelocus == DAYLIGHTLOCUS_OLD) ||
+                    (sourcecustomwhitelocus == DAYLIGHTLOCUS_DOGWAY) ||
+                    (sourcecustomwhitelocus == DAYLIGHTLOCUS_DOGWAY_OLD)
                 )
             ) ||
             (   (destcustomwhitempcd != 0.0) &&
                 (
-                    (destcustomwhitempcdtype == DAYLIGHTLOCUS) ||
-                    (destcustomwhitempcdtype == DAYLIGHTLOCUS_OLD) ||
-                    (destcustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY) ||
-                    (destcustomwhitempcdtype == DAYLIGHTLOCUS_DOGWAY_OLD)
+                    (destcustomwhitelocus == DAYLIGHTLOCUS) ||
+                    (destcustomwhitelocus == DAYLIGHTLOCUS_OLD) ||
+                    (destcustomwhitelocus == DAYLIGHTLOCUS_DOGWAY) ||
+                    (destcustomwhitelocus == DAYLIGHTLOCUS_DOGWAY_OLD)
                 )
             )
     ){
