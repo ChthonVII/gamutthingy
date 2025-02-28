@@ -156,7 +156,7 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_93K_FAIRCHILD 14
 #define WHITEPOINT_D65_FAIRCHILD 15
 #define WHITEPOINT_D65_DISPLAYMATE 16
-#define WHITEPOINT_75K_COLORTRAK 17
+#define WHITEPOINT_D75_COLORTRAK 17
 
 const std::string whitepointnames[18] = {
     "D65",
@@ -176,7 +176,7 @@ const std::string whitepointnames[18] = {
     "Diamond Pro/Trinitron ~93K (Fairchild measurement)",
     "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
     "Trinitron ~D65 (DisplayMate measurement)",
-    "RCA ColorTrak Remote ~75K (Patchy68k measurement)"
+    "RCA ColorTrak Remote ~D75 (Patchy68k measurement)"
 };
 
 const double whitepoints[18][3] = {
@@ -240,7 +240,7 @@ const double whitepoints[18][3] = {
     // https://www.displaymate.com/ShootOut_Part_1.htm
     // coords estimated via xycoordfromfromCCT()
     {0.313091, 0.329377, 0.357532},
-    // 1989 RCA ColorTrak Remote ~75K
+    // 1989 RCA ColorTrak Remote ~D75
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
     {0.301, 0.308, 0.391},

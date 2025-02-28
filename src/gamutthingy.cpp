@@ -994,8 +994,8 @@ int main(int argc, const char **argv){
             WHITEPOINT_KDS_VS19
         },
         {
-            "rca_colortrak_75k_patchy68k",
-            WHITEPOINT_75K_COLORTRAK
+            "rca_colortrak_D75_patchy68k",
+            WHITEPOINT_D75_COLORTRAK
         },
         {
             "customcoord",

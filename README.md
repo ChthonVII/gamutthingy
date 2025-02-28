@@ -108,7 +108,7 @@ Four general modes of operation:
      - `diamondpro_93k_fairchild` Measured whitepoint of a Mitsubishi Diamond Pro (unspecified model number) computer monitor with Trinitron tube in 9300K mode. See [insert cite]. Near 9300K+27mpcd.
      - `nec_multisync_c400_93k` Measured whitepoint of a NEC MultiSync C400 computer monitor. See [insert cite]. Near 9300K+27mpcd.
      - `kds_vs19_93k` Whitepoint for KDS VS19 computer monitor. Probably not an actual measurement, since exactly equal to 9300K+27mpcd.
-     - `rca_colortrak_75k_patchy68k` Measured whitepoint of a RCA Colortrack Remote CRT television (US model, 1989). Near 7500K. [new16]
+     - `rca_colortrak_D75_patchy68k` Measured whitepoint of a RCA Colortrack Remote CRT television (US model, 1989). Near D75. [new16]
      - `customcoord` Use the coordinants supplied by the user via `--source-whitepoint-custom-coords`.
      - `customtemp` Derive coordinants from color temperature supplied by user via `--source-whitepoint-custom-temp`.
 - `--source-whitepoint-custom-coords` or `--swcc`: Specify the CIE 1931 chromaticity coordinates for the whitepoint of the source gamut as a comma-separated list (no spaces!) in x,y order. For example: `0.281,0.311`. Does nothing unless `--source-whitepoint customcoord`.
