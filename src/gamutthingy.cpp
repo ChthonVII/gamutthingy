@@ -912,8 +912,8 @@ int main(int argc, const char **argv){
             GAMUT_P22_APPLE_MULTISCAN1705
         },
         {
-            "P22_toshiba_backstripe_cf2005_patchy68k",
-            GAMUT_P22_BLACKSTRIPE
+            "P22_rca_colortrak_patchy68k",
+            GAMUT_P22_COLORTRAK
         },
         {
             "customcoord",
@@ -994,8 +994,8 @@ int main(int argc, const char **argv){
             WHITEPOINT_KDS_VS19
         },
         {
-            "toshiba_backstripe_cf2005_75k_patchy68k",
-            WHITEPOINT_75K_BLACKSTRIPE
+            "rca_colortrak_75k_patchy68k",
+            WHITEPOINT_75K_COLORTRAK
         },
         {
             "customcoord",
@@ -1191,8 +1191,8 @@ int main(int argc, const char **argv){
             CRT_DEMODULATOR_TDA8362
         },
         {
-            "toshiba_backstripe_cf2005",
-            CRT_DEMODULATOR_BLACKSTRIPE
+            "rca_colortrak",
+            CRT_DEMODULATOR_COLORTRAK
         }
     };
 

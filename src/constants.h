@@ -156,7 +156,7 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_93K_FAIRCHILD 14
 #define WHITEPOINT_D65_FAIRCHILD 15
 #define WHITEPOINT_D65_DISPLAYMATE 16
-#define WHITEPOINT_75K_BLACKSTRIPE 17
+#define WHITEPOINT_75K_COLORTRAK 17
 
 const std::string whitepointnames[18] = {
     "D65",
@@ -176,7 +176,7 @@ const std::string whitepointnames[18] = {
     "Diamond Pro/Trinitron ~93K (Fairchild measurement)",
     "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
     "Trinitron ~D65 (DisplayMate measurement)",
-    "Toshiba Blackstripe CF2005 ~D75 (Patchy68k measurement)"
+    "RCA ColorTrak Remote ~75K (Patchy68k measurement)"
 };
 
 const double whitepoints[18][3] = {
@@ -240,7 +240,7 @@ const double whitepoints[18][3] = {
     // https://www.displaymate.com/ShootOut_Part_1.htm
     // coords estimated via xycoordfromfromCCT()
     {0.313091, 0.329377, 0.357532},
-    // Toshiba Blackstripe CF2005 (manufactured 1985) ~75K
+    // 1989 RCA ColorTrak Remote ~75K
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
     {0.301, 0.308, 0.391},
@@ -265,7 +265,7 @@ const double whitepoints[18][3] = {
 #define GAMUT_P22_TRINITRON_MIXANDMATCH 15
 #define GAMUT_P22_TRINITRON_BOHNSACK 16
 #define GAMUT_P22_APPLE_MULTISCAN1705 17
-#define GAMUT_P22_BLACKSTRIPE 18
+#define GAMUT_P22_COLORTRAK 18
 
 const std::string gamutnames[19] = {
     "sRGB / bt709 (specification)",
@@ -286,7 +286,7 @@ const std::string gamutnames[19] = {
     "P22 phosphors, Trinitron, Mix-and-Match",
     "P22 phosphors, Trinitron, Bohnsack Measurement",
     "P22 phosphors, Apple Multiple Scan 1705",
-    "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
+    "P22 phosphors, RCA ColorTrak Remote, Patchy68k measurement",
 };
 
 const double gamutpoints[19][3][3] = {
@@ -458,9 +458,10 @@ const double gamutpoints[19][3][3] = {
         {0.15, 0.065, 0.785} //blue
     },
 
-    // Toshiba Blackstripe CF2005 (manufactured 1985) ~75K
+    // 1989 RCA ColorTrak Remote
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
+    // ~75K whitepoint
     {
         {0.623492333, 0.343975233, 0.032532434}, //red
         {0.312266967, 0.590305267, 0.097427766}, //green
@@ -563,7 +564,7 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_CXA2025AS_US 9
 #define CRT_DEMODULATOR_CXA1213AS 10
 #define CRT_DEMODULATOR_TDA8362 11
-#define CRT_DEMODULATOR_BLACKSTRIPE 12
+#define CRT_DEMODULATOR_COLORTRAK 12
 
 const std::string demodulatornames[13] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
@@ -578,7 +579,7 @@ const std::string demodulatornames[13] = {
     "CXA2025AS (US mode)",
     "CXA1213AS",
     "TDA8362",
-    "Unknown Chip - Toshiba Blackstripe CF2005 (US)"
+    "Unknown Chip - RCA ColorTrak Remote (US)"
 };
 
 const double demodulatorinfo[13][2][3] = {
@@ -702,12 +703,10 @@ const double demodulatorinfo[13][2][3] = {
         {1.14, 0.3, 1.14} // gains
     },
 
-    // Unknown chip used in Toshiba Blackstripe CF2005 (manufactured 1985)
+    // Unknown chip used in 1989 RCA ColorTrak Remote
     // US model
     // calculated from measurements by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
-    // Patchy68k notes that this TV does indeed look terrible in real life.
-    // Also, probably no clipping CRT output.
     {
         {94.5488524399, 255.376054365, 0}, // angles (degrees)
         {0.806809988011, 0.295471057738, 1.0} // gains
