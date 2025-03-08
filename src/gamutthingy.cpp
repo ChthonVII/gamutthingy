@@ -2835,10 +2835,10 @@ int main(int argc, const char **argv){
     bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
     
     gamutdescriptor sourcegamut;
-    bool srcOK = sourcegamut.initialize(gamutnames[sourcegamutindex], sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
+    bool srcOK = sourcegamut.initialize(sourcegamutindex != GAMUT_CUSTOM ? gamutnames[sourcegamutindex] : "Custom Source Gamut", sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
     
     gamutdescriptor destgamut;
-    bool destOK = destgamut.initialize(gamutnames[destgamutindex], destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled, destgamutcrtsetting, &emulatedcrt);
+    bool destOK = destgamut.initialize(destgamutindex != GAMUT_CUSTOM ? gamutnames[destgamutindex] : "Custom Destination Gamut", destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled, destgamutcrtsetting, &emulatedcrt);
     
     if ((mapmode == MAP_CCC_B) || (mapmode == MAP_CCC_C)){
         destgamut.initializeMatrixChunghwa(sourcegamut, verbosity);
