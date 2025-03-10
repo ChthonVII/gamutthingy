@@ -924,7 +924,7 @@ int main(int argc, const char **argv){
         // see comment in constants.h
     };
 
-    const paramvalue whitepointlist[22] = {
+    const paramvalue whitepointlist[15] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -949,6 +949,7 @@ int main(int argc, const char **argv){
             "illuminantC",
             WHITEPOINT_ILLUMINANTC
         },
+        /*
         {
             "6900K",
             WHITEPOINT_6900K
@@ -977,6 +978,7 @@ int main(int argc, const char **argv){
             "8800K",
             WHITEPOINT_8800K
         },
+        */
         {
             "trinitron_93k_bohnsack",
             WHITEPOINT_BOHNSACK
