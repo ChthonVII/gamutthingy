@@ -176,7 +176,7 @@ const std::string whitepointnames[18] = {
     "Diamond Pro/Trinitron ~93K (Fairchild measurement)",
     "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
     "Trinitron ~D65 (DisplayMate measurement)",
-    "RCA ColorTrak Remote ~D75 (Patchy68k measurement)"
+    "RCA ColorTrak Remote E13169GM ~D75 (Patchy68k measurement)"
 };
 
 const double whitepoints[18][3] = {
@@ -240,7 +240,7 @@ const double whitepoints[18][3] = {
     // https://www.displaymate.com/ShootOut_Part_1.htm
     // coords estimated via xycoordfromfromCCT()
     {0.313091, 0.329377, 0.357532},
-    // 1989 RCA ColorTrak Remote ~D75
+    // 1989 RCA ColorTrak Remote E13169GM ~D75
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
     {0.301, 0.308, 0.391},
@@ -286,7 +286,7 @@ const std::string gamutnames[19] = {
     "P22 phosphors, Trinitron, Mix-and-Match",
     "P22 phosphors, Trinitron, Bohnsack Measurement",
     "P22 phosphors, Apple Multiple Scan 1705",
-    "P22 phosphors, RCA ColorTrak Remote, Patchy68k measurement",
+    "P22 phosphors, RCA ColorTrak Remote E13169GM, Patchy68k measurement",
 };
 
 const double gamutpoints[19][3][3] = {
@@ -458,10 +458,10 @@ const double gamutpoints[19][3][3] = {
         {0.15, 0.065, 0.785} //blue
     },
 
-    // 1989 RCA ColorTrak Remote
+    // 1989 RCA ColorTrak Remote E13169GM
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
-    // ~75K whitepoint
+    // ~D75 whitepoint
     {
         {0.623492333, 0.343975233, 0.032532434}, //red
         {0.312266967, 0.590305267, 0.097427766}, //green
@@ -703,7 +703,7 @@ const double demodulatorinfo[13][2][3] = {
         {1.14, 0.3, 1.14} // gains
     },
 
-    // Unknown chip used in 1989 RCA ColorTrak Remote
+    // Unknown chip used in 1989 RCA ColorTrak Remote E13169GM
     // US model
     // calculated from measurements by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
