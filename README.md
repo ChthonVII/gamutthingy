@@ -92,8 +92,10 @@ Four general modes of operation:
 - `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
      - `D65` Whitepoint for modern sRGB, rec2020, and HD specifications, U.S. SD television specification post-1994, and European SD television specification. Some CRTs with a nominal D65 whitepoint had a higher temperature whitepoint in practice. Such as ~6900K or ~7000K in Europe and ~7000K-7500K in the U.S. [new5]
-     - `9300K27mpcd` Whitepoint for Japanese SD television reciever specification. [new7] Some CRTs with a nominal 9300K+27mpcd whitepoint had a lower temperature whitepoint in practice, such as 9300K+8mpcd, 8800K, or 8500K. Default. [new5]
-     - `9300K8mpcd` Whitepoint for Japanese SD television broadcast master monitors. [new7] Also very common in practice for Japanese professional-grade CRT televisions, some Japanese consumer televisions, and for computer monitors worldwide. Average of coordinates stated in [new7] and [new13].
+     - `9300K27mpcd` Whitepoint for Japanese SD television reciever specification. [new7] MPCD units are in the Judd1935 UCS. [new17] Some CRTs with a nominal 9300K+27mpcd whitepoint had a lower temperature whitepoint in practice, such as 9300K+8mpcd, 8800K, or 8500K. Default. [new5]
+     - `9300K8mpcd` Whitepoint for Japanese SD television broadcast master monitors. [new7] Also very common in practice for Japanese professional-grade CRT televisions, some Japanese consumer televisions, and for computer monitors worldwide. Average of coordinates in [new7] and [new13]. The conflict appears to be due to [new13] using CIE1960 MPCD units, while [new7] used Judd MPCD units.
+     - `9300K8mpcd_cie` Coordinates from [new13]. See `9300K8mpcd`.
+     - `9300K8mpcd_judd` Coordinates from [new7]. See `9300K8mpcd`.
      - `illuminantC` Nominal whitepoint for U.S. SD television pre-1994. Replaced by D65 in practice decades earlier.
      - `6900K` Approximate actual whitepoint of some "D65" CRTs.
      - `7000K` Approximate actual whitepoint of some "D65" CRTs.
@@ -306,7 +308,7 @@ TODO: fill in missing citations, then alphabetize
 - [new4] Has, Michael and Newman, Todd. "Color Management: Current Practice and The Adoption of a New Standard."  *TAGA (Technical Association of Graphic Arts) Proceedings*, Vol. 2, pp. 748-771. 1995. ([Link](https://www.color.org/wpaper1.xalter))
 - [new5] Glynn II, Earl F. "efg's Chromaticity Lab Report." *efg's Computer Lab*. July 2009. ([Link](https://web.archive.org/web/20190613001950/http://efg2.com/Lab/Graphics/Colors/Chromaticity.htm))
 - [new6] Espy, Rance. E-mail to Earl F. Glynn II, "Re: Case #: 19990110193351 - Monitor." January, 1999. ([Link](https://web.archive.org/web/20171114044833/http://www.efg2.com/Lab/Graphics/Colors/DellInfo.txt))
-- [new7] Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." *テレビジョン* (*Television*), Vol. 31, No. 11, pp. 883-888. 1977. ([Link](https://www.jstage.jst.go.jp/article/itej1954/31/11/31_11_883/_article/-char/ja/))
+- [new7] Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." テレビジョン (*Television*), Vol. 31, No. 11, pp. 883-888. 1977. ([Link](https://www.jstage.jst.go.jp/article/itej1954/31/11/31_11_883/_article/-char/ja/))
 - [new8] Parker, Norman W. "An Analysis of the Necessary Decoder Corrections for Color Receiver Operation with Non-Standard Receiver Primaries." *IEEE Transactions on Consumer Electronics*, Vol. CE-28, No. 1, pp. 74-83. February 1982. ([Link](https://ieeexplore.ieee.org/document/4179914))
 - [new9] CRT Database ([link](https://crtdatabase.com/))
 - [new10] International Telecommunication Union. "Recommendation ITU-R BT.1886: Reference electro-optical transfer function for flat panel displays used in HDTV studio production." March, 2011. ([Link](https://www.itu.int/rec/R-REC-BT.1886-0-201103-I/en))
@@ -316,6 +318,7 @@ TODO: fill in missing citations, then alphabetize
 - [new14] Apple Computer, Inc. "Multiple Scan 1705 Display: CIE Phosphor Settings." *AppleCare Tech Info Library*, Article ID 24445. March 30, 1998. ([Link](https://til-2001.mirror.kb1max.com/techinfo.nsf/artnum/n24445/index.html))
 - [new15] Apple Wiki. "Apple Multiple Scan Display." ([Link](https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display))
 - [new16] insert cite to patchy68k
+- [new17] Nayatani,Yoshinobu; Hitani,Shoichi; Furukawa, Kyosuke; Kurioka, Yutaka; and Ueda, Isamu. "カラー受像管用白色標準器の開発 (Development of the White-Standard Apparatus for Color Cathode-ray Tubes)." テレビジョン (*Television*), Vol. 24, No. 2, pp. 116-124. 1970. ([Link](https://www.jstage.jst.go.jp/article/itej1954/24/2/24_2_116/_article/-char/ja/))
 
 
 **Building:**

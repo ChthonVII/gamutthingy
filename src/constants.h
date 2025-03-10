@@ -142,26 +142,30 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_D65 0
 #define WHITEPOINT_9300K27MPCD 1
 #define WHITEPOINT_9300K8MPCD 2
-#define WHITEPOINT_ILLUMINANTC 3
-#define WHITEPOINT_6900K 4
-#define WHITEPOINT_7000K 5
-#define WHITEPOINT_7100K 6
-#define WHITEPOINT_7250K 7
-#define WHITEPOINT_D75 8
-#define WHITEPOINT_8500K 9
-#define WHITEPOINT_8800K 10
-#define WHITEPOINT_BOHNSACK 11
-#define WHITEPOINT_NEC_MULTISYNC_C400 12
-#define WHITEPOINT_KDS_VS19 13
-#define WHITEPOINT_93K_FAIRCHILD 14
-#define WHITEPOINT_D65_FAIRCHILD 15
-#define WHITEPOINT_D65_DISPLAYMATE 16
-#define WHITEPOINT_D75_COLORTRAK 17
+#define WHITEPOINT_9300K8MPCDCIE 3
+#define WHITEPOINT_9300K8MPCDJUDD 4
+#define WHITEPOINT_ILLUMINANTC 5
+#define WHITEPOINT_6900K 6
+#define WHITEPOINT_7000K 7
+#define WHITEPOINT_7100K 8
+#define WHITEPOINT_7250K 9
+#define WHITEPOINT_D75 10
+#define WHITEPOINT_8500K 11
+#define WHITEPOINT_8800K 12
+#define WHITEPOINT_BOHNSACK 13
+#define WHITEPOINT_NEC_MULTISYNC_C400 14
+#define WHITEPOINT_KDS_VS19 15
+#define WHITEPOINT_93K_FAIRCHILD 16
+#define WHITEPOINT_D65_FAIRCHILD 17
+#define WHITEPOINT_D65_DISPLAYMATE 18
+#define WHITEPOINT_D75_COLORTRAK 19
 
-const std::string whitepointnames[18] = {
+const std::string whitepointnames[20] = {
     "D65",
     "9300K + 27mpcd",
-    "9300K + 8mpcd",
+    "9300K + 8mpcd (average)",
+    "9300K + 8mpcd (CIE1960 MPCD)",
+    "9300K + 8mpcd (JUDD1935 MPCD)",
     "Illuminant C",
     "6900K",
     "7000K",
@@ -179,16 +183,20 @@ const std::string whitepointnames[18] = {
     "RCA ColorTrak Remote E13169GM ~D75 (Patchy68k measurement)"
 };
 
-const double whitepoints[18][3] = {
+const double whitepoints[20][3] = {
     // D65
     {0.312713, 0.329016, 0.358271},
     // 9300K + 27MPCD
     {0.281, 0.311, 0.408},
-    // 9300K + 8MPCD
-    // Average of coordinates stated in:
-    //      * Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." テレビジョン (Television), Vol. 31, No. 11, pp. 883-888. 1977. x=0.2838+-0.002, y=0.2984+-0.002
-    //      * Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." テレビジョン学会誌 (Journal of the Television Society), Vol. 33, No. 12, pp. 1013-1020. 1979. x=0.2831, y=0.2971
+    // 9300K + 8MPCD (average)
+    // Average of coordinates in the next two entries. The conflict appears to be due to Nagaoka using CIE1960 MPCD units, while Yagishita used Judd MPCD units.
     {0.28345, 0.29775, 0.4188},
+    // 9300K + 8MPCD (CIE1960 MPCD)
+    // From Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." テレビジョン学会誌 (Journal of the Television Society), Vol. 33, No. 12, pp. 1013-1020. 1979. x=0.2831, y=0.2971
+    {0.2831, 0.2971, 0.4198},
+    // 9300K + 8MPCD (JUDD1935 MPCD)
+    // From Yagishita, Shigeru, Nishino, Kenji, Ohta, Katsuhiro, and Ishii, Takashi. "カラーマスターモニター用基準白色内蔵カラーブラウン管 (Color Picture Tube with Built in Reference White for Color Master Monitors)." テレビジョン (Television), Vol. 31, No. 11, pp. 883-888. 1977. x=0.2838+-0.002, y=0.2984+-0.002
+    {0.2838, 0.2984, 0.4178},
     // Illuminant C
     {0.310063, 0.316158, 0.373779},
     // 6900K (Dogway claims, without citation, that consumer Euro CRTs' D65 was often 7100K in practice
