@@ -838,7 +838,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[20] = {
+    const paramvalue gamutlist[21] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -914,6 +914,10 @@ int main(int argc, const char **argv){
         {
             "P22_rca_colortrak_patchy68k",
             GAMUT_P22_COLORTRAK
+        },
+        {
+            "P22_toshiba_blackstripe_patchy68k",
+            GAMUT_P22_BLACKSTRIPE
         },
         {
             "customcoord",
@@ -1147,7 +1151,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue crtdemodulatorlist[14] = {
+    const paramvalue crtdemodulatorlist[16] = {
         {
             "none",
             CRT_DEMODULATOR_NONE
@@ -1203,7 +1207,15 @@ int main(int argc, const char **argv){
         {
             "rca_colortrak",
             CRT_DEMODULATOR_COLORTRAK
-        }
+        },
+        {
+            "TA7644BP",
+            CRT_DEMODULATOR_TA7644BP
+        },
+        {
+            "TA7644BP_measured",
+            CRT_DEMODULATOR_TA7644BP_MEASURED
+        },
     };
 
     const paramvalue demodrenormlist[5] = {

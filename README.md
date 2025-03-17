@@ -55,7 +55,8 @@ Four general modes of operation:
      - `CXA2025AS_US` Used in U.S. Sony Trinitron ~1997.
      - `CXA1213AS` Probably used in Sony Trinitron ~1992. Unclear if this chip was meant for Japan, U.S., or both.
      - `TDA8362` Used in Hitachi CMT2187/2196/2198/2199 ~1994. Unclear if this television used different whitepoints in U.S. and Japan.
-     - `rca_colortrak` Unknown chip used in RCA Colortrak Remote E13169GM (US model, 1989). Behavior derived from empirical measurements [new16].
+     - `TA7644BP` Used in U.S. Toshiba Blackstripe CF2005 (1985) [new16].
+     - `TA7644BP_measured` Values derived from measurements of a U.S. Toshiba Blackstripe CF2005 (1985). Discrepancies from datasheet may be due to poor condition of the unit measured, or datasheet being inaccurate in the first place. [new16].
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
 - `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
@@ -88,6 +89,8 @@ Four general modes of operation:
      - `P22_hitachi` Official chromaticity coordinates for P22 phosphors in CM2198 CRT computer monitor provided by Hitachi to the authors of [new4], published in 1995. Hitachi also made a CMT2198 CRT television, and it's plausible that the same phosphors were used.
      - `P22_apple_multiscan1705` Official chromaticity coordinates for P22 phosphors in Apple Multiple Scan 1705 computer monitor (manufactured 1995-1997). Whitepoint was 9300K+8mpcd. [new14], [new15]
      - `P22_rca_colortrak_patchy68k` Measurements of a RCA Colortrak Remote E13169GM CRT television (US model, 1989). [new16]
+     - `P22_rca_colortrak_patchy68k` Measurements of a RCA Colortrak Remote E13169GM CRT television (US model, 1989). [new16]
+     - `P22_toshiba_blackstripe_patchy68k` Measurements of a Toshiba Blackstripe CF2005 CRT television (US model, 1985) The unit measured was in deteriorated condition, so take these measurements with a grain of salt. White point could not be measured due to poor condition. [new16]
      - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
 - `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:

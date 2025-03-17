@@ -274,8 +274,9 @@ const double whitepoints[20][3] = {
 #define GAMUT_P22_TRINITRON_BOHNSACK 16
 #define GAMUT_P22_APPLE_MULTISCAN1705 17
 #define GAMUT_P22_COLORTRAK 18
+#define GAMUT_P22_BLACKSTRIPE 19
 
-const std::string gamutnames[19] = {
+const std::string gamutnames[20] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -295,9 +296,10 @@ const std::string gamutnames[19] = {
     "P22 phosphors, Trinitron, Bohnsack Measurement",
     "P22 phosphors, Apple Multiple Scan 1705",
     "P22 phosphors, RCA ColorTrak Remote E13169GM, Patchy68k measurement",
+    "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
 };
 
-const double gamutpoints[19][3][3] = {
+const double gamutpoints[20][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -476,6 +478,19 @@ const double gamutpoints[19][3][3] = {
         {0.153586233, 0.064531667, 0.7818821} //blue
     },
 
+    // 1985 Toshiba Blackstripe CF2005
+    // measurements and math by Patchy68k
+    // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2700255641
+    // Very deteriorated unit.
+    // Can't determine whitepoint.
+    // Phosphor readings may be unreliable too. (Red x seems implausible with 1985 phosphor technology)
+    // Using this data anyway b/c there will probably never be any more or better data on this model.
+    {
+        {0.642, 0.339, 0.019}, //red
+        {0.301, 0.601, 0.098}, //green
+        {0.144, 0.071, 0.785} //blue
+    },
+
     // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
     // Grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L728
     // Better explanation from Dogway: https://github.com/Dogway/Avisynth-Scripts/blob/258644dea7a1fbc9a71e7f39d6bb62234a80e1c7/TransformsPack%20-%20Main.avsi#L2348
@@ -573,8 +588,10 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_CXA1213AS 10
 #define CRT_DEMODULATOR_TDA8362 11
 #define CRT_DEMODULATOR_COLORTRAK 12
+#define CRT_DEMODULATOR_TA7644BP 13
+#define CRT_DEMODULATOR_TA7644BP_MEASURED 14
 
-const std::string demodulatornames[13] = {
+const std::string demodulatornames[15] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -587,10 +604,12 @@ const std::string demodulatornames[13] = {
     "CXA2025AS (US mode)",
     "CXA1213AS",
     "TDA8362",
-    "Unknown Chip - RCA ColorTrak Remote (US)"
+    "Unknown Chip - RCA ColorTrak Remote (US)",
+    "TA7644BP (US)"
+    "TA7644BP (US) (measured)"
 };
 
-const double demodulatorinfo[13][2][3] = {
+const double demodulatorinfo[15][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -719,6 +738,24 @@ const double demodulatorinfo[13][2][3] = {
         {94.5488524399, 255.376054365, 0}, // angles (degrees)
         {0.806809988011, 0.295471057738, 1.0} // gains
     },
+
+    // TA7644BP
+    // Used in 1985 Toshiba Blackstripe CF2005
+    // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2679838025
+    {
+        {107, 240, 0}, // angles (degrees)
+        {0.95, 0.31, 1.0} // gains
+    },
+
+    // TA7644BP Measured
+    // Computed from measurements of 1985 Toshiba Blackstripe CF2005
+    // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2700255641
+    // Unit was very deteriorated.
+    // Discrepancies from datasheet may be due to poor condition, or datasheet being inaccurate in the first place
+    {
+        {108.9, 243.3, 0}, // angles (degrees)
+        {0.996, 0.351, 1.0} // gains
+    }
 
 };
 
