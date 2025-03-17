@@ -67,6 +67,7 @@ Four general modes of operation:
 - `--crtclamphigh`: Specifies high clamping level for out-of-bounds R'G'B' output from demodulation. Floating point number >= 1.0. Default 1.1. Sane values are 1.0 to 1.2, particularly 1.0, 1.04, and 1.1. Does nothing unless `--crtclamphighenable true`.
 - `--crtblack`: Specifies black level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 0.0001. Sane values are 0.0001 to 0.001 (0.01 to 0.1 cd/m^2). [new10] The default is probably close to a properly calibrated Sony Trinitron. [new1]
 - `--crtwhite`: Specifies white level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 1.71. Sane values for aperature grille CRTs are around 1.7 to 1.8 (170 - 180 cd/m^2). The default is probably close to a properly calibrated Sony Trinitron. [new1], [new2]. Shadow mask CRTs were substantially dimmer. Some professional-grade televisions may have aimed for 100 cd/m^s because that was the standard.
+- `--crt-gamma-knob` or `--cgk`: Take CRT output to a power before applying EOTF function. Simulates gamma adjustment knob on some CRTs. Floating point number. Default 1.0.
 
 **Gamut Parameters:**
 - `--source-primaries` or `-s`: Specifies the color primaries of the source gamut. Possible values are:

@@ -728,6 +728,7 @@ int main(int argc, const char **argv){
     bool backwardsmode = false;
     double crthueknob = 0.0;
     double crtsaturationknob = 1.0;
+    double crtgammaknob = 1.0;
     
     const boolparam params_bool[12] = {
         {
@@ -1594,7 +1595,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[36] = {
+    const floatparam params_float[38] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -1770,7 +1771,16 @@ int main(int argc, const char **argv){
             "CRT Saturation Knob",        //std::string prettyname; // name for pretty printing
             &crtsaturationknob           //double* vartobind; // pointer to variable whose value to set
         },
-
+        {
+            "--crt-gamma-knob",         //std::string paramstring; // parameter's text
+            "CRT Gamma Knob",        //std::string prettyname; // name for pretty printing
+            &crtgammaknob           //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--cgk",         //std::string paramstring; // parameter's text
+            "CRT Gamma Knob",        //std::string prettyname; // name for pretty printing
+            &crtgammaknob           //double* vartobind; // pointer to variable whose value to set
+        },
 
 
         // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
@@ -2377,6 +2387,13 @@ int main(int argc, const char **argv){
         crtsaturationknob = 0.0;
     }
 
+    if ((crtgammaknob != 1.0) && (crtemumode == CRT_EMU_NONE)){
+        printf("Ignoring CRT gamma knob because not simulating CRT.\n");
+    }
+    else if (crtgammaknob <= 0.0){
+        printf("CRT gamma cannot be zero or less. Forcing to 0.1. \n");
+        crtgammaknob = 0.1;
+    }
 
     if (    (   (sourcecustomwhitempcd != 0.0) &&
                 (
@@ -2799,7 +2816,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }

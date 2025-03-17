@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -30,6 +30,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     demodfixes = dodemodfixes;
     globalehueoffset = hueknob;
     globalsaturation = saturationknob;
+    globalgammaadjust = gammaknob;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -734,6 +735,12 @@ vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     if (output.y < rgbclamplowlevel){output.y = rgbclamplowlevel;}
     if (output.z < rgbclamplowlevel){output.z = rgbclamplowlevel;}
 
+    if (globalgammaadjust != 1.0){
+        output.x = pow(output.x, globalgammaadjust);
+        output.y = pow(output.y, globalgammaadjust);
+        output.z = pow(output.z, globalgammaadjust);
+    }
+
     output.x = tolinear1886appx1(output.x);
     output.y = tolinear1886appx1(output.y);
     output.z = tolinear1886appx1(output.z);
@@ -744,6 +751,11 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input){
     input.x = togamma1886appx1(input.x);
     input.y = togamma1886appx1(input.y);
     input.z = togamma1886appx1(input.z);
+    if (globalgammaadjust != 1.0){
+        input.x = pow(input.x, 1.0/globalgammaadjust);
+        input.y = pow(input.y, 1.0/globalgammaadjust);
+        input.z = pow(input.z, 1.0/globalgammaadjust);
+    }
     vec3 output = multMatrixByColor(inverseOverallMatrix, input);
     return output;
 }
