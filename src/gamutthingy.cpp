@@ -42,6 +42,11 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
         if (lutmode == LUTMODE_POSTCC){
+            if (sourcegamut.attachedCRT->globalgammaadjust != 1.0){
+                linearinputcolor.x = pow(linearinputcolor.x, sourcegamut.attachedCRT->globalgammaadjust);
+                linearinputcolor.y = pow(linearinputcolor.y, sourcegamut.attachedCRT->globalgammaadjust);
+                linearinputcolor.z = pow(linearinputcolor.z, sourcegamut.attachedCRT->globalgammaadjust);
+            }
             linearinputcolor = sourcegamut.attachedCRT->tolinear1886appx1vec3(inputcolor);
         }
         else if ((lutmode == LUTMODE_NONE)||(lutmode == LUTMODE_NORMAL)) {
