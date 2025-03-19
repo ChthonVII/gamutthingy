@@ -5,6 +5,7 @@
 #include <math.h>
 #include <fstream>
 #include <deque>
+#include <iomanip>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -3544,6 +3545,8 @@ int main(int argc, const char **argv){
         }
         ratxtfile << "\n\n\n";
         ratxtfile << "SamplerLUT = \"luts/" << outputfilename << "\"\n\n";
+
+        ratxtfile << std::setprecision(16);
 
         ratxtfile << "crtBlackLevel = \"" << crtblacklevel << "\"\n";
         ratxtfile << "crtWhiteLevel = \"" << crtwhitelevel << "\"\n";
