@@ -734,6 +734,8 @@ int main(int argc, const char **argv){
     double crthueknob = 0.0;
     double crtsaturationknob = 1.0;
     double crtgammaknob = 1.0;
+    bool retroarchwritetext = false;
+    char* retroarchtextfilename;
     
     const boolparam params_bool[12] = {
         {
@@ -798,7 +800,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const stringparam params_string[7] = {
+    const stringparam params_string[8] = {
         {
             "--infile",             //std::string paramstring; // parameter's text
             "Input Filename",       //std::string prettyname; // name for pretty printing
@@ -840,7 +842,13 @@ int main(int argc, const char **argv){
             "Input Color",       //std::string prettyname; // name for pretty printing
             &inputcolorstring,         //char** vartobind;    // pointer to variable whose value to set
             &incolorset             //bool* flagtobind; // pointer to flag to set when this variable is set
-        }
+        },
+        {
+            "--retroarchtextoutputfile",             //std::string paramstring; // parameter's text
+            "Retroarch CCC Shader Parameter Text Output Filename",       //std::string prettyname; // name for pretty printing
+            &retroarchtextfilename,         //char** vartobind;    // pointer to variable whose value to set
+            &retroarchwritetext              //bool* flagtobind; // pointer to flag to set when this variable is set
+        },
 
     };
 
@@ -2268,6 +2276,10 @@ int main(int argc, const char **argv){
     }
     else {
         lutmode = LUTMODE_NONE; // make sure we pass mode none if not lutgen
+        if (retroarchwritetext){
+            retroarchwritetext = false;
+            printf("\nNot writing retroarch shader parameters text file because not generating a LUT.\n");
+        }
     }
 
     if (lutmode == LUTMODE_POSTGAMMA){
@@ -2459,6 +2471,9 @@ int main(int argc, const char **argv){
                 }
                 else {
                     printf("Error!\n");
+                }
+                if (retroarchwritetext){
+                    printf("Retroarch CCC shader parameter text output file: %s\n", retroarchtextfilename);
                 }
             }
             else {
@@ -3497,6 +3512,69 @@ int main(int argc, const char **argv){
         fprintf(stderr, "gamutthingy: %s: %s\n", inputfilename, image.message);
         result = ERROR_PNG_OPEN_FAIL;
     }
+
+    // if we're still here, maybe write the parameters file for retroarch CCC shaders
+    if (lutgen && retroarchwritetext && (result == RETURN_SUCCESS)){
+        printf("Writing text file for retroarch CC shaders parameters to %s...", retroarchtextfilename);
+        std::ofstream ratxtfile;
+        ratxtfile.open(retroarchtextfilename, std::ios::out);
+        if (!ratxtfile.is_open()){
+            printf("Unable to open %s for writing.\n", retroarchtextfilename);
+            return ERROR_PNG_OPEN_FAIL;
+        }
+        ratxtfile << "# Paste this at the bottom of a template file of Chthon's Color Correction shaders.\n";
+        switch (lutmode){
+            case LUTMODE_NORMAL:
+                ratxtfile << "# Use a LUTtype1 or LUTtype1fast template.\n";
+                break;
+            case LUTMODE_POSTCC:
+                ratxtfile << "# Use a LUTtype2 template.\n";
+                break;
+            case LUTMODE_POSTGAMMA:
+                ratxtfile << "# Use a LUTtype3 template.\n";
+                break;
+            default:
+                ratxtfile << "# Somthing is very wrong.\n";
+                break;
+        };
+        ratxtfile << "# Paste " << outputfilename << " into the \"luts\" subdirectory of Chthon's Color Correction shaders.\n";
+        ratxtfile << "# LUT generation command: gamutthingy";
+        for (int i=1; i<argc; i++){
+            ratxtfile << " " << argv[i];
+        }
+        ratxtfile << "\n\n\n";
+        ratxtfile << "SamplerLUT = \"luts/" << outputfilename << "\"\n\n";
+
+        ratxtfile << "crtBlackLevel = \"" << crtblacklevel << "\"\n";
+        ratxtfile << "crtWhiteLevel = \"" << crtwhitelevel << "\"\n";
+        ratxtfile << "crtConstantB = \"" << sourcegamut.attachedCRT->CRT_EOTF_b << "\"\n";
+        ratxtfile << "crtConstantK = \"" << sourcegamut.attachedCRT->CRT_EOTF_k << "\"\n";
+        ratxtfile << "crtConstantS = \"" << sourcegamut.attachedCRT->CRT_EOTF_s << "\"\n";
+        ratxtfile << "crtGammaKnob = \"" << crtgammaknob << "\"\n\n";
+
+        if (lutmode == LUTMODE_NORMAL){
+            ratxtfile << "# For a LUTtype1fast template, you may omit everything below this point.\n\n";
+        }
+
+        ratxtfile << "crtMatrixRR = \"" << sourcegamut.attachedCRT->overallMatrix[0][0] << "\"\n";
+        ratxtfile << "crtMatrixRG = \"" << sourcegamut.attachedCRT->overallMatrix[0][1] << "\"\n";
+        ratxtfile << "crtMatrixRB = \"" << sourcegamut.attachedCRT->overallMatrix[0][2] << "\"\n";
+        ratxtfile << "crtMatrixGR = \"" << sourcegamut.attachedCRT->overallMatrix[1][0] << "\"\n";
+        ratxtfile << "crtMatrixGG = \"" << sourcegamut.attachedCRT->overallMatrix[1][1] << "\"\n";
+        ratxtfile << "crtMatrixGB = \"" << sourcegamut.attachedCRT->overallMatrix[1][2] << "\"\n";
+        ratxtfile << "crtMatrixBR = \"" << sourcegamut.attachedCRT->overallMatrix[2][0] << "\"\n";
+        ratxtfile << "crtMatrixBG = \"" << sourcegamut.attachedCRT->overallMatrix[2][1] << "\"\n";
+        ratxtfile << "crtMatrixBB = \"" << sourcegamut.attachedCRT->overallMatrix[2][2] << "\"\n\n";
+
+        ratxtfile << "crtLowClamp = \"" << crtclamplow << "\"\n";
+        ratxtfile << "crtHighClampEnable = \"" << (crtdoclamphigh ? "1.0" : "0.0") << "\"\n";
+        ratxtfile << "crtHighClamp = \"" << crtclamphigh << "\"\n";
+
+        ratxtfile.flush();
+        ratxtfile.close();
+        printf(" done.\n");
+    }
    
+
    return result;
 }
