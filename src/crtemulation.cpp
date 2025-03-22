@@ -736,9 +736,30 @@ vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     if (output.z < rgbclamplowlevel){output.z = rgbclamplowlevel;}
 
     if (globalgammaadjust != 1.0){
+        bool flip = (output.x < 0.0);
+        if (flip){
+            output.x *= -1.0;
+        }
         output.x = pow(output.x, globalgammaadjust);
+        if (flip){
+            output.x *= -1.0;
+        }
+        flip = (output.y < 0.0);
+        if (flip){
+            output.y *= -1.0;
+        }
         output.y = pow(output.y, globalgammaadjust);
+        if (flip){
+            output.y *= -1.0;
+        }
+        flip = (output.z < 0.0);
+        if (flip){
+            output.z *= -1.0;
+        }
         output.z = pow(output.z, globalgammaadjust);
+        if (flip){
+            output.z *= -1.0;
+        }
     }
 
     output.x = tolinear1886appx1(output.x);
@@ -752,9 +773,30 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input){
     input.y = togamma1886appx1(input.y);
     input.z = togamma1886appx1(input.z);
     if (globalgammaadjust != 1.0){
+        bool flip = (input.x < 0.0);
+        if (flip){
+            input.x *= -1.0;
+        }
         input.x = pow(input.x, 1.0/globalgammaadjust);
+        if (flip){
+            input.x *= -1.0;
+        }
+        flip = (input.y < 0.0);
+        if (flip){
+            input.y *= -1.0;
+        }
         input.y = pow(input.y, 1.0/globalgammaadjust);
+        if (flip){
+            input.y *= -1.0;
+        }
+        flip = (input.z < 0.0);
+        if (flip){
+            input.z *= -1.0;
+        }
         input.z = pow(input.z, 1.0/globalgammaadjust);
+        if (flip){
+            input.z *= -1.0;
+        }
     }
     vec3 output = multMatrixByColor(inverseOverallMatrix, input);
     return output;

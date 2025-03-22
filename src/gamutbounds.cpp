@@ -961,9 +961,30 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         // check if the gamma-space RGB would be outside the RGB clipping rule
         gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
         if (attachedCRT->globalgammaadjust != 1.0){
+            bool flip = (gammargb.x < 0.0);
+            if (flip){
+                gammargb.x *= -1.0;
+            }
             gammargb.x = pow(gammargb.x, 1.0/attachedCRT->globalgammaadjust);
+            if (flip){
+                gammargb.x *= -1.0;
+            }
+            flip = (gammargb.y < 0.0);
+            if (flip){
+                gammargb.y *= -1.0;
+            }
             gammargb.y = pow(gammargb.y, 1.0/attachedCRT->globalgammaadjust);
+            if (flip){
+                gammargb.y *= -1.0;
+            }
+            flip = (gammargb.z < 0.0);
+            if (flip){
+                gammargb.z *= -1.0;
+            }
             gammargb.z = pow(gammargb.z, 1.0/attachedCRT->globalgammaadjust);
+            if (flip){
+                gammargb.z *= -1.0;
+            }
         }
         if (attachedCRT->clamphighrgb){
             if (gammargb.x > attachedCRT->rgbclamphighlevel){return false;}
