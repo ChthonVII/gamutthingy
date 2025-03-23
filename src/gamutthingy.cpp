@@ -3001,6 +3001,12 @@ int main(int argc, const char **argv){
 
             htmlfile << "\t\t\tPalette saved to: " << outputfilename << "<BR>\n";
 
+            htmlfile << "\t\t\tCommand: gamutthingy";
+            for (int i=1; i<argc; i++){
+                htmlfile << " " << argv[i];
+            }
+            htmlfile << "<BR>\n";
+
             htmlfile << "\t\t\tParameters:<BR>\n";
 
             if (backwardsmode){
