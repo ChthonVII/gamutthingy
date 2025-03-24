@@ -998,7 +998,8 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         // Invert the whole CRT process to get back to the original inputs for the next step
         // This is not exactly correct in all cases because of clipping.
         // Which is dealt with in the horrible mess of code below.
-        rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor);
+        // We don't want to uncrush blacks, because it doesn't change in-bounds/out-of-bounds, but it does mess up our error sizes
+        rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor, false);
 
     }
     bool inbounds = true;

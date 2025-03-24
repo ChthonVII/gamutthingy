@@ -53,9 +53,13 @@ public:
     double globalsaturation = 1.0;
     double globalgammaadjust = 1.0;
 
+    // black pedestal
+    bool blackpedestalcrush = false;
+    double blackpedestalcrushamount = 0.075;
+
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob);
+    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma
@@ -75,8 +79,11 @@ public:
     bool InitializeModulator();
     bool InitializeDemodulator();
     
+    vec3 CrushBlack(vec3 input);
+    vec3 UncrushBlack(vec3 input);
+
     vec3 CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input);
-    vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input);
+    vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks);
 };
 
 // helper functions

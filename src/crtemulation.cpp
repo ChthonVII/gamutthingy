@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -47,6 +47,8 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     globalehueoffset = hueknob;
     globalsaturation = saturationknob;
     globalgammaadjust = gammaknob;
+    blackpedestalcrush = blackcrush;
+    blackpedestalcrushamount = blackcrushamount;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -728,7 +730,46 @@ vec3 crtdescriptor::togamma1886appx1vec3(vec3 input){
     return output;
 }
 
+
+vec3 crtdescriptor::CrushBlack(vec3 input){
+    if (!blackpedestalcrush){
+        return input;
+    }
+    double scale = 1.0 - blackpedestalcrushamount;
+    vec3 output = input;
+    output.x = (input.x - blackpedestalcrushamount) / scale;
+    if (output.x < 0.0){
+        output.x = 0.0;
+    }
+    output.y = (input.y - blackpedestalcrushamount) / scale;
+    if (output.y < 0.0){
+        output.y = 0.0;
+    }
+    output.z = (input.z - blackpedestalcrushamount) / scale;
+    if (output.z < 0.0){
+        output.z = 0.0;
+    }
+    return output;
+}
+
+vec3 crtdescriptor::UncrushBlack(vec3 input){
+    if (!blackpedestalcrush){
+        return input;
+    }
+    double scale = 1.0 - blackpedestalcrushamount;
+    vec3 output = input;
+    output.x = (output.x * scale) + blackpedestalcrushamount;
+    output.y = (output.y * scale) + blackpedestalcrushamount;
+    output.z = (output.z * scale) + blackpedestalcrushamount;
+    return output;
+}
+
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
+
+    if (blackpedestalcrush){
+        input = CrushBlack(input);
+    }
+
     vec3 output = multMatrixByColor(overallMatrix, input);
 
     // clamp rgb
@@ -789,7 +830,7 @@ vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     return output;
 }
 
-vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input){
+vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks){
     input.x = togamma1886appx1(input.x);
     input.y = togamma1886appx1(input.y);
     input.z = togamma1886appx1(input.z);
@@ -820,6 +861,13 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input){
         }
     }
     vec3 output = multMatrixByColor(inverseOverallMatrix, input);
+
+    // we don't always want to do this
+    // gamutdescriptor::IsJzCzhzInBounds() does not want the bottom 7.5% out input space unreachable
+    if (blackpedestalcrush && uncrushblacks){
+        output = UncrushBlack(output);
+    }
+
     return output;
 }
 

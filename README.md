@@ -69,6 +69,8 @@ Four general modes of operation:
 - `--crtblack`: Specifies black level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 0.0001. Sane values are 0.0001 to 0.001 (0.01 to 0.1 cd/m^2). [new10] The default is probably close to a properly calibrated Sony Trinitron. [new1]
 - `--crtwhite`: Specifies white level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 1.71. Sane values for aperature grille CRTs are around 1.7 to 1.8 (170 - 180 cd/m^2). The default is probably close to a properly calibrated Sony Trinitron. [new1], [new2]. Shadow mask CRTs were substantially dimmer. Some professional-grade televisions may have aimed for 100 cd/m^s because that was the standard.
 - `--crt-gamma-knob` or `--cgk`: Take CRT output to a power before applying EOTF function. Simulates gamma adjustment knob on some CRTs. Floating point number. Default 1.0.
+- `--crtblackpedestalcrush` or `--cbpc`: If enabled, simulate the black-crushing behavior of a U.S. CRT television expecting a 7.5 IRE black pedestal, but receiving input with 0 IRE black. (All pre-HD-era game consoles, except U.S. model Playstations, had black at 0 IRE. [new18]) Note that many U.S. CRT televisions could be configured for 0 IRE black input either by an explicit toggle switch or by adjusting the brightness knob (and maybe also the constrast knob). This feature simulates the situation where such configuration was not or could not be done. Note the this effect, while realistic, looks bad. This effect might be desirable in extremely rare cases where a U.S. game developer baked a black pedestal into their sprites.
+- `--crtblackpedestalcrush-amount` or `--cbpca`: Specify the expected black pedestal for `--crtblackpedestalcrush` in 100x IRE. Floating point number 0.0 to 1.0. Default 0.075 (7.5 IRE). 
 
 **Gamut Parameters:**
 - `--source-primaries` or `-s`: Specifies the color primaries of the source gamut. Possible values are:
@@ -318,6 +320,7 @@ TODO: fill in missing citations, then alphabetize
 - [new15] Apple Wiki. "Apple Multiple Scan Display." ([Link](https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display))
 - [new16] insert cite to patchy68k
 - [new17] Nayatani,Yoshinobu; Hitani,Shoichi; Furukawa, Kyosuke; Kurioka, Yutaka; and Ueda, Isamu. "カラー受像管用白色標準器の開発 (Development of the White-Standard Apparatus for Color Cathode-ray Tubes)." テレビジョン (*Television*), Vol. 24, No. 2, pp. 116-124. 1970. ([Link](https://www.jstage.jst.go.jp/article/itej1954/24/2/24_2_116/_article/-char/ja/))
+- [new18]
 
 
 **Building:**

@@ -158,7 +158,7 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
         outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, nesmode);
     }
     if (destgamut.crtemumode == CRT_EMU_BACK){
-        outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor);
+        outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor, true);
     }
     else if (gammamodeout == GAMMA_SRGB){
         outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
@@ -742,6 +742,8 @@ int main(int argc, const char **argv){
     bool crtclamplowatzerolight = true;
     double crtclamphigh = 1.1;
     double crtclamplow = -0.1;
+    bool crtblackpedestalcrush = false;
+    double crtblackpedestalcrushamount = 0.075;
     bool lutgen = false;
     int lutmode = LUTMODE_NORMAL;
     int lutsize = 128;
@@ -760,7 +762,7 @@ int main(int argc, const char **argv){
     bool retroarchwritetext = false;
     char* retroarchtextfilename;
     
-    const boolparam params_bool[13] = {
+    const boolparam params_bool[15] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -825,6 +827,16 @@ int main(int argc, const char **argv){
             "-b",                     //std::string paramstring; // parameter's text
             "Backwards Search Mode",           //std::string prettyname; // name for pretty printing
             &backwardsmode                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtblackpedestalcrush",                     //std::string paramstring; // parameter's text
+            "CRT Black Pedestal Crush",           //std::string prettyname; // name for pretty printing
+            &crtblackpedestalcrush                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--cbpc",                     //std::string paramstring; // parameter's text
+            "CRT Black Pedestal Crush",           //std::string prettyname; // name for pretty printing
+            &crtblackpedestalcrush                //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -1636,7 +1648,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[38] = {
+    const floatparam params_float[40] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -1822,7 +1834,16 @@ int main(int argc, const char **argv){
             "CRT Gamma Knob",        //std::string prettyname; // name for pretty printing
             &crtgammaknob           //double* vartobind; // pointer to variable whose value to set
         },
-
+        {
+            "--crtblackpedestalcrush-amount",         //std::string paramstring; // parameter's text
+            "CRT Black Pedestal Crush Amount",        //std::string prettyname; // name for pretty printing
+            &crtblackpedestalcrushamount         //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--cbpca",         //std::string paramstring; // parameter's text
+            "CRT Black Pedestal Crush Amount",        //std::string prettyname; // name for pretty printing
+            &crtblackpedestalcrushamount         //double* vartobind; // pointer to variable whose value to set
+        }
 
         // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
         // because they suck and there's no evidence they were ever used for CRTs (or anything else).
@@ -2460,6 +2481,17 @@ int main(int argc, const char **argv){
         printf("WARNING: You've specified a MPCD value with a non-Plankian locus. This is computable, but makes little sense.\n");
     }
 
+    if ((crtemumode != CRT_EMU_NONE) && crtblackpedestalcrush){
+        if (crtblackpedestalcrushamount < 0.0){
+            crtblackpedestalcrushamount = 0.0;
+            printf("CRT black pedestal cannot be less than zero. Forcing to zero.\n");
+        }
+        if (crtblackpedestalcrushamount > 1.0){
+            crtblackpedestalcrushamount = 1.0;
+            printf("CRT black pedestal cannot be greater than one. Forcing to one. (Everything will be black.)\n");
+        }
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 
@@ -2805,6 +2837,12 @@ int main(int argc, const char **argv){
                 break;
         };
         if (printcrtdetails){
+            if (crtblackpedestalcrush){
+                printf("CRT black pedestal %f IRE crushed to 0 IRE.\n", 100.0 * crtblackpedestalcrushamount);
+            }
+            else {
+                printf("CRT black pedestal crush disabled.\n");
+            }
             printf("CRT black level %f x100 cd/m^2\n", crtblacklevel);
             printf("CRT white level %f x100 cd/m^2\n", crtwhitelevel);
             printf("CRT YUV white balance constant precision: ");
@@ -2868,7 +2906,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -3083,6 +3121,12 @@ int main(int argc, const char **argv){
                 htmlfile << "\t\t\tCRT R'G'B' high output values not clamped. (Out-of-bounds values resolved by gamut compression algorithm.)<BR>\n";
             }
 
+            if (crtblackpedestalcrush){
+                htmlfile << "\t\t\tCRT black pedestal " << (100.0 * crtblackpedestalcrushamount) << " IRE crushed to 0 IRE.<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tCRT black pedestal crush disabled.<BR>\n";
+            }
 
             htmlfile << "\t\t\tCRT bt1886 Appendix1 EOTF function calibrated to:<BR>\n";
             htmlfile << "\t\t\tCRT black level: " << crtblacklevel << " x100 cd/m^2<BR>\n";
@@ -3609,6 +3653,9 @@ int main(int argc, const char **argv){
         ratxtfile << "crtMatrixBR = \"" << sourcegamut.attachedCRT->overallMatrix[2][0] << "\"\n";
         ratxtfile << "crtMatrixBG = \"" << sourcegamut.attachedCRT->overallMatrix[2][1] << "\"\n";
         ratxtfile << "crtMatrixBB = \"" << sourcegamut.attachedCRT->overallMatrix[2][2] << "\"\n\n";
+
+        ratxtfile << "crtBlackCrush = \"" << (crtblackpedestalcrush ? "1.0" : "0.0") << "\"\n";
+        ratxtfile << "crtBlackCrushAmount = \"" << crtblackpedestalcrushamount << "\"\n";
 
         if(sourcegamut.attachedCRT->zerolightclampenable){
             ratxtfile << "# crtLowClamp is set at zero light emission.\n";
