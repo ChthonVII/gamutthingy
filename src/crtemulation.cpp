@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -19,6 +19,22 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     rgbclamplowlevel = clamplow;
     rgbclamphighlevel = clamphigh;
     clamphighrgb = doclamphigh;
+    clamplowatzerolight = clamplowzero;
+    zerolightclampenable = false;
+    if (clamplowzero){
+        double zerolight = CRT_EOTF_b;
+        if (gammaknob != 1.0){
+            zerolight = pow(zerolight, 1.0 / gammaknob);
+        }
+        zerolight *= -1.0;
+        if (zerolight > rgbclamplowlevel){
+            rgbclamplowlevel = zerolight;
+            zerolightclampenable = true;
+            if (verbosity >= VERBOSITY_SLIGHT){
+                printf("Changing CRT R'G'B' low clamp to %.16f, corresponding to zero light output.\n", rgbclamplowlevel);
+            }
+        }
+    }
     modulatorindex = modulatorindex_in;
     bool havemodulator = false;
     if (modulatorindex != CRT_MODULATOR_NONE){
@@ -222,6 +238,11 @@ double crtdescriptor::tolinear1886appx1(double input){
     // Shift input by b
     input += CRT_EOTF_b;
     
+    // fix floating point errors
+    if (zerolightclampenable && (input < 0.0)){
+        input = 0.0;
+    }
+
     // Handle negative input by flipping sign 
     bool flipsign = false;
     if (input < 0){

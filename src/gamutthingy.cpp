@@ -718,6 +718,7 @@ int main(int argc, const char **argv){
     int crtdemodrenorm = RENORM_DEMOD_INSANE;
     bool crtdemodfixes = true;
     bool crtdoclamphigh = true;
+    bool crtclamplowatzerolight = true;
     double crtclamphigh = 1.1;
     double crtclamplow = -0.1;
     bool lutgen = false;
@@ -738,7 +739,7 @@ int main(int argc, const char **argv){
     bool retroarchwritetext = false;
     char* retroarchtextfilename;
     
-    const boolparam params_bool[12] = {
+    const boolparam params_bool[13] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -783,6 +784,11 @@ int main(int argc, const char **argv){
             "--crtclamphighenable",                     //std::string paramstring; // parameter's text
             "CRT Clamp High RGB Output Values",           //std::string prettyname; // name for pretty printing
             &crtdoclamphigh                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtclamplowzerolight",                     //std::string paramstring; // parameter's text
+            "CRT Clamp Low RGB Output Values at Zero Light",           //std::string prettyname; // name for pretty printing
+            &crtclamplowatzerolight              //bool* vartobind; // pointer to variable whose value to set
         },
         {
             "--crtdemodfixes",                     //std::string paramstring; // parameter's text
@@ -2806,7 +2812,11 @@ int main(int argc, const char **argv){
                  printf("CRT hue knob at %f degrees.\n", crthueknob);
             }
             printf("CRT saturation knob at %f times normal.\n", crtsaturationknob);
-            printf("CRT R'G'B' high low values clamped to %f.\n", crtclamplow);
+            printf("CRT R'G'B' low values clamped to %f", crtclamplow);
+            if (crtclamplowatzerolight){
+                printf(" (or zero light emission, whichever is higher)");
+            }
+            printf(".\n");
             if (crtdoclamphigh){
                 printf("CRT R'G'B' high output values clamped to %f.\n", crtclamphigh);
             }
@@ -2837,7 +2847,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -3040,7 +3050,11 @@ int main(int argc, const char **argv){
             }
             htmlfile << "\t\t\tCRT saturation knob at " << crtsaturationknob << " times normal.<BR>\n";
 
-            htmlfile << "\t\t\tCRT R'G'B' high low output values clamped to " << crtclamplow << ".<BR>\n";
+            htmlfile << "\t\t\tCRT R'G'B' high low output values clamped to " << crtclamplow;
+            if (crtclamplowatzerolight){
+                htmlfile << " (or zero light emission, whichever is higher)";
+            }
+            htmlfile << ".<BR>\n";
             if (crtdoclamphigh){
                 htmlfile << "\t\t\tCRT R'G'B' high output values clamped to " << crtclamphigh << ".<BR>\n";
             }
@@ -3575,7 +3589,10 @@ int main(int argc, const char **argv){
         ratxtfile << "crtMatrixBG = \"" << sourcegamut.attachedCRT->overallMatrix[2][1] << "\"\n";
         ratxtfile << "crtMatrixBB = \"" << sourcegamut.attachedCRT->overallMatrix[2][2] << "\"\n\n";
 
-        ratxtfile << "crtLowClamp = \"" << crtclamplow << "\"\n";
+        if(sourcegamut.attachedCRT->zerolightclampenable){
+            ratxtfile << "# crtLowClamp is set at zero light emission.\n";
+        }
+        ratxtfile << "crtLowClamp = \"" << sourcegamut.attachedCRT->rgbclamplowlevel << "\"\n";
         ratxtfile << "crtHighClampEnable = \"" << (crtdoclamphigh ? "1.0" : "0.0") << "\"\n";
         ratxtfile << "crtHighClamp = \"" << crtclamphigh << "\"\n";
 
