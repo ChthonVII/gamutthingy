@@ -3655,7 +3655,7 @@ int main(int argc, const char **argv){
         ratxtfile << "crtMatrixBB = \"" << sourcegamut.attachedCRT->overallMatrix[2][2] << "\"\n\n";
 
         ratxtfile << "crtBlackCrush = \"" << (crtblackpedestalcrush ? "1.0" : "0.0") << "\"\n";
-        ratxtfile << "crtBlackCrushAmount = \"" << crtblackpedestalcrushamount << "\"\n";
+        ratxtfile << "crtBlackCrushAmount = \"" << crtblackpedestalcrushamount << "\"\n\n";
 
         if(sourcegamut.attachedCRT->zerolightclampenable){
             ratxtfile << "# crtLowClamp is set at zero light emission.\n";
