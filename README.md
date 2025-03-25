@@ -69,13 +69,13 @@ Four general modes of operation:
 - `--crtblack`: Specifies black level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 0.0001. Sane values are 0.0001 to 0.001 (0.01 to 0.1 cd/m^2). [new10] The default is probably close to a properly calibrated Sony Trinitron. [new1]
 - `--crtwhite`: Specifies white level for CRT EOTF function in 100x cd/m^2. Floating point number. Default 1.71. Sane values for aperature grille CRTs are around 1.7 to 1.8 (170 - 180 cd/m^2). The default is probably close to a properly calibrated Sony Trinitron. [new1], [new2]. Shadow mask CRTs were substantially dimmer. Some professional-grade televisions may have aimed for 100 cd/m^s because that was the standard.
 - `--crt-gamma-knob` or `--cgk`: Take CRT output to a power before applying EOTF function. Simulates gamma adjustment knob on some CRTs. Floating point number. Default 1.0.
-- `--crtblackpedestalcrush` or `--cbpc`: If enabled, simulate the black-crushing behavior of a U.S. CRT television expecting a 7.5 IRE black pedestal, but receiving input with 0 IRE black. (All CRT-era game consoles before circa 2000, except U.S. model Playstations, had black at 0 IRE. [new18], [new19], [new20], [new21]) Note that many U.S. CRT televisions could be configured to correctly display 0 IRE black input either by an explicit toggle or by adjusting the brightness knob (and maybe also the constrast knob). This feature simulates the situation where such configuration was not or could not be done. Note the this effect, while historically accurate, looks bad. This effect might be desirable in extremely rare cases where a U.S. game developer baked a black pedestal into their sprites.
+- `--crtblackpedestalcrush` or `--cbpc`: If enabled, simulate the black-crushing behavior of a U.S. CRT television expecting a 7.5 IRE black pedestal, but receiving input with 0 IRE black. (All CRT-era game consoles before circa 2000, except U.S. model Playstations, had black at 0 IRE. [new18], [new19], [new20], [new21]) Note that many U.S. CRT televisions could be configured to correctly display 0 IRE black input either by an explicit toggle or by adjusting the brightness knob (and maybe also the constrast knob). This feature simulates the situation where such configuration was not or could not be done. Note the this effect, while historically accurate, generally looks bad. This effect might be desirable in extremely rare cases where a U.S. game developer baked a black pedestal into their sprites.
 - `--crtblackpedestalcrush-amount` or `--cbpca`: Specify the expected black pedestal for `--crtblackpedestalcrush` in 100x IRE. Floating point number 0.0 to 1.0. Default 0.075 (7.5 IRE). 
 
 **Gamut Parameters:**
 - `--source-primaries` or `-s`: Specifies the color primaries of the source gamut. Possible values are:
      - `srgb_spec` The sRGB/bt709 specification. Used by modern (SDR) computer monitors and modern HD video. [insert cite]
-     - `ntsc_spec` The original 1953 NTSC color primaries. Used for the U.S. broadcast specification until 1994 (actually still in use until 2000ish) and the Japanese broadcast specification for the entire lifetime of SDR television. [insert cite]
+     - `ntsc_spec` The original 1953 NTSC color primaries. Used for the U.S. broadcast specification until 1994 (actually still in use until 2000ish) and the Japanese broadcast specification for the entire lifetime of SDR television. [insert cite] (Though phosphors actually used in CRT televisions deviated significantly from the specification.)
      - `smptec_spec` The SMPTE-C (170M) specification. U.S. broadcast/phosphor specification from 1994. (Widespread adoption achieved 2000ish.) [insert cite]
      - `ebu_spec` The EBU specification. European broadcast/phosphor specification. [insert cite]
      - `rec2020_spec` Wide gamut specification for modern HDR monitors. [insert cite]
@@ -182,16 +182,34 @@ Four general modes of operation:
 #### Usage Tips
 - Destination primaries and whitepoint should generally be sRGB spec and D65. (Unless you're trying to prepare something for roundtrip conversion.)
 - There are two general approaches to color grading CRT-era games: Matching a television you personally used to own, or matching a television similar to what the graphic artist used when making the game. In the latter case, you generally need to know when the game was developed and in what country.
-     - **Japan:** P22 phosphors, whitepoint near 9300K, color correction via Japan mode/model demodulator chip. (A few expensive/professional models may have used EBU spec phosphors.) Some example combinations that look plausible in practice:
-          - `--source-primaries P22_trinitron --source-whitepoint 9300K27mpcd --crtemu front --crtdemod CXA1464AS`
-          - `--source-primaries P22_trinitron_mixandmatch --source-whitepoint 9300K8mpcd --crtemu front --crtdemod CXA2060BS_JP`
-	- **U.S.:** The SMPTE-C 170M standard was issued in 1994, but adoption was not instantaneous. Many (most?) mid-90s CRT televisions still had color correction suitable for broadcasts using the old standard. For games made by U.S. developers from 1994 to 2000ish, you may have to try both possibilities and see which looks more plausible.
-	     - Old standard: P22 phosphors, whitepoint near D65, color correction via U.S. mode/model demodulator chip. Some example combinations that look plausible in practice:
-	          - `--source-primaries P22_trinitron_mixandmatch --source-whitepoint 7100K --crtemu front --crtdemod CXA2060BS_US`
-	          - TODO: Another good looking US example
-        - New standard: P22 phosphors, whitepoint near D65, no color correction. For expensive/professional models, SPMTE-C spec phosphors, whitepoint exactly D65, no color correction.
-   - **Europe/Australia:** P22 phosphors, whitepoint near D65, no color correction. For expensive/professional models, EBU spec phosphors, whitepoint exactly D65, no color correction. Plausible looking example:
-        - `--source-primaries ebu_spec --source-whitepoint D65 --crtemu front --crtdemod dummy`
+     - **Japan:**
+          - Phosphors: Generally P22 for consumer and professional models. Studio monitors used "Japan Specific Phosphor" until around 1996, when it was phased out in favor of EBU or SMPTE-C phosphors. [insert cite ARIB TR B9 v1.0 (1998)] Some prosumer/professional models had EBU or SMPTE-C phosphors. (The specification was NTSC1953, but that was never followed in practice.)
+          - Whitepoint: Around 9300K. The specifications were 9300K+8mpcd for broadcast master monitors and 9300K+27mpcd for television recievers. [new7] However, many professional and some consumer units were 9300K+8mpcd. Some consumer units were lower than the nominal 9300K, with their actual whitepoints in the neighborhood of 8800K or 8500K. [new5]
+          - Color Correction: Always required because the phosphors did not match the spec. Use a Japan mode/model demodulator chip.
+          - Black Pedestal: None.
+     - **U.S.:**        
+          - There is frustratingly little consistency among U.S. CRT televisions. The SMPTE-C 170M standard was issued in 1994, but adoption was not instantaneous. Many (most?) mid-90s CRT televisions still had color correction suitable for broadcasts using the old standard. And most U.S. CRT televisions both before and after 1994 weren't really following either specification. A "guess and check" approach is often the only way to find parameters that look good with any given game.
+          - Old Standard (before 1994, in practice up to ~2000):
+              - Phosphors: P22. (The specification was NTSC1953, but that was never followed in practice.)
+              - Whitepoint: Anyone's guess. The specification was Illuminant C, but Illuminant C was abandoned in favor of D65 in practice decades earlier. For a period in the 80s and 90s when Japan was culturally economically ascendant, everything Japanese was seen as "cool," and some U.S. CRT televisions were advertised as having a "Japanese" whitepoint around 9300K. And, often, manufacturers just did... well... whatever. A 1993 study measured 18 U.S. consumer televisions and found whitepoints all over the place, from 5700K to 13,700K, with an average around 8000K. [new22]
+              - Color Correction: Always required because the phosphors did not match the spec. Use a U.S. mode/model demodulator chip.
+              - Black Pedestal: 7.5 IRE. **But you should usually ignore it.** Per the spec, U.S. broadcasts signals were compressed to 92.5% and then 7.5 IRE was added; and television recievers inverted this process. Since all game consoles before circa 2000, except U.S. model Playstations, had black at 0 IRE ([new18], [new19], [new20], [new21]), U.S. televisions would crush the blacks of game console input. However, many (most?) U.S. televisions could be configured to correctly display 0 IRE black input either by an explicit toggle or by adjusting the brightness knob (and maybe also the constrast knob). So you should only enable black pedestal crushing if you want to recreate the incorrect display of a U.S. television that wasn't configured for console input, or if you suspect a U.S. game developer made overbright sprites to compensate for black crush (rather than configuring the television for 0 IRE black).
+         - New Standard (from 1994, in practice around ~2000):
+              - Phosphors: SMPTE-C for professional and prosumer models, P22 for consumer models.
+              - Whitepoint: Prosumer and Professional models were likely D65, as per the new specification. The whitepoint on consumer models was still anyone's guess. See above.
+              - Color Correction: None. The main point of SMPTE-C 170M was to do away with color correction in the receiver by bringing the broadcast spec into line with the phophors actually in use.
+              - Black pedestal: Same as above.
+    - **Europe (and Australia):**
+         - Phosphors: EBU for prosumer and professional models, P22 for consumer models.
+         - Whitepoint: D65. Some consumer models may have been higher in practice, up to ~6900K or ~7000K. [new5]
+         - Color Correction: None. (Though the CXA2060BS demodulator chip has a PAL mode that changes the green angle, likely to account for P22 phospohors that don't match the spec.)
+         - Black Pedestal: None.
+    - **Computer Monitors:**
+         - The sRGB standard was proposed in 1996 and officially adopted in 1999. Adoption was not instantaneous in practice.
+         - Phosphors: P22, tending towards the sRGB coordinates for later and more expensive models.
+         - Whitepoint: The sRGB spec is D65. Prior to that, 9300K+8mpcd and 9300K+27mpcd were very common. Some models had a selectable whitepoint with modes for ~D65 and ~9300K.
+         - Color correction: None.
+         - Black pedestal: None.
 - Unfortunately, while we have several data points in the categories of phosphor chromaticities, whitepoint chromaticity, and color correction behavior, we do not have any cases where we can say with certainty that a particular trio of phosphors, whitepoint, and color correction were used together in a particular model of television. So you will have to guess. Yellow is most strongly impacted by color correction behavior. If you can find a combination where yellows are neither too orange nor too green, then everything else will probably look good too. Some hints for calibrating around yellow:
      - Toggle Spiral CARISMA. Generally Spiral CARISMA makes primary/secondary colors look better, but occasionally things look better without it.
      - Lower whitepoint temperature makes yellows oranger; higher whitepoint temperature makes them greener.
@@ -319,10 +337,11 @@ TODO: fill in missing citations, then alphabetize
 - [new15] Apple Wiki. "Apple Multiple Scan Display." ([Link](https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display))
 - [new16] insert cite to patchy68k
 - [new17] Nayatani,Yoshinobu; Hitani,Shoichi; Furukawa, Kyosuke; Kurioka, Yutaka; and Ueda, Isamu. "カラー受像管用白色標準器の開発 (Development of the White-Standard Apparatus for Color Cathode-ray Tubes)." テレビジョン (*Television*), Vol. 24, No. 2, pp. 116-124. 1970. ([Link](https://www.jstage.jst.go.jp/article/itej1954/24/2/24_2_116/_article/-char/ja/))
-- [new18] "energizerfellow." "Re: Retro Consoles - 0 or 7.5 IRE for Black?", Shmups Forum. July 8, 2021 ([Link](https://shmups.system11.org/viewtopic.php?p=1461830#p1461830))
-- [new19] "Artemio." "Re: 240p test suite for DC,PCE,Wii,SNES,GC,MD and SCD", Shmups Forum. Jan. 18, 2020. ([Link](https://shmups.system11.org/viewtopic.php?p=1395743#p1395743))
-- [new20] "Rama." "Re: 240p test suite for DC,PCE,Wii,SNES,GC,MD and SCD", Shmups Forum. Jan. 18, 2020. ([Link](https://shmups.system11.org/viewtopic.php?p=1395795#p1395795))
-- [new21] "TriMesh." "[Diagram]SCPH-1000/3000 PU-7 MM3 Stealth Install", PSXDEV Network forum. July 29, 2017. ([Link](https://www.psxdev.net/forum/viewtopic.php?t=1265&start=40#p12949))
+- [new18] "energizerfellow." "Re: Retro Consoles - 0 or 7.5 IRE for Black?" Shmups Forum. July 8, 2021 ([Link](https://shmups.system11.org/viewtopic.php?p=1461830#p1461830))
+- [new19] "Artemio." "Re: 240p test suite for DC,PCE,Wii,SNES,GC,MD and SCD." Shmups Forum. Jan. 18, 2020. ([Link](https://shmups.system11.org/viewtopic.php?p=1395743#p1395743))
+- [new20] "Rama." "Re: 240p test suite for DC,PCE,Wii,SNES,GC,MD and SCD." Shmups Forum. Jan. 18, 2020. ([Link](https://shmups.system11.org/viewtopic.php?p=1395795#p1395795))
+- [new21] "TriMesh." "[Diagram]SCPH-1000/3000 PU-7 MM3 Stealth Install." PSXDEV Network forum. July 29, 2017. ([Link](https://www.psxdev.net/forum/viewtopic.php?t=1265&start=40#p12949))
+- [new22] Donofrio, Robert; Hess, David; and Sember, William. "The White Color of Television Receivers." *Proc. IS&T 1st Color and Imaging Conf.*, pp. 185-187. 1993. ([Link](https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/1/1/art00047))
 
 
 **Building:**
