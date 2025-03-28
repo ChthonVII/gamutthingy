@@ -748,6 +748,7 @@ int main(int argc, const char **argv){
     bool lutgen = false;
     int lutmode = LUTMODE_NORMAL;
     int lutsize = 128;
+    double lpguscale = 1.0; // needs to be a function-wide variable so we can print it later
     bool nesmode = false;
     bool nesispal = false;
     bool nescbc = true;
@@ -1367,7 +1368,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue luttypelist[3] = {
+    const paramvalue luttypelist[4] = {
         {
             "normal",
             LUTMODE_NORMAL
@@ -1379,6 +1380,10 @@ int main(int argc, const char **argv){
         {
             "postgamma",
             LUTMODE_POSTGAMMA
+        },
+        {
+            "postgammaunlimited",
+            LUTMODE_POSTGAMMA_UNLIMITED
         }
     };
 
@@ -2351,6 +2356,12 @@ int main(int argc, const char **argv){
             printf("Forcing crtclamphigh to 1.0 because lutmode is postgamma.\n");
             crtclamphigh = 1.0;
             crtdoclamphigh = true;
+        }
+    }
+    else if (LUTMODE_POSTGAMMA_UNLIMITED){
+        if (!crtclamplowatzerolight){
+            crtclamplowatzerolight = true;
+            printf("Forcing crtclamplowatzerolight to true because lutmode is postgamma unlimited.\n");
         }
     }
     else if ((lutmode == LUTMODE_POSTCC) && backwardsmode){
@@ -3469,6 +3480,46 @@ int main(int argc, const char **argv){
                     }
                 }
                 
+                // we need to know our ceiling for LUTMODE_POSTGAMMA_UNLIMITED
+                lpguscale = 1.0;
+                if (lutgen && (lutmode == LUTMODE_POSTGAMMA_UNLIMITED) && sourcegamut.attachedCRT){
+                    // if we're clamping, then we can compute the ceiling
+                    if (crtdoclamphigh){
+                        lpguscale = crtclamphigh;
+                        if (crtgammaknob != 1.0){
+                            lpguscale = pow(lpguscale, crtgammaknob);
+                        }
+                        lpguscale = sourcegamut.attachedCRT->tolinear1886appx1(lpguscale);
+                    }
+                    // otherwise we must guess and check to find the max output value.
+                    else {
+                        double lpgumax = 0.0;
+                        // iterate over the primary and secondary colors
+                        for (int guessr=0; guessr<=1; guessr++){
+                            for (int guessg=0; guessg<=1; guessg++){
+                                for (int guessb=0; guessb<=1; guessb++){
+                                    if (guessr + guessg + guessb == 0){
+                                        continue; // skip black
+                                    }
+                                    vec3 guess = vec3(double(guessr), double(guessg), double(guessb));
+                                    vec3 guessresult = sourcegamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(guess);
+                                    if (guessresult.x > lpgumax){
+                                        lpgumax = guessresult.x;
+                                    }
+                                    if (guessresult.y > lpgumax){
+                                        lpgumax = guessresult.y;
+                                    }
+                                    if (guessresult.z > lpgumax){
+                                        lpgumax = guessresult.z;
+                                    }
+                                }
+                            }
+                        }
+                        lpguscale = lpgumax;
+                    }
+                    printf("lpguscale is %f!\n", lpguscale);
+                }
+
                 // iterate over every pixel
                 int width = image.width;
                 int height = image.height;
@@ -3525,6 +3576,12 @@ int main(int argc, const char **argv){
                                     redvalue = (redvalue * scaleby) + crtclamplow;
                                     greenvalue = (greenvalue * scaleby) + crtclamplow;
                                     bluevalue = (bluevalue * scaleby) + crtclamplow;
+                                }
+                                // LUTMODE_POSTGAMMA_UNLIMITED ranges from zero light to maximum output value
+                                else if (lutmode == LUTMODE_POSTGAMMA_UNLIMITED){
+                                    redvalue *= lpguscale;
+                                    greenvalue *= lpguscale;
+                                    bluevalue *= lpguscale;
                                 }
                             }
                             else {
@@ -3648,6 +3705,9 @@ int main(int argc, const char **argv){
             case LUTMODE_POSTGAMMA:
                 ratxtfile << "# Use a LUTtype3 template.\n";
                 break;
+            case LUTMODE_POSTGAMMA_UNLIMITED:
+                ratxtfile << "# Use a LUTtype4 template.\n";
+                break;
             default:
                 ratxtfile << "# Somthing is very wrong.\n";
                 break;
@@ -3672,6 +3732,8 @@ int main(int argc, const char **argv){
         if (lutmode == LUTMODE_NORMAL){
             ratxtfile << "# For a LUTtype1fast template, you may omit everything below this point.\n\n";
         }
+
+        ratxtfile << "crtLUTceil = \"" << lpguscale << "\"\n";
 
         ratxtfile << "crtMatrixRR = \"" << sourcegamut.attachedCRT->overallMatrix[0][0] << "\"\n";
         ratxtfile << "crtMatrixRG = \"" << sourcegamut.attachedCRT->overallMatrix[0][1] << "\"\n";
