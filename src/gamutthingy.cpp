@@ -3526,7 +3526,7 @@ int main(int argc, const char **argv){
                         }
                         lpguscale = lpgumax;
                     }
-                    printf("lpguscale is %f!\n", lpguscale);
+                    //printf("lpguscale is %f!\n", lpguscale);
                     // since there's no way to interpolate white from its neighbors,
                     // we need to make sure that white gets its own entry in the LUT
                     // so we'll increase the scale to hit a good factor to make that happen
@@ -3548,7 +3548,7 @@ int main(int argc, const char **argv){
                             happy = true;
                             lpguscale = scalefactor;
                             lpguscalereciprocal = ((double)divisor) / ((double)lutsize);
-                            printf("lpguscale increased to %f!\n", lpguscale);
+                            //printf("lpguscale increased to %f!\n", lpguscale);
                             break;
                         }
                         if (!happy){
