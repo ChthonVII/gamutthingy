@@ -948,6 +948,7 @@ vec3 gamutdescriptor::ClampLuminosity(vec3 input){
 bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
 
     vec3 rgbcolor = JzCzhzToLinearRGB(color);
+    vec3 rgbcoloruc= rgbcolor;
     
     // inverse PQ function can generate NaN :( Let's assume all NaNs are waaay out of bounds
     if (isnan(rgbcolor.x) ||  isnan(rgbcolor.y) || isnan(rgbcolor.z)){
@@ -956,7 +957,11 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
 
     // CRT mode has extra steps
     vec3 gammargb;
+    bool uncrushneeded = false;
     if (crtemumode != CRT_EMU_NONE){
+
+        // set uncrush flag
+        uncrushneeded = attachedCRT->blackpedestalcrush;
 
         // check if the gamma-space RGB would be outside the RGB clipping rule
         gammargb = attachedCRT->togamma1886appx1vec3(rgbcolor);
@@ -998,8 +1003,14 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         // Invert the whole CRT process to get back to the original inputs for the next step
         // This is not exactly correct in all cases because of clipping.
         // Which is dealt with in the horrible mess of code below.
-        // We don't want to uncrush blacks, because it doesn't change in-bounds/out-of-bounds, but it does mess up our error sizes
-        rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor, false);
+        // The possibility of black crush adds an extra headache:
+        //      First we must test if full inverse process, including uncrush, leads to in-bounds result
+        //      Then we must check for matrix clipping without the uncrush, then apply uncrush at the end. Ug!
+        rgbcolor = attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(rgbcolor, false); // no uncrush
+        rgbcoloruc = rgbcolor; //uncrush for testing if full inverse process lands in-bounds
+        if (uncrushneeded){
+            rgbcoloruc = attachedCRT->UncrushBlack(rgbcolor);
+        }
 
     }
     bool inbounds = true;
@@ -1010,27 +1021,27 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     bool bluehigh = false;
     bool bluelow = false;
     // normal check
-    if (rgbcolor.x > 1.0){
+    if (rgbcoloruc.x > 1.0){
         inbounds = false;
         redhigh = true;
     }
-    else if (rgbcolor.x < 0.0){
+    else if (rgbcoloruc.x < 0.0){
         inbounds = false;
         redlow = true;
     }
-    if (rgbcolor.y > 1.0){
+    if (rgbcoloruc.y > 1.0){
         inbounds = false;
         greenhigh = true;
     }
-    else if (rgbcolor.y < 0.0){
+    else if (rgbcoloruc.y < 0.0){
         inbounds = false;
         greenlow = true;
     }
-    if (rgbcolor.z > 1.0){
+    if (rgbcoloruc.z > 1.0){
         inbounds = false;
         bluehigh = true;
     }
-    else if (rgbcolor.z < 0.0){
+    else if (rgbcoloruc.z < 0.0){
         inbounds = false;
         bluelow = true;
     }
@@ -1044,6 +1055,37 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     // the inverse color correction of gammargb is-out-of bounds,
     // but maybe there exists some nearby value that clips to gammargb,
     // and whose inverse color correction is in-bounds
+
+    // if black crushing is at play, recheck bounds without uncrush
+    // so we can look at unclipping the matrix operation without that
+    if (uncrushneeded){
+        redhigh = false;
+        redlow = false;
+        greenhigh = false;
+        greenlow = false;
+        bluehigh = false;
+        bluelow = false;
+        // normal check
+        if (rgbcolor.x > 1.0){
+            redhigh = true;
+        }
+        else if (rgbcolor.x < 0.0){
+            redlow = true;
+        }
+        if (rgbcolor.y > 1.0){
+            greenhigh = true;
+        }
+        else if (rgbcolor.y < 0.0){
+            greenlow = true;
+        }
+        if (rgbcolor.z > 1.0){
+            bluehigh = true;
+        }
+        else if (rgbcolor.z < 0.0){
+            bluelow = true;
+        }
+    }
+
 
     // first rule out some easy cases
     // you can't get an out-of-bounds value on account of matrixing unless there's a negative coefficient contributing to the out-of-bounds RGB component
@@ -1060,7 +1102,6 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
         return false;
     }
     */
-
 
     // Rule out cases where we could not have clipped to reach the input in the first place
     // In order to avoid gamut extrusions that are infinitely thin,
@@ -1493,6 +1534,11 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
                 unclippedcolor.z += bluechange;
 
                 vec3 inverseunclipped = multMatrixByColor(attachedCRT->inverseOverallMatrix, unclippedcolor);
+
+                // Uncrush black to get all the way back to the input space
+                if (uncrushneeded){
+                    inverseunclipped = attachedCRT->UncrushBlack(inverseunclipped);
+                }
 
                 if (inverseunclipped.x > 1.0){
                     continue;
