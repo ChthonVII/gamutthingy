@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, double showsuperblack){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -20,6 +20,11 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     rgbclamphighlevel = clamphigh;
     clamphighrgb = doclamphigh;
     clamplowatzerolight = clamplowzero;
+    // make sure zero light clamping is on for superblacks.
+    // (should be unreachable, but double check)
+    if (showsuperblack && !clamplowzero){
+        clamplowatzerolight = true;
+    }
     zerolightclampenable = false;
     if (clamplowzero){
         double zerolight = CRT_EOTF_b;
@@ -49,6 +54,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     globalgammaadjust = gammaknob;
     blackpedestalcrush = blackcrush;
     blackpedestalcrushamount = blackcrushamount;
+    superblacks = showsuperblack;
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -239,8 +245,9 @@ double crtdescriptor::tolinear1886appx1(double input){
     
     // Shift input by b
     input += CRT_EOTF_b;
-    
+
     // fix floating point errors
+    // and clamp superblacks
     if (zerolightclampenable && (input < 0.0)){
         input = 0.0;
     }
@@ -267,8 +274,9 @@ double crtdescriptor::tolinear1886appx1(double input){
     }
     
     // Chop off the black lift and normalize to 0-1
-    output -= CRT_EOTF_blacklevel;
-    output /= (CRT_EOTF_whitelevel - CRT_EOTF_blacklevel);
+    double bottom = superblacks ? 0.0 : CRT_EOTF_blacklevel;
+    output -= bottom;
+    output /= (CRT_EOTF_whitelevel - bottom);
     
     // fix floating point errors very near 0 or 1
     if ((output != 0.0) && (fabs(output - 0.0) < 1e-6)){
@@ -286,8 +294,9 @@ double crtdescriptor::tolinear1886appx1(double input){
 double crtdescriptor::togamma1886appx1(double input){
     
     // undo the chop and normalization post-processing
-    input *= (CRT_EOTF_whitelevel - CRT_EOTF_blacklevel);
-    input += CRT_EOTF_blacklevel;
+    double bottom = superblacks ? 0.0 : CRT_EOTF_blacklevel;
+    input *= (CRT_EOTF_whitelevel - bottom);
+    input += bottom;
     
     // Handle negative input by flipping sign 
     bool flipsign = false;
@@ -738,15 +747,15 @@ vec3 crtdescriptor::CrushBlack(vec3 input){
     double scale = 1.0 - blackpedestalcrushamount;
     vec3 output = input;
     output.x = (input.x - blackpedestalcrushamount) / scale;
-    if (output.x < 0.0){
+    if (!superblacks && (output.x < 0.0)){
         output.x = 0.0;
     }
     output.y = (input.y - blackpedestalcrushamount) / scale;
-    if (output.y < 0.0){
+    if (!superblacks && (output.y < 0.0)){
         output.y = 0.0;
     }
     output.z = (input.z - blackpedestalcrushamount) / scale;
-    if (output.z < 0.0){
+    if (!superblacks && (output.z < 0.0)){
         output.z = 0.0;
     }
     return output;

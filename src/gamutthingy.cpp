@@ -744,6 +744,7 @@ int main(int argc, const char **argv){
     double crtclamplow = -0.1;
     bool crtblackpedestalcrush = false;
     double crtblackpedestalcrushamount = 0.075;
+    bool crtsuperblacks = false;
     bool lutgen = false;
     int lutmode = LUTMODE_NORMAL;
     int lutsize = 128;
@@ -762,7 +763,7 @@ int main(int argc, const char **argv){
     bool retroarchwritetext = false;
     char* retroarchtextfilename;
     
-    const boolparam params_bool[15] = {
+    const boolparam params_bool[17] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -837,6 +838,16 @@ int main(int argc, const char **argv){
             "--cbpc",                     //std::string paramstring; // parameter's text
             "CRT Black Pedestal Crush",           //std::string prettyname; // name for pretty printing
             &crtblackpedestalcrush                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--crtsuperblacks",                     //std::string paramstring; // parameter's text
+            "CRT show \"super black\" colors",           //std::string prettyname; // name for pretty printing
+            &crtsuperblacks                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--csb",                     //std::string paramstring; // parameter's text
+            "CRT show \"super black\" colors",           //std::string prettyname; // name for pretty printing
+            &crtsuperblacks                //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -2492,6 +2503,11 @@ int main(int argc, const char **argv){
         }
     }
 
+    if ((crtemumode != CRT_EMU_NONE) && crtsuperblacks && !crtclamplowatzerolight){
+        crtclamplowatzerolight = true;
+        printf("Force enabling --crtclamplowzerolight because CRT super blacks are enabled.\n");
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 
@@ -2843,6 +2859,12 @@ int main(int argc, const char **argv){
             else {
                 printf("CRT black pedestal crush disabled.\n");
             }
+            if (crtsuperblacks){
+                printf("CRT \"super black\" colors shown.\n");
+            }
+            else {
+                printf("CRT \"super black\" colors clipped.\n");
+            }
             printf("CRT black level %f x100 cd/m^2\n", crtblacklevel);
             printf("CRT white level %f x100 cd/m^2\n", crtwhitelevel);
             printf("CRT YUV white balance constant precision: ");
@@ -2906,7 +2928,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount, crtsuperblacks);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -3126,6 +3148,13 @@ int main(int argc, const char **argv){
             }
             else {
                 htmlfile << "\t\t\tCRT black pedestal crush disabled.<BR>\n";
+            }
+
+            if (crtsuperblacks){
+                htmlfile << "CRT \"super black\" colors shown.<BR>\n";
+            }
+            else {
+                htmlfile << "CRT \"super black\" colors clipped.<BR>\n";
             }
 
             htmlfile << "\t\t\tCRT bt1886 Appendix1 EOTF function calibrated to:<BR>\n";
@@ -3655,7 +3684,8 @@ int main(int argc, const char **argv){
         ratxtfile << "crtMatrixBB = \"" << sourcegamut.attachedCRT->overallMatrix[2][2] << "\"\n\n";
 
         ratxtfile << "crtBlackCrush = \"" << (crtblackpedestalcrush ? "1.0" : "0.0") << "\"\n";
-        ratxtfile << "crtBlackCrushAmount = \"" << crtblackpedestalcrushamount << "\"\n\n";
+        ratxtfile << "crtBlackCrushAmount = \"" << crtblackpedestalcrushamount << "\"\n";
+        ratxtfile << "crtSuperBlackEnable = \"" << (crtsuperblacks ? "1.0" : "0.0") << "\"\n\n";
 
         if(sourcegamut.attachedCRT->zerolightclampenable){
             ratxtfile << "# crtLowClamp is set at zero light emission.\n";
