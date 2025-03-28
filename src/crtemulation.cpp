@@ -279,10 +279,10 @@ double crtdescriptor::tolinear1886appx1(double input){
     output /= (CRT_EOTF_whitelevel - bottom);
     
     // fix floating point errors very near 0 or 1
-    if ((output != 0.0) && (fabs(output - 0.0) < 1e-6)){
+    if ((output != 0.0) && (fabs(output - 0.0) < 1e-10)){
         output = 0.0;
     }
-    else if ((output != 1.0) && (fabs(output - 1.0) < 1e-6)){
+    else if ((output != 1.0) && (fabs(output - 1.0) < 1e-10)){
         output = 1.0;
     }
     
@@ -323,10 +323,10 @@ double crtdescriptor::togamma1886appx1(double input){
     output -= CRT_EOTF_b;
     
     // fix floating point errors very near 0 or 1
-    if ((output != 0.0) && (fabs(output - 0.0) < 1e-6)){
+    if ((output != 0.0) && (fabs(output - 0.0) < 1e-10)){
         output = 0.0;
     }
-    else if ((output != 1.0) && (fabs(output - 1.0) < 1e-6)){
+    else if ((output != 1.0) && (fabs(output - 1.0) < 1e-10)){
         output = 1.0;
     }
     
