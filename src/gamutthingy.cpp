@@ -2338,6 +2338,10 @@ int main(int argc, const char **argv){
             lutmode = LUTMODE_NORMAL;
             printf("Forcing lutmode to normal because no CRT simulation.\n");
         }
+        if (retroarchwritetext && (crtemumode != CRT_EMU_FRONT)){
+            retroarchwritetext = false;
+            printf("\nNot writing retroarch shader parameters text file because no CRT simulation.\n");
+        }
     }
     else {
         lutmode = LUTMODE_NONE; // make sure we pass mode none if not lutgen
@@ -3686,7 +3690,7 @@ int main(int argc, const char **argv){
     }
 
     // if we're still here, maybe write the parameters file for retroarch CCC shaders
-    if (lutgen && retroarchwritetext && (result == RETURN_SUCCESS)){
+    if (lutgen && retroarchwritetext && (result == RETURN_SUCCESS) && sourcegamut.attachedCRT){
         printf("Writing text file for retroarch CC shaders parameters to %s...", retroarchtextfilename);
         std::ofstream ratxtfile;
         ratxtfile.open(retroarchtextfilename, std::ios::out);
