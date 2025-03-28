@@ -6,6 +6,7 @@
 #include <fstream>
 #include <deque>
 #include <iomanip>
+#include <numeric>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -749,6 +750,7 @@ int main(int argc, const char **argv){
     int lutmode = LUTMODE_NORMAL;
     int lutsize = 128;
     double lpguscale = 1.0; // needs to be a function-wide variable so we can print it later
+    double lpguscalereciprocal = 1.0; // needs to be a function-wide variable so we can print it later
     bool nesmode = false;
     bool nesispal = false;
     bool nescbc = true;
@@ -3486,14 +3488,17 @@ int main(int argc, const char **argv){
                 
                 // we need to know our ceiling for LUTMODE_POSTGAMMA_UNLIMITED
                 lpguscale = 1.0;
+                lpguscalereciprocal = 1.0;
                 if (lutgen && (lutmode == LUTMODE_POSTGAMMA_UNLIMITED) && sourcegamut.attachedCRT){
                     // if we're clamping, then we can compute the ceiling
                     if (crtdoclamphigh){
-                        lpguscale = crtclamphigh;
-                        if (crtgammaknob != 1.0){
-                            lpguscale = pow(lpguscale, crtgammaknob);
+                        if (crtclamphigh > 1.0){
+                            lpguscale = crtclamphigh;
+                            if (crtgammaknob != 1.0){
+                                lpguscale = pow(lpguscale, crtgammaknob);
+                            }
+                            lpguscale = sourcegamut.attachedCRT->tolinear1886appx1(lpguscale);
                         }
-                        lpguscale = sourcegamut.attachedCRT->tolinear1886appx1(lpguscale);
                     }
                     // otherwise we must guess and check to find the max output value.
                     else {
@@ -3522,6 +3527,34 @@ int main(int argc, const char **argv){
                         lpguscale = lpgumax;
                     }
                     printf("lpguscale is %f!\n", lpguscale);
+                    // since there's no way to interpolate white from its neighbors,
+                    // we need to make sure that white gets its own entry in the LUT
+                    // so we'll increase the scale to hit a good factor to make that happen
+                    // we want the reciprocal to be a concise rational number
+                    if (lpguscale > 1.0){
+                        bool happy = false;
+                        for (int divisor = lutsize - 1; divisor > 0; divisor--){
+                            // keep trying until we hit a bigger factor than what we have
+                            double scalefactor = ((double)lutsize) / ((double)divisor);
+                            if (scalefactor < lpguscale){
+                                continue;
+                            }
+                            // compute greatest common factor
+                            int gcf = std::gcd(lutsize, divisor);
+                            // at least 2?
+                            if (gcf < 2){
+                                continue;
+                            }
+                            happy = true;
+                            lpguscale = scalefactor;
+                            lpguscalereciprocal = ((double)divisor) / ((double)lutsize);
+                            printf("lpguscale increased to %f!\n", lpguscale);
+                            break;
+                        }
+                        if (!happy){
+                            printf("WARNING: Could not find a good scaling factor to ensure white has its own entry in the LUT.\n");
+                        }
+                    }
                 }
 
                 // iterate over every pixel
@@ -3737,7 +3770,7 @@ int main(int argc, const char **argv){
             ratxtfile << "# For a LUTtype1fast template, you may omit everything below this point.\n\n";
         }
 
-        ratxtfile << "crtLUTceil = \"" << lpguscale << "\"\n";
+        ratxtfile << "crtLUT4scale = \"" << lpguscalereciprocal << "\"\n\n";
 
         ratxtfile << "crtMatrixRR = \"" << sourcegamut.attachedCRT->overallMatrix[0][0] << "\"\n";
         ratxtfile << "crtMatrixRG = \"" << sourcegamut.attachedCRT->overallMatrix[0][1] << "\"\n";
