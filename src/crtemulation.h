@@ -80,8 +80,13 @@ public:
     bool InitializeModulator();
     bool InitializeDemodulator();
     
+    // Simulate black crushing behavior of U.S. CRT expecting 7.5IR black pedestal, but getting input with black at 0 IRE.
     vec3 CrushBlack(vec3 input);
+    // invert CrushBlack()
     vec3 UncrushBlack(vec3 input);
+
+    // Take a post-EOTF output that was normalized to a range including super blacks and renormalize it to a range without them
+    double UnSuperBlack(double input);
 
     vec3 CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input);
     vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks);

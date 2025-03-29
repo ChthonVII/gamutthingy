@@ -739,7 +739,7 @@ vec3 crtdescriptor::togamma1886appx1vec3(vec3 input){
     return output;
 }
 
-
+// Simulate black crushing behavior of U.S. CRT expecting 7.5IR black pedestal, but getting input with black at 0 IRE.
 vec3 crtdescriptor::CrushBlack(vec3 input){
     if (!blackpedestalcrush){
         return input;
@@ -761,6 +761,7 @@ vec3 crtdescriptor::CrushBlack(vec3 input){
     return output;
 }
 
+// invert CrushBlack()
 vec3 crtdescriptor::UncrushBlack(vec3 input){
     if (!blackpedestalcrush){
         return input;
@@ -771,6 +772,14 @@ vec3 crtdescriptor::UncrushBlack(vec3 input){
     output.y = (output.y * scale) + blackpedestalcrushamount;
     output.z = (output.z * scale) + blackpedestalcrushamount;
     return output;
+}
+
+// Take a post-EOTF output that was normalized to a range including super blacks and renormalize it to a range without them
+double crtdescriptor::UnSuperBlack(double input){
+    input *= CRT_EOTF_whitelevel;
+    input -= CRT_EOTF_blacklevel;
+    input /= (CRT_EOTF_whitelevel - CRT_EOTF_blacklevel);
+    return input;
 }
 
 vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){

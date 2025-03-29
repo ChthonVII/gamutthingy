@@ -3490,6 +3490,9 @@ int main(int argc, const char **argv){
                 lpguscale = 1.0;
                 lpguscalereciprocal = 1.0;
                 if (lutgen && (lutmode == LUTMODE_POSTGAMMA_UNLIMITED) && sourcegamut.attachedCRT){
+                    // we need to temporarily set the CRT to super black mode
+                    bool oldsuperblackmode = sourcegamut.attachedCRT->superblacks;
+                    sourcegamut.attachedCRT->superblacks = true;
                     // if we're clamping, then we can compute the ceiling
                     if (crtdoclamphigh){
                         if (crtclamphigh > 1.0){
@@ -3555,6 +3558,8 @@ int main(int argc, const char **argv){
                             printf("WARNING: Could not find a good scaling factor to ensure white has its own entry in the LUT.\n");
                         }
                     }
+                    // set the CRT superblack setting back to what it was
+                    sourcegamut.attachedCRT->superblacks = oldsuperblackmode;
                 }
 
                 // iterate over every pixel
@@ -3619,6 +3624,12 @@ int main(int argc, const char **argv){
                                     redvalue *= lpguscale;
                                     greenvalue *= lpguscale;
                                     bluevalue *= lpguscale;
+                                    if (!crtsuperblacks){
+                                        // crush the superblacks we added earlier so that the LUT indices include the superblack range, but they map to outputs without the super blacks
+                                        redvalue = sourcegamut.attachedCRT->UnSuperBlack(redvalue);
+                                        greenvalue = sourcegamut.attachedCRT->UnSuperBlack(greenvalue);
+                                        bluevalue = sourcegamut.attachedCRT->UnSuperBlack(bluevalue);
+                                    }
                                 }
                             }
                             else {
@@ -3770,7 +3781,8 @@ int main(int argc, const char **argv){
             ratxtfile << "# For a LUTtype1fast template, you may omit everything below this point.\n\n";
         }
 
-        ratxtfile << "crtLUT4scale = \"" << lpguscalereciprocal << "\"\n\n";
+        ratxtfile << "crtLUT4scale = \"" << lpguscalereciprocal << "\"\n";
+        ratxtfile << "crtLUT4renorm = \"" << (((lutmode == LUTMODE_POSTGAMMA_UNLIMITED) && !crtsuperblacks) ? "1.0" : "0.0") << "\"\n\n";
 
         ratxtfile << "crtMatrixRR = \"" << sourcegamut.attachedCRT->overallMatrix[0][0] << "\"\n";
         ratxtfile << "crtMatrixRG = \"" << sourcegamut.attachedCRT->overallMatrix[0][1] << "\"\n";
@@ -3784,7 +3796,10 @@ int main(int argc, const char **argv){
 
         ratxtfile << "crtBlackCrush = \"" << (crtblackpedestalcrush ? "1.0" : "0.0") << "\"\n";
         ratxtfile << "crtBlackCrushAmount = \"" << crtblackpedestalcrushamount << "\"\n";
-        ratxtfile << "crtSuperBlackEnable = \"" << (crtsuperblacks ? "1.0" : "0.0") << "\"\n\n";
+        if ((lutmode == LUTMODE_POSTGAMMA_UNLIMITED) && !crtsuperblacks){
+            ratxtfile << "# crtSuperBlackEnable is forced to true for LUTtype4.\n";
+        }
+        ratxtfile << "crtSuperBlackEnable = \"" << ((crtsuperblacks || (lutmode == LUTMODE_POSTGAMMA_UNLIMITED)) ? "1.0" : "0.0") << "\"\n\n";
 
         if(sourcegamut.attachedCRT->zerolightclampenable){
             ratxtfile << "# crtLowClamp is set at zero light emission.\n";
