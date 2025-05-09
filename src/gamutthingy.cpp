@@ -2594,6 +2594,11 @@ int main(int argc, const char **argv){
         printf("Gamma out power cannot be less than one. Forcing to one.\n");
     }
 
+    if (forcedisablechromaticadapt && (destwhitepointindex != WHITEPOINT_D65)){
+        forcedisablechromaticadapt = false;
+        printf("Chromatic adapation cannot be disabled when destination whitepoint is not D65.\n");
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 

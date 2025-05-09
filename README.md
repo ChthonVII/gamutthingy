@@ -141,7 +141,7 @@ Four general modes of operation:
 
 **Chromatic Adaptation Parameters:**
 - `--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing whitepoints. Possible values are `cat16` (default) or `bradford`.
-- `--no-source-adapt` or `--nsa`: Force disable chromatic adapation for the source gamut. Possible values are `true` or `false` (default).
+- `--no-source-adapt` or `--nsa`: Force disable chromatic adapation for the source gamut. Only allowed when destination whitepoint is D65. Possible values are `true` or `false` (default).
 
 **Spiral CARISMA Parameters:**
 - `--spiral-carisma` or `--sc`: Perform selective hue rotation on certain high-saturation colors prior to gamut compression. Possible values are `true` (default) or `false`. Automatically disabled for NES palette generation.
