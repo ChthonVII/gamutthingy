@@ -48,6 +48,7 @@ public:
     int verbosemode;
     bool issourcegamut;
     bool needschromaticadapt;
+    bool forcenoadapt;
     int CATtype;
     vec3 whitepoint;
     vec3 redpoint;
@@ -135,7 +136,7 @@ public:
     double spiralcharismaexponent;
     int spiralcarismascalemode;
     
-    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled, int crtmode, crtdescriptor* crttoattach);
+    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool noadapt, bool compressenabled, int crtmode, crtdescriptor* crttoattach);
     // resizes vectors ahead of time
     void reservespace();
     void initializeMatrixP();

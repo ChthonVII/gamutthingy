@@ -93,8 +93,12 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
         linearinputcolor = sourcegamut.ClampLuminosity(linearinputcolor);
     }
 
+    //printf("Linear input is ");
+    //linearinputcolor.printout();
+    //printf("\n");
+
     vec3 outcolor;
-        
+
     if (mapmode == MAP_CLIP){
         vec3 tempcolor = sourcegamut.linearRGBtoXYZ(linearinputcolor);
         outcolor = destgamut.XYZtoLinearRGB(tempcolor);
@@ -157,6 +161,9 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
     }
     else {
         outcolor = mapColor(linearinputcolor, sourcegamut, destgamut, (mapmode == MAP_EXPAND), remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, nesmode);
+        //printf("Linear output is ");
+        //outcolor.printout();
+        //printf("\n");
     }
     if (destgamut.crtemumode == CRT_EMU_BACK){
         outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor, true);
@@ -721,6 +728,7 @@ int main(int argc, const char **argv){
     double kneefactor = 0.4;
     int verbosity = VERBOSITY_SLIGHT;
     int adapttype = ADAPT_CAT16;
+    bool forcedisablechromaticadapt = false;
     int cccfunctiontype = CCC_EXPONENTIAL;
     double cccfloor = 0.5;
     double cccceiling = 0.95;
@@ -766,7 +774,7 @@ int main(int argc, const char **argv){
     bool retroarchwritetext = false;
     char* retroarchtextfilename;
     
-    const boolparam params_bool[17] = {
+    const boolparam params_bool[19] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -851,6 +859,16 @@ int main(int argc, const char **argv){
             "--csb",                     //std::string paramstring; // parameter's text
             "CRT show \"super black\" colors",           //std::string prettyname; // name for pretty printing
             &crtsuperblacks                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--no-source-adapt",                     //std::string paramstring; // parameter's text
+            "Force disable chromatic adapation for source gamut",           //std::string prettyname; // name for pretty printing
+            &forcedisablechromaticadapt                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nsa",                     //std::string paramstring; // parameter's text
+            "Force disable chromatic adapation for source gamut",           //std::string prettyname; // name for pretty printing
+            &forcedisablechromaticadapt                //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -2822,6 +2840,9 @@ int main(int argc, const char **argv){
             default:
                 break;
         };
+        if (forcedisablechromaticadapt){
+            printf("Chromatic adapation force disabled for source gamut.\n");
+        }
         if (mapmode == MAP_CCC_A){
             printf("CCC function type: ");
             switch(cccfunctiontype){
@@ -3003,10 +3024,10 @@ int main(int argc, const char **argv){
     bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
     
     gamutdescriptor sourcegamut;
-    bool srcOK = sourcegamut.initialize(sourcegamutindex != GAMUT_CUSTOM ? gamutnames[sourcegamutindex] : "Custom Source Gamut", sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
+    bool srcOK = sourcegamut.initialize(sourcegamutindex != GAMUT_CUSTOM ? gamutnames[sourcegamutindex] : "Custom Source Gamut", sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, forcedisablechromaticadapt, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
     
     gamutdescriptor destgamut;
-    bool destOK = destgamut.initialize(destgamutindex != GAMUT_CUSTOM ? gamutnames[destgamutindex] : "Custom Destination Gamut", destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, compressenabled, destgamutcrtsetting, &emulatedcrt);
+    bool destOK = destgamut.initialize(destgamutindex != GAMUT_CUSTOM ? gamutnames[destgamutindex] : "Custom Destination Gamut", destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, false, compressenabled, destgamutcrtsetting, &emulatedcrt);
     
     if ((mapmode == MAP_CCC_B) || (mapmode == MAP_CCC_C)){
         destgamut.initializeMatrixChunghwa(sourcegamut, verbosity);
@@ -3315,6 +3336,10 @@ int main(int argc, const char **argv){
                     break;
                 };
                 htmlfile << "<BR>\n";
+            }
+
+            if (forcedisablechromaticadapt){
+               htmlfile << "\t\t\tChromatic adapation force disabled for source gamut.<BR>\n";
             }
 
 

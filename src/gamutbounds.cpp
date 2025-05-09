@@ -17,7 +17,7 @@
 const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
 const double HalfHuePerStep = HuePerStep / 2.0;
 
-bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool compressenabled, int crtmode, crtdescriptor* crttoattach){
+bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool noadapt, bool compressenabled, int crtmode, crtdescriptor* crttoattach){
     verbosemode = verbose;
     gamutname = name;
     whitepoint = wp;
@@ -30,6 +30,10 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     // don't convert to D65 if both white points are equal and we're not doing compression.
     // we're doing extra math (and maybe accruing some floating point errors) in the case where no compression and unequal whitepoints and destination is not D65 -- but I don't care enough about that case to deal with it.
     needschromaticadapt = ((compressenabled && !whitepoint.isequal(D65)) || (!whitepoint.isequal(other_wp)));
+    // We can force ignore chromatic adaptation if we really want.
+    // This will lead to achromatic inputs NOT yielding achromatic outputs
+    // The resulting gamut will have funny pointy bits, but compressed result should be more or less sane. (I hope...)
+    forcenoadapt = (noadapt && issource);
     crtemumode = crtmode;
     attachedCRT = crttoattach;
     if (verbose >= VERBOSITY_SLIGHT){
@@ -38,6 +42,9 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
             printf("source gamut");
             if (needschromaticadapt){
                 printf(" with chromatic adaptation");
+                if (forcenoadapt){
+                    printf(" forcibly disabled");
+                }
             }
             printf("...\n");
         }
@@ -95,7 +102,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
         print3x3matrix(inverseMatrixNPM);
     }
     
-    if (needschromaticadapt){
+    if (needschromaticadapt && !forcenoadapt){
         if (!initializeChromaticAdaptationToD65()){
             printf("Initialization aborted!\n");
             return false;
@@ -687,14 +694,14 @@ bool gamutdescriptor::initializeKinoshitaStuff(gamutdescriptor &othergamut, int 
 }
 
 vec3 gamutdescriptor::linearRGBtoXYZ(vec3 input){
-    if (needschromaticadapt){
+    if (needschromaticadapt && !forcenoadapt){
         return multMatrixByColor(matrixNPMadaptToD65, input);
     }
     return multMatrixByColor(matrixNPM, input);
 }
 
 vec3 gamutdescriptor::XYZtoLinearRGB(vec3 input){
-    if (needschromaticadapt){
+    if (needschromaticadapt &!forcenoadapt){
         return multMatrixByColor(inverseMatrixNPMadaptToD65, input);
     }
     return multMatrixByColor(inverseMatrixNPM, input);
@@ -909,8 +916,10 @@ void gamutdescriptor::WarpBoundaries(){
 
 // returns luminosity of linearRGB input
 // returns luma of R'G'B' input
+// TODO: This function seems unused. Remove?
+// TODO: forcenoadapt case may be wrong. needs more thought
 double gamutdescriptor::GetLuminosity(vec3 input){
-    if (needschromaticadapt){
+    if (needschromaticadapt & !forcenoadapt){
         return (input.x * matrixNPMadaptToD65[1][0]) + (input.y * matrixNPMadaptToD65[1][1]) + (input.z * matrixNPMadaptToD65[1][2]);
     }
     else {
@@ -1701,11 +1710,39 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     // also shuffle stuff around to make the later sorting step faster
     newbpoint.x = 0;
     newbpoint.y = maxluma;
+    // special case where we don't know achromatic intercepts because we force disabled chromaic adapation
+    // TODO: this could be refactored to only compute once and share values with every slice, but it shouldn't hurt performance too much
+    if (forcenoadapt){
+        vec3 color = vec3(newbpoint.y, 0, hue);
+        bool happy = IsJzCzhzInBounds(color);
+        while (!happy){
+            newbpoint.y -= finechromastep;
+            color = vec3(newbpoint.y, 0, hue);
+            happy = IsJzCzhzInBounds(color);
+            if (happy){
+                newbpoint.y += (0.5 * finechromastep);
+            }
+        }
+    }
     newbpoint.iscusp = false;
     data[huestep].push_back(newbpoint);
     std::reverse( data[huestep].begin(),  data[huestep].end());
     newbpoint.x = 0;
     newbpoint.y = 0;
+    // special case where we don't know achromatic intercepts because we force disabled chromaic adapation
+    // TODO: this could be refactored to only compute once and share values with every slice, but it shouldn't hurt performance too much
+    if (forcenoadapt){
+        vec3 color = vec3(newbpoint.y, 0, hue);
+        bool happy = IsJzCzhzInBounds(color);
+        while (!happy){
+            newbpoint.y += finechromastep;
+            color = vec3(newbpoint.y, 0, hue);
+            happy = IsJzCzhzInBounds(color);
+            if (happy){
+                newbpoint.y -= (0.5 * finechromastep);
+            }
+        }
+    }
     newbpoint.iscusp = false;
     data[huestep].push_back(newbpoint);
 
@@ -1771,6 +1808,8 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     for (i=0; i<pointcount; i++){
         if (data[huestep][i].iscusp){
             bool breakout = false;
+            int maxj = i;
+            double maxluma = data[huestep][i].y;
             for (int j = i-1; j >= 0; j--){
                 // 3x max chroma should be far enough out to catch everything, but not as problematically far out as zero-luma intersection can sometimes be
                 // Go back until we hit a point that's at least a lumastep above. Otherwise slope might be flat b/c basically the same point twice.
@@ -1782,11 +1821,33 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 if (breakout){
                     break;
                 }
+                // keep track of the highest luma we found
+                if (data[huestep][j].y > maxluma){
+                    maxluma = data[huestep][j].y;
+                    maxj = j;
+                }
+            }
+            // if we did not find a point at least a luma step above, just use the highest luma we did find
+            if (!foundpoint && (maxj != i)){
+                if (lineIntersection2D(vec2(data[huestep][maxj].x, data[huestep][maxj].y), vec2(data[huestep][i].x, data[huestep][i].y), vec2(3.0 * maxchroma, 0.0), vec2(3.0 * maxchroma, maxluma), fakepoints[huestep])){
+                    foundpoint = true;
+                    breakout = true;
+                    break;
+                }
             }
         }
     }
+
     if (!foundpoint){
         printf("Something went wrong in ProcessSlice(). No intercept for VP's fake point! Point is %f, %f and index is %i\n", data[huestep][i].x, data[huestep][i].y, i);
+        printf("hue: %f size of vector: %i\n", hue, (int)data[huestep].size());
+        /*
+        printf("chroma\t\tluma\t\tangle\t\tcusp\n");
+        for (int i = 0; i<(int)data[huestep].size(); i++){
+            //printf("point %i: x = %f, y = %f\n", i, data[huestep][i].x, data[huestep][i].y);
+            printf("%f\t%f\t%f\t%i\n", data[huestep][i].x, data[huestep][i].y, (data[huestep][i].angle * 180.0) / (double)std::numbers::pi_v<long double>, data[huestep][i].iscusp);
+        }
+        */
     }
     
     foundpoint = false;
@@ -2600,8 +2661,10 @@ int hueToFloorIndex(double hue, double &excess){
 vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool expand, double remapfactor, double remaplimit, bool softknee, double kneefactor, int mapdirection, int safezonetype, bool dospiralcarisma, bool nesmode){
     
     // skip the easy black and white cases with no computation
-    if (color.isequal(vec3(0.0, 0.0, 0.0)) || color.isequal(vec3(1.0, 1.0, 1.0))){
-        return color;
+    if (!(sourcegamut.needschromaticadapt && sourcegamut.forcenoadapt)){
+        if (color.isequal(vec3(0.0, 0.0, 0.0)) || color.isequal(vec3(1.0, 1.0, 1.0))){
+            return color;
+        }
     }
     
     // convert to JzCzhz
