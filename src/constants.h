@@ -58,6 +58,7 @@
 #define GAMMA_LINEAR 0
 #define GAMMA_SRGB 1
 #define GAMMA_REC2084 2
+#define GAMMA_POWER 3
 
 extern const vec3 D65;
 

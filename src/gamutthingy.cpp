@@ -40,7 +40,7 @@ memo memos[256][256][256];
 bool inversesearchvisitlist[256][256][256];
 
 // Do the full conversion process on a given color
-vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
+vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
     vec3 linearinputcolor = inputcolor;
     if (sourcegamut.crtemumode == CRT_EMU_FRONT){
         if (lutmode == LUTMODE_POSTCC){
@@ -82,6 +82,9 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
     }
     else if (gammamodein == GAMMA_REC2084){
         linearinputcolor = vec3(rec2084tolinear(inputcolor.x, hdrsdrmaxnits), rec2084tolinear(inputcolor.y, hdrsdrmaxnits), rec2084tolinear(inputcolor.z, hdrsdrmaxnits));
+    }
+    else if (gammamodein == GAMMA_POWER){
+        linearinputcolor = vec3(pow(inputcolor.x, gammapowin), pow(inputcolor.y, gammapowin), pow(inputcolor.z, gammapowin));
     }
     
     // Expanded intermediate LUTs expressly contain a ton of out-of-bounds colors
@@ -174,13 +177,17 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmod
     else if (gammamodeout == GAMMA_REC2084){
         outcolor = vec3(rec2084togamma(outcolor.x, hdrsdrmaxnits), rec2084togamma(outcolor.y, hdrsdrmaxnits), rec2084togamma(outcolor.z, hdrsdrmaxnits));
     }
+    else if (gammamodeout == GAMMA_POWER){
+        double powout = 1.0/gammapowout;
+        outcolor = vec3(pow(outcolor.x, powout), pow(outcolor.y, powout), pow(outcolor.z, powout));
+    }
     return outcolor;
 }
 
 // Search backwards for an input that yields the chosen output when run through processcolor(),
 // Or closest possible if none exists.
 // WARNING: VERY SLOW!!!
-vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
+vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
 
     typedef struct frontiernode{
         unsigned int red;
@@ -205,6 +212,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
     }
     else if (gammamodeout == GAMMA_REC2084){
         tempgoal = vec3(rec2084tolinear(tempgoal.x, hdrsdrmaxnits), rec2084tolinear(tempgoal.y, hdrsdrmaxnits), rec2084tolinear(tempgoal.z, hdrsdrmaxnits));
+    }
+    else if (gammamodeout == GAMMA_POWER){
+        tempgoal = vec3(pow(tempgoal.x, gammapowout), pow(tempgoal.y, gammapowout), pow(tempgoal.z, gammapowout));
     }
     vec3 goalJzazbz = destgamut.linearRGBtoJzazbz(tempgoal);
 
@@ -249,7 +259,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         testcolor.y = examnode.green/255.0;
         testcolor.z = examnode.blue/255.0;
 
-        vec3 testtresult = processcolor(testcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
+        vec3 testtresult = processcolor(testcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
 
         // quantize and see how far off we are in RGB space
         int testresultred = toRGB8nodither(testtresult.x);
@@ -281,6 +291,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
         }
         else if (gammamodeout == GAMMA_REC2084){
             testtresultlinear = vec3(rec2084tolinear(testtresultlinear.x, hdrsdrmaxnits), rec2084tolinear(testtresultlinear.y, hdrsdrmaxnits), rec2084tolinear(testtresultlinear.z, hdrsdrmaxnits));
+        }
+        else if (gammamodeout == GAMMA_POWER){
+            testtresultlinear = vec3(pow(testtresultlinear.x, gammapowout), pow(testtresultlinear.y, gammapowout), pow(testtresultlinear.z, gammapowout));
         }
         vec3 testresultJzazbz = destgamut.linearRGBtoJzazbz(testtresultlinear);
         double deltaJz = testresultJzazbz.x - goalJzazbz.x;
@@ -600,13 +613,13 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, int gammamodeout, int
     return output;
 }
 
-vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, int gammamodeout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
+vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
     vec3 output;
     if (backwardsmode){
-        output = inverseprocesscolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
+        output = inverseprocesscolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
     }
     else {
-        output = processcolor(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
+        output = processcolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
     }
     return output;
 }
@@ -679,6 +692,8 @@ int main(int argc, const char **argv){
     bool filemode = true;
     int gammamodein = GAMMA_SRGB;
     int gammamodeout = GAMMA_SRGB;
+    double gammapowin = 2.4;
+    double gammapowout = 2.2;
     double hdrsdrmaxnits = 200.0; // max nits a hdr monitor uses to display sdr white
     bool softkneemode = true;
     int softkneemodealias = 1;
@@ -1170,7 +1185,7 @@ int main(int argc, const char **argv){
         },
     };
 
-    const paramvalue gammatypelist[3] = {
+    const paramvalue gammatypelist[4] = {
         {
             "linear",
             GAMMA_LINEAR
@@ -1182,7 +1197,11 @@ int main(int argc, const char **argv){
         {
             "rec2084",
             GAMMA_REC2084
-        }
+        },
+        {
+            "power",
+            GAMMA_POWER
+        },
     };
 
     const paramvalue adapttypelist[2] = {
@@ -1684,7 +1703,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[40] = {
+    const floatparam params_float[44] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -1879,6 +1898,26 @@ int main(int argc, const char **argv){
             "--cbpca",         //std::string paramstring; // parameter's text
             "CRT Black Pedestal Crush Amount",        //std::string prettyname; // name for pretty printing
             &crtblackpedestalcrushamount         //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--gamma-in-power",         //std::string paramstring; // parameter's text
+            "Gamma in power",        //std::string prettyname; // name for pretty printing
+            &gammapowin         //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--ginp",         //std::string paramstring; // parameter's text
+            "Gamma in power",        //std::string prettyname; // name for pretty printing
+            &gammapowin         //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--gamma-out-power",         //std::string paramstring; // parameter's text
+            "Gamma out power",        //std::string prettyname; // name for pretty printing
+            &gammapowout         //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--goutp",         //std::string paramstring; // parameter's text
+            "Gamma out power",        //std::string prettyname; // name for pretty printing
+            &gammapowout        //double* vartobind; // pointer to variable whose value to set
         }
 
         // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
@@ -2429,6 +2468,9 @@ int main(int argc, const char **argv){
             else if (gammamodeout == GAMMA_REC2084){
                 printf("\nNOTE: You are saving a LUT using Rec2084 gamma. The program using this LUT will have to linearize values before interpolating. Additionally, a large amount of bandwidth will be wasted. This is almost definitely not what you want.\n");
             }
+            else if (gammamodeout == GAMMA_POWER){
+                printf("\nNOTE: You are saving a LUT using power gamma. The program using this LUT will have to linearize values before interpolating. Are you sure this is what you want?\n");
+            }
         }
         if (nesmode && dither){
             printf("\nForcing dither to false because nespalgen is true.\n");
@@ -2543,6 +2585,15 @@ int main(int argc, const char **argv){
         printf("Force enabling --crtclamplowzerolight because CRT super blacks are enabled.\n");
     }
 
+    if ((crtemumode != CRT_EMU_FRONT) && (gammamodein == GAMMA_POWER) && (gammapowin < 1.0)){
+        gammapowin = 1.0;
+        printf("Gamma in power cannot be less than one. Forcing to one.\n");
+    }
+    if ((gammamodeout == GAMMA_POWER) && (gammapowout < 1.0)){
+        gammapowout = 1.0;
+        printf("Gamma out power cannot be less than one. Forcing to one.\n");
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 
@@ -2620,6 +2671,9 @@ int main(int argc, const char **argv){
                 printf("Input gamma function: Rec2084\n");
                 printf("Max nits for displaying SDR white on HDR monitor: %f\n", hdrsdrmaxnits);
                 break;
+            case GAMMA_POWER:
+                printf("Input gamma function: power %f\n", gammapowin);
+                break;
             default:
                 break;
         };
@@ -2633,6 +2687,9 @@ int main(int argc, const char **argv){
             case GAMMA_REC2084:
                 printf("Output gamma function: Rec2084\n");
                 printf("Max nits for displaying SDR white on HDR monitor: %f\n", hdrsdrmaxnits);
+                break;
+            case GAMMA_POWER:
+                printf("Output gamma function: power %f\n", gammapowout);
                 break;
             default:
                 break;
@@ -3088,7 +3145,7 @@ int main(int argc, const char **argv){
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode);
+        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode);
 
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
@@ -3397,6 +3454,9 @@ int main(int argc, const char **argv){
                     htmlfile << "\t\t\tOutput gamma function: Rec2084<BR>\n";
                     htmlfile << "\t\t\tMax Nits for Displaying SDR white on HDR monitor: " << hdrsdrmaxnits << "<BR>\n";
                     break;
+                case GAMMA_POWER:
+                    htmlfile << "\t\t\tOutput gamma function: power " << gammapowout << "<BR>\n";
+                    break;
                 default:
                     break;
             };
@@ -3415,7 +3475,7 @@ int main(int argc, const char **argv){
                 }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
-                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode);
+                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode);
                     // for now screen barf
                     //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
                     //nesrgb.printout();
@@ -3667,7 +3727,7 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammamodeout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
+                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*
