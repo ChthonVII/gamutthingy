@@ -421,8 +421,8 @@ const double gamutpoints[20][3][3] = {
     // https://web.archive.org/web/20130413094712/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf
     {
         {0.618, 0.35, 0.032}, //red
-        {0.29, 0.6, 0.11}, //green
-        {0.15, 0.06, 0.79} //blue
+        {0.28, 0.605, 0.115}, //green
+        {0.152, 0.063, 0.785} //blue
     },
 
     // Sony PVM 20M2U (~1996) measured by Keith Raney
