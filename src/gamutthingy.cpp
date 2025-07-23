@@ -221,12 +221,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     std::deque<frontiernode> frontier;
     frontiernode bestnode;
-    double bestdistrgb = 500; //impossibly big
-    double bestdist = 1000000000.0; //impossibly big
-    double secondbestdistrgb = 500; //impossibly big
-    double secondbestdist = 1000000000.0; //impossibly big
-    double thirdbestdistrgb = 500; //impossibly big
-    double thirdbestdist = 1000000000.0; //impossibly big
+    double bestdistlist[26];
+    double bestdistrgblist[26];
+    for (int i=0; i<26; i++){
+        bestdistlist[i] = 1000000000.0; //impossibly big
+        bestdistrgblist[i] = 500; //impossibly big
+    }
 
     // clear the visited list
     // this is too big for stack, so it's global
@@ -331,27 +331,28 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
         //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
-        if (testdistance < bestdist){
-            //printf("\t BEST SO FAR\n");
-            isbest = true;
-            thirdbestdist = secondbestdist;
-            secondbestdist = bestdist;
-            bestdist = testdistance;
-            bestnode = examnode;
-            //bestdistrgb = ceil(testdistancergb) + 1.5; // inflate the rgb distance so we can wander a bit when deciding which neighbors to check
-            thirdbestdistrgb = secondbestdistrgb;
-            secondbestdistrgb = bestdistrgb;
-            bestdistrgb = testdistancergb;
+        for (int i=0; i<26; i++){
+            if (testdistance < bestdistlist[0]){
+                if (i==0){
+                    isbest = true;
+                    bestnode = examnode;
+                }
+                for (int j=25; j>i; j--){
+                    bestdistlist[j] = bestdistlist[j-1];
+                    bestdistrgblist[j] = bestdistrgblist[j-1];
+                }
+                bestdistlist[i]=testdistance;
+                 bestdistrgblist[i]=testdistancergb;
+                break;
+            }
         }
 
         // Are we too far off the best to continue searching this direction?
-        // The last condition is a bit flexible since bestdistrgb is inflated
-        //if (!isbest && (testdistance > (bestdist * 1.05)) && (testdistancergb > bestdistrgb)){
         if (!isbest &&
                 (
-                    ((testdistance > (bestdist * 1.05) && (testdistancergb > ceil(bestdistrgb)+1.5)))
+                    ((testdistance > (bestdistlist[0] * 1.2) && (testdistancergb > ceil(bestdistrgblist[0])+3.5)))
                     ||
-                    ((testdistance > thirdbestdist) && (testdistancergb > thirdbestdistrgb))
+                    ((testdistance > bestdistlist[25]) && (testdistancergb > bestdistrgblist[25]))
                 )
         ){
             //printf("\tNOT queuing neighbors.\n");
