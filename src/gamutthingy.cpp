@@ -223,6 +223,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     frontiernode bestnode;
     double bestdistrgb = 500; //impossibly big
     double bestdist = 1000000000.0; //impossibly big
+    double secondbestdistrgb = 500; //impossibly big
+    double secondbestdist = 1000000000.0; //impossibly big
+    double thirdbestdistrgb = 500; //impossibly big
+    double thirdbestdist = 1000000000.0; //impossibly big
 
     // clear the visited list
     // this is too big for stack, so it's global
@@ -305,14 +309,26 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         if (testdistance < bestdist){
             //printf("\t BEST SO FAR\n");
             isbest = true;
+            thirdbestdist = secondbestdist;
+            secondbestdist = bestdist;
             bestdist = testdistance;
             bestnode = examnode;
-            bestdistrgb = ceil(testdistancergb) + 1.5; // inflate the rgb distance so we can wander a bit when deciding which neighbors to check
+            //bestdistrgb = ceil(testdistancergb) + 1.5; // inflate the rgb distance so we can wander a bit when deciding which neighbors to check
+            thirdbestdistrgb = secondbestdistrgb;
+            secondbestdistrgb = bestdistrgb;
+            bestdistrgb = testdistancergb;
         }
 
         // Are we too far off the best to continue searching this direction?
         // The last condition is a bit flexible since bestdistrgb is inflated
-        if (!isbest && (testdistance > (bestdist * 1.05)) && (testdistancergb > bestdistrgb)){
+        //if (!isbest && (testdistance > (bestdist * 1.05)) && (testdistancergb > bestdistrgb)){
+        if (!isbest &&
+                (
+                    ((testdistance > (bestdist * 1.05) && (testdistancergb > ceil(bestdistrgb)+1.5)))
+                    ||
+                    ((testdistance > thirdbestdist) && (testdistancergb > thirdbestdistrgb))
+                )
+        ){
             //printf("\tNOT queuing neighbors.\n");
             continue;
         }
