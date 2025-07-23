@@ -237,6 +237,31 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.red = goalred;
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
+    // well, sometimes it's not...
+    // if the gamma doesn't match, let's at least fix that...
+    if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
+        // tempgoal already holds the output reversed back to linear
+        vec3 betterguess = tempgoal;
+        // now reverse the input gamma
+        if (sourcegamut.crtemumode == CRT_EMU_FRONT){
+            betterguess = sourcegamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(betterguess, false);
+        }
+        else if (gammamodein == GAMMA_SRGB){
+            betterguess = vec3(togamma(betterguess.x), togamma(betterguess.y), togamma(betterguess.z));
+        }
+        else if (gammamodein == GAMMA_REC2084){
+            betterguess = vec3(rec2084togamma(betterguess.x, hdrsdrmaxnits), rec2084togamma(betterguess.y, hdrsdrmaxnits), rec2084togamma(betterguess.z, hdrsdrmaxnits));
+        }
+        else if (gammamodein == GAMMA_POWER){
+            betterguess = vec3(pow(betterguess.x, 1.0/gammapowin), pow(betterguess.y, 1.0/gammapowin), pow(betterguess.z, 1.0/gammapowin));
+        }
+        int betterguessred = toRGB8nodither(betterguess.x);
+        int betterguessgreen = toRGB8nodither(betterguess.y);
+        int betterguessblue = toRGB8nodither(betterguess.z);
+        tempnode.red = betterguessred;
+        tempnode.green = betterguessgreen;
+        tempnode.blue = betterguessblue;
+    }
     frontier.push_back(tempnode);
 
     //printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
