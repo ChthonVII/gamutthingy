@@ -332,7 +332,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
         for (int i=0; i<26; i++){
-            if (testdistance < bestdistlist[0]){
+            if (testdistance < bestdistlist[i]){
                 if (i==0){
                     isbest = true;
                     bestnode = examnode;
@@ -350,7 +350,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         // Are we too far off the best to continue searching this direction?
         if (!isbest &&
                 (
-                    ((testdistance > (bestdistlist[0] * 1.2) && (testdistancergb > ceil(bestdistrgblist[0])+3.5)))
+                    ((testdistance > (bestdistlist[0] * 2.0) && (testdistancergb > ceil(bestdistrgblist[0])+5)))
                     ||
                     ((testdistance > bestdistlist[25]) && (testdistancergb > bestdistrgblist[25]))
                 )
