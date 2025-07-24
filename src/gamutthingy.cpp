@@ -7,6 +7,7 @@
 #include <deque>
 #include <iomanip>
 #include <numeric>
+#include <mutex>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -21,6 +22,7 @@
 #include "colormisc.h"
 #include "crtemulation.h"
 #include "nes.h"
+#include "BS_thread_pool.hpp"
 
 void printhelp(){
     printf("THIS HELP IS EXTREMELY OUT OF DATE. REFER TO https://github.com/ChthonVII/gamutthingy/blob/master/README.md INSTEAD!!\n\nUsage is:\n\n`--help` or `-h`: Displays help.\n\n`--color` or `-c`: Specifies a single color to convert. A message containing the result will be printed to stdout. Should be a \"0x\" prefixed hexadecimal representation of an RGB8 color. For example: `0xFABF00`.\n\n`--infile` or `-i`: Specifies an input file. Should be a .png image.\n\n`--outfile` or `-o`: Specifies an input file. Should be a .png image.\n\n`--gamma` or `-g`: Specifies the gamma function (and inverse) to be applied to the input and output. Possible values are `srgb` (default) and `linear`. LUTs for FFNx should be created using linear RGB. Images should generally be converted using the sRGB gamma function.\n\n`--source-gamut` or `-s`: Specifies the source gamut. Possible values are:\n\t`srgb`: The sRGB gamut used by (SDR) modern computer monitors. Identical to the bt709 gamut used for modern HD video.\n\t`ntscj`: alias for `ntscjr`.\n\t`ntscjr`: The variant of the NTSC-J gamut used by Japanese CRT television sets, official specification. (whitepoint 9300K+27mpcd) Default.\n\t`ntscjp22`: NTSC-J gamut as derived from average measurements conducted on Japanese CRT television sets with typical P22 phosphors. (whitepoint 9300K+27mpcd) Deviates significantly from the specification, which was usually compensated for by a \"color correction circuit.\" See readme for details.\n\t`ntscjb`: The variant of the NTSC-J gamut used for SD Japanese television broadcasts, official specification. (whitepoint 9300K+8mpcd)\n\t`smptec`: The SMPTE-C gamut used for American CRT television sets/broadcasts and the bt601 video standard.\n\t`ebu`: The EBU gamut used in the European 470bg television/video standards (PAL).\n\n`--dest-gamut` or `-d`: Specifies the destination gamut. Possible values are the same as for source gamut. Default is `srgb`.\n\n`--adapt` or `-a`: Specifies the chromatic adaptation method to use when changing white points. Possible values are `bradford` and `cat16` (default).\n\n`--map-mode` or `-m`: Specifies gamut mapping mode. Possible values are:\n\t`clip`: No gamut mapping is performed and linear RGB output is simply clipped to 0, 1. Detail in the out-of-bounds range will be lost.\n\t`compress`: Uses a gamut (compression) mapping algorithm to remap out-of-bounds colors to a smaller zone inside the gamut boundary. Also remaps colors originally in that zone to make room. Essentially trades away some colorimetric fidelity in exchange for preserving some of the out-of-bounds detail. Default.\n\t`expand`: Same as `compress` but also applies the inverse of the compression function in directions where the destination gamut boundary exceeds the source gamut boundary. (Also, reverses the order of the steps in the `vp` and `vpr` algorithms.) The only use for this is to prepare an image for a \"roundtrip\" conversion. For example, if you want to display a sRGB image as-is in FFNx's NTSC-J mode, you would convert from sRGB to NTSC-J using `expand` in preparation for FFNx doing the inverse operation.\n\n`--gamut-mapping-algorithm` or `--gma`: Specifies which gamut mapping algorithm to use. (Does nothing if `--map-mode clip`.) Possible values are:\n\t`cusp`: The CUSP algorithm, but with tunable compression parameters. See readme for details.\n\t`hlpcm`: The HLPCM algorithm, but with tunable compression parameters. See readme for details.\n\t`vp`: The VP algorithm, but with linear light scaling and tunable compression parameters. See readme for details.\n\t`vpr`: VPR algorithm, a modification of VP created for gamutthingy. The modifications are explained in the readme. Default.\n\n`--safe-zone-type` or `-z`: Specifies how the outer zone subject to remapping and the inner \"safe zone\" exempt from remapping are defined. Possible values are:\n\t`const-fidelity`: The zones are defined relative to the distance from the \"center of gravity\" to the destination gamut boundary. Yields consistent colorimetric fidelity, with variable detail preservation.\n\t`const-detail`: The remapping zone is defined relative to the difference between the distances from the \"center of gravity\" to the source and destination gamut boundaries. As implemented here, an overriding minimum size for the \"safe zone\" (relative to the destination gamut boundary) may also be enforced. Yields consistent detail preservation, with variable colorimetric fidelity (setting aside the override option). Default.\n\n`--remap-factor` or `--rf`: Specifies the size of the remapping zone relative to the difference between the distances from the \"center of gravity\" to the source and destination gamut boundaries. (Does nothing if `--safe-zone-type const-fidelity`.) Default 0.4.\n\n`--remap-limit` or `--rl`: Specifies the size of the safe zone (exempt from remapping) relative to the distance from the \"center of gravity\" to the destination gamut boundary. If `--safe-zone-type const-detail`, this serves as a minimum size limit when application of `--remap-factor` would lead to a smaller safe zone. Default 0.9.\n\n`--knee` or `-k`: Specifies the type of knee function used for compression, `hard` or `soft`. Default `soft`.\n\n`--knee-factor` or `--kf`: Specifies the width of the soft knee relative to the size of the remapping zone. (Does nothing if `--knee hard`.) Note that the soft knee is centered at the knee point, so half the width extends into the safe zone, thus expanding the area that is remapped. Default 0.4.\n\n`--dither` or `--di`: Specifies whether to apply dithering to the ouput, `true` or `false`. Uses Martin Roberts' quasirandom dithering algorithm. Dithering should be used for images in general, but should not be used for LUTs.  Default `true`.\n\n`--verbosity` or `-v`: Specify verbosity level. Integers 0-5. Default 2.\n");
@@ -35,6 +37,10 @@ typedef struct memo{
 // keep memos so we don't have to process the same color over and over in file mode
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
+
+std::mutex memomtx;
+std::mutex printfmtx;
+std::mutex progressbarmtx;
 
 // visited list for backwards search
 bool inversesearchvisitlist[256][256][256];
@@ -237,6 +243,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.red = goalred;
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
+    bestnode = tempnode; //initialize to silence compile warning
     // well, sometimes it's not...
     // if the gamma doesn't match, let's at least fix that...
     if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
@@ -263,6 +270,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         tempnode.blue = betterguessblue;
     }
     frontier.push_back(tempnode);
+
 
     //printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
     // for as long as we have something left to check in the frontier, check one
@@ -666,6 +674,176 @@ vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, in
     return output;
 }
 
+// This is the guts of the main per-pixel processing loop for images and LUTs.
+// It's been made into a function so that it can be run multithreaded.
+// This function must be kept thread safe.
+void loopGuts(int x, int y, int width, int height, bool lutgen, png_bytep buffer, int lutsize, double crtclamplow, double crtclamphigh, bool crtsuperblacks, double lpguscale, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
+
+    // read bytes from buffer (unless doing LUT)
+
+    png_byte redin = 0;
+    png_byte greenin = 0;
+    png_byte bluein = 0;
+    if (!lutgen){
+        // we don't need a mutex here because no other instance will write at these array indices
+        redin = buffer[ ((y * width) + x) * 4];
+        greenin = buffer[ (((y * width) + x) * 4) + 1 ];
+        bluein = buffer[ (((y * width) + x) * 4) + 2 ];
+    }
+
+    vec3 outcolor;
+
+    // if we've already processed the same input color, just recall the memo
+    bool havememo = false;
+    if (!lutgen){
+        memomtx.lock();
+        if (!lutgen && memos[redin][greenin][bluein].known){
+            outcolor = memos[redin][greenin][bluein].data;
+            havememo = true;
+        }
+        memomtx.unlock();
+    }
+    if (!havememo){
+
+        double redvalue;
+        double greenvalue;
+        double bluevalue;
+
+        if (lutgen){
+            redvalue = (double)(x % lutsize) / ((double)(lutsize - 1));
+            greenvalue = (double)y / ((double)(lutsize - 1));
+            bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
+
+            // expanded intermediate LUT uses range specified by crt clamping parameters
+            if (lutmode == LUTMODE_POSTCC){
+                double scaleby = crtclamphigh - crtclamplow;
+                redvalue = (redvalue * scaleby) + crtclamplow;
+                greenvalue = (greenvalue * scaleby) + crtclamplow;
+                bluevalue = (bluevalue * scaleby) + crtclamplow;
+            }
+            // LUTMODE_POSTGAMMA_UNLIMITED ranges from zero light to maximum output value
+            else if (lutmode == LUTMODE_POSTGAMMA_UNLIMITED){
+                redvalue *= lpguscale;
+                greenvalue *= lpguscale;
+                bluevalue *= lpguscale;
+                if (!crtsuperblacks){
+                    // crush the superblacks we added earlier so that the LUT indices include the superblack range, but they map to outputs without the super blacks
+                    redvalue = sourcegamut.attachedCRT->UnSuperBlack(redvalue);
+                    greenvalue = sourcegamut.attachedCRT->UnSuperBlack(greenvalue);
+                    bluevalue = sourcegamut.attachedCRT->UnSuperBlack(bluevalue);
+                }
+            }
+        }
+        else {
+            // convert to double
+            redvalue = redin/255.0;
+            greenvalue = greenin/255.0;
+            bluevalue = bluein/255.0;
+            // don't touch alpha value
+        }
+
+        vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
+
+        outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
+
+        // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
+        /*
+        if ((redvalue < 0.0) || (greenvalue < 0.0) || (bluevalue < 0.0) || (redvalue > 1.0) || (greenvalue > 1.0) || (bluevalue > 1.0)){
+            outcolor = vec3(1.0, 1.0, 1.0);
+        }
+        */
+
+        // memoize the result of the conversion so we don't need to do it again for this input color
+        if (!lutgen){
+            memomtx.lock();
+            memos[redin][greenin][bluein].known = true;
+            memos[redin][greenin][bluein].data = outcolor;
+            memomtx.unlock();
+        }
+    }
+
+    png_byte redout, greenout, blueout;
+
+    // dither and back to RGB8 if enabled
+    if (dither){
+        // use inverse x coord for red and inverse y coord for blue to decouple dither patterns across channels
+        // see https://blog.kaetemi.be/2015/04/01/practical-bayer-dithering/
+        redout = quasirandomdither(outcolor.x, width - x - 1, y);
+        greenout = quasirandomdither(outcolor.y, x, y);
+        blueout = quasirandomdither(outcolor.z, x, height - y - 1);
+    }
+    // otherwise just back to RGB 8
+    else {
+        redout = toRGB8nodither(outcolor.x);
+        greenout = toRGB8nodither(outcolor.y);
+        blueout = toRGB8nodither(outcolor.z);
+    }
+
+    // save back to buffer
+    // we don't need a mutex here because no other instance will read or write at these array indices
+    buffer[ ((y * width) + x) * 4] = redout;
+    buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
+    buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
+    // we need to set opacity data id generating a LUT; if reading an image, leave it unchanged
+    if (lutgen){
+        buffer[ (((y * width) + x) * 4) + 3 ] = 255;
+    }
+
+} // end loopGuts()
+
+// This function chunks half a row of a image/LUT into a single task.
+// Its purpose is to improve multithreading efficiency by making fewer, bigger tasks for assigning to threads.
+// I'm reluctant to make chunks bigger because:
+//      The performance improvement from multithreading is most desperately needed for backwards mode.
+//      For a big subset of possible parameters, backwards mode is going to bog down hard on the first few rows.
+//      Therefore, I want to make sure chunks are small enough that the first few rows are broken up over a majority of cores.
+// This function also does progress bar stuff.
+void loopGutsHalfStride(bool leftside, int y, int width, int height, bool lutgen, png_bytep buffer, int lutsize, double crtclamplow, double crtclamphigh, bool crtsuperblacks, double lpguscale, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode, int &progressbar, int maxprogressbar, int &lastannounce, int verbosity){
+
+    // call the loop guts for each pixel in this half stride
+    double halfstride = ((double)width)/2.0;
+    int lefthalf = (int)ceil(halfstride);
+    int righthalf = width - lefthalf;
+    int max = leftside ? lefthalf : righthalf;
+    int offset = leftside ? 0 : lefthalf;
+    for (int i=0; i<max; i++){
+        loopGuts(i+offset, y, width, height, lutgen, buffer, lutsize, crtclamplow, crtclamphigh, crtsuperblacks, lpguscale, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, backwardsmode);
+    }
+
+    if (verbosity >= VERBOSITY_MINIMAL){
+        progressbarmtx.lock();
+        // increment progress bar
+        progressbar++;
+        // do an announcement if we've crossed the next 5% threshhold
+        int nextannounce = lastannounce + 5;
+        while (nextannounce % 5 != 0){
+            nextannounce--;
+        }
+        int currentpercent = (progressbar * 100) / maxprogressbar;
+        bool doannounce=false;
+        if (currentpercent >= nextannounce){
+            lastannounce = currentpercent;
+            doannounce = true;
+        }
+        progressbarmtx.unlock();
+
+        if (doannounce){
+            printfmtx.lock();
+            printf("%i%%", currentpercent);
+            if (currentpercent < 100){
+                printf("... ");
+            }
+            if ((currentpercent >= 50) && (currentpercent < 55)){
+                printf("\n");
+            }
+            fflush(stdout);
+            printfmtx.unlock();
+        }
+    }
+
+}
+
+
 
 // structs for holding our ever-growing list of parameters
 typedef struct boolparam{
@@ -730,6 +908,7 @@ int main(int argc, const char **argv){
     // parameter processing
 
     // defaults
+    int threads = 0;
     bool helpmode = false;
     bool filemode = true;
     int gammamodein = GAMMA_SRGB;
@@ -1967,7 +2146,7 @@ int main(int argc, const char **argv){
         // Leaving them on the backend in case they ever prove useful in the future.
     };
 
-    const intparam params_int[3] = {
+    const intparam params_int[4] = {
         {
             "--verbosity",         //std::string paramstring; // parameter's text
             "Verbosity",        //std::string prettyname; // name for pretty printing
@@ -1982,6 +2161,11 @@ int main(int argc, const char **argv){
             "--lutsize",         //std::string paramstring; // parameter's text
             "LUT Size",        //std::string prettyname; // name for pretty printing
             &lutsize            //int* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--threads",         //std::string paramstring; // parameter's text
+            "Thread count",        //std::string prettyname; // name for pretty printing
+            &threads            //int* vartobind; // pointer to variable whose value to set
         },
     };
 
@@ -3694,132 +3878,52 @@ int main(int argc, const char **argv){
                     sourcegamut.attachedCRT->superblacks = oldsuperblackmode;
                 }
 
-                // iterate over every pixel
+                // start up a thread pool so we can process in parallel
+                BS::thread_pool pool;
+                // if the user supplied a thread count, honor it
+                if (threads > 0){
+                    pool.reset(threads);
+                }
+                if (verbosity >= VERBOSITY_MINIMAL){
+                    printf("Using %li threads...\n", pool.get_thread_count());
+                }
+
                 int width = image.width;
                 int height = image.height;
-                for (int y=0; y<height; y++){
-                    if (verbosity >= VERBOSITY_HIGH){
-                        printf("\trow %i of %i...\n", y+1, height);
-                    }
-                    else if (verbosity >= VERBOSITY_MINIMAL){
-                        if (y == 0){
-                            printf("0%%... ");
-                            fflush(stdout);
-                        }
-                        else if ((y < height -1) && ((((y+1)*20)/height) > ((y*20)/height))){
-                            printf("%i%%... ", ((y+1)*100)/height);
-                            if (((y+1)*100)/height == 50){
-                                printf("\n");
-                            }
-                            fflush(stdout);
-                        }
-                    }
-                    for (int x=0; x<width; x++){
-                        
-                        // read bytes from buffer (unless doing LUT)
 
-                        png_byte redin;
-                        png_byte greenin;
-                        png_byte bluein;
-                        if (!lutgen){
-                            redin = buffer[ ((y * width) + x) * 4];
-                            greenin = buffer[ (((y * width) + x) * 4) + 1 ];
-                            bluein = buffer[ (((y * width) + x) * 4) + 2 ];
-                        }
-
-                        vec3 outcolor;
-                        
-                        // if we've already processed the same input color, just recall the memo
-                        if (!lutgen && memos[redin][greenin][bluein].known){
-                            outcolor = memos[redin][greenin][bluein].data;
-                        }
-                        else {
-                        
-                            double redvalue;
-                            double greenvalue;
-                            double bluevalue;
-
-                            if (lutgen){
-                                redvalue = (double)(x % lutsize) / ((double)(lutsize - 1));
-                                greenvalue = (double)y / ((double)(lutsize - 1));
-                                bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
-
-                                // expanded intermediate LUT uses range specified by crt clamping parameters
-                                if (lutmode == LUTMODE_POSTCC){
-                                    double scaleby = crtclamphigh - crtclamplow;
-                                    redvalue = (redvalue * scaleby) + crtclamplow;
-                                    greenvalue = (greenvalue * scaleby) + crtclamplow;
-                                    bluevalue = (bluevalue * scaleby) + crtclamplow;
-                                }
-                                // LUTMODE_POSTGAMMA_UNLIMITED ranges from zero light to maximum output value
-                                else if (lutmode == LUTMODE_POSTGAMMA_UNLIMITED){
-                                    redvalue *= lpguscale;
-                                    greenvalue *= lpguscale;
-                                    bluevalue *= lpguscale;
-                                    if (!crtsuperblacks){
-                                        // crush the superblacks we added earlier so that the LUT indices include the superblack range, but they map to outputs without the super blacks
-                                        redvalue = sourcegamut.attachedCRT->UnSuperBlack(redvalue);
-                                        greenvalue = sourcegamut.attachedCRT->UnSuperBlack(greenvalue);
-                                        bluevalue = sourcegamut.attachedCRT->UnSuperBlack(bluevalue);
-                                    }
-                                }
-                            }
-                            else {
-                                // convert to double
-                                redvalue = redin/255.0;
-                                greenvalue = greenin/255.0;
-                                bluevalue = bluein/255.0;
-                                // don't touch alpha value
-                            }
-
-                            vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
-                            
-                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
-
-                            // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
-                            /*
-                            if ((redvalue < 0.0) || (greenvalue < 0.0) || (bluevalue < 0.0) || (redvalue > 1.0) || (greenvalue > 1.0) || (bluevalue > 1.0)){
-                                outcolor = vec3(1.0, 1.0, 1.0);
-                            }
-                            */
-
-                            // memoize the result of the conversion so we don't need to do it again for this input color
-                            if (!lutgen){
-                                memos[redin][greenin][bluein].known = true;
-                                memos[redin][greenin][bluein].data = outcolor;
-                            }
-                        }
-
-                        png_byte redout, greenout, blueout;
-                        
-                        // dither and back to RGB8 if enabled
-                        if (dither){
-                            // use inverse x coord for red and inverse y coord for blue to decouple dither patterns across channels
-                            // see https://blog.kaetemi.be/2015/04/01/practical-bayer-dithering/
-                            redout = quasirandomdither(outcolor.x, width - x - 1, y);
-                            greenout = quasirandomdither(outcolor.y, x, y);
-                            blueout = quasirandomdither(outcolor.z, x, height - y - 1);
-                        }
-                        // otherwise just back to RGB 8
-                        else {
-                            redout = toRGB8nodither(outcolor.x);
-                            greenout = toRGB8nodither(outcolor.y);
-                            blueout = toRGB8nodither(outcolor.z);
-                        }
-                        
-                        // save back to buffer
-                        buffer[ ((y * width) + x) * 4] = redout;
-                        buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
-                        buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
-                        // we need to set opacity data id generating a LUT; if reading an image, leave it unchanged
-                        if (lutgen){
-                            buffer[ (((y * width) + x) * 4) + 3 ] = 255;
-                        }
-                                                
-                    }
+                // set up progess bar variables
+                int progressbar = 0;
+                int maxprogressbar = height * 2;
+                int lastannounce = 0;
+                if (verbosity >= VERBOSITY_MINIMAL){
+                    printf("0%%... ");
+                    fflush(stdout);
                 }
+
+                // iterate over every row
+                for (int y=0; y<height; y++){
+
+                    // add the left half of the row to the thread pool's task queue
+                    pool.detach_task(
+                        [y, width, height, lutgen, buffer, lutsize, crtclamplow, crtclamphigh, crtsuperblacks, lpguscale, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, &sourcegamut, &destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, backwardsmode, &progressbar, maxprogressbar, &lastannounce, verbosity]
+                        {
+                            loopGutsHalfStride(true, y, width, height, lutgen, buffer, lutsize, crtclamplow, crtclamphigh, crtsuperblacks, lpguscale, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, backwardsmode, progressbar, maxprogressbar, lastannounce, verbosity);
+                        }
+                    );
+
+                    // add the right half of the row to the thread pool's task queue
+                    pool.detach_task(
+                        [y, width, height, lutgen, buffer, lutsize, crtclamplow, crtclamphigh, crtsuperblacks, lpguscale, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, &sourcegamut, &destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, backwardsmode, &progressbar, maxprogressbar, &lastannounce, verbosity]
+                        {
+                            loopGutsHalfStride(false, y, width, height, lutgen, buffer, lutsize, crtclamplow, crtclamphigh, crtsuperblacks, lpguscale, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, backwardsmode, progressbar, maxprogressbar, lastannounce, verbosity);
+                        }
+                    );
+
+                } // end for (int y=0; y<height; y++)
+                // wait for all tasks sent to the thread pool to be completed.
+                pool.wait();
                 if ((verbosity >= VERBOSITY_MINIMAL) && (verbosity < VERBOSITY_HIGH)){
-                    printf("100%%\n");
+                    printf("\n");
                 }
                 
                 // End actual color conversion code

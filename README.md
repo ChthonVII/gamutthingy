@@ -229,6 +229,7 @@ Four general modes of operation:
 **Misc Parameters:**
 - `--help` or `-h`: Displays help.
 - `--verbosity` or `-v`: Specify verbosity level. Integer numbers 0-5. Default 2.
+- `--threads`: Sets the number of threads to use for processing image inputs and LUTs; or set to 0 to autodetect number of CPU cores. Integer number. Default 0.
 
 #### Usage Tips
 - Destination primaries and whitepoint should generally be sRGB spec and D65. (Unless you're trying to prepare something for roundtrip conversion.)
@@ -281,6 +282,7 @@ PNG plumbing shamelessly borrowed from png2png example by John Cunningham Bowler
 
 Dithering is done using Martin Roberts' quasirandom dithering algorithm described in [old5].
 
+Multithreading uses [BS::thread_pool](https://github.com/bshoshany/thread-pool). (MIT license.)
 
 **NES/Famicom Simulation:**
 

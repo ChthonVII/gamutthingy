@@ -5,7 +5,7 @@ BUILD_DIR := ./build
 SRC_DIRS := ./src
 CC := gcc
 CXX := g++
-CXXFLAGS := -Wall -g -std=c++20
+CXXFLAGS := -Wall -g -std=c++20 -pthread -O3
 LDFLAGS := -g
 LDLIBS := -lpng16 -lz -lm
 #RM=rm -f
