@@ -227,9 +227,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     std::deque<frontiernode> frontier;
     frontiernode bestnode;
-    double bestdistlist[26];
-    double bestdistrgblist[26];
-    for (int i=0; i<26; i++){
+    double bestdistlist[125];
+    double bestdistrgblist[125];
+    for (int i=0; i<125; i++){
         bestdistlist[i] = 1000000000.0; //impossibly big
         bestdistrgblist[i] = 500; //impossibly big
     }
@@ -339,18 +339,18 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
         //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
-        for (int i=0; i<26; i++){
+        for (int i=0; i<125; i++){
             if (testdistance < bestdistlist[i]){
                 if (i==0){
                     isbest = true;
                     bestnode = examnode;
                 }
-                for (int j=25; j>i; j--){
+                for (int j=124; j>i; j--){
                     bestdistlist[j] = bestdistlist[j-1];
                     bestdistrgblist[j] = bestdistrgblist[j-1];
                 }
                 bestdistlist[i]=testdistance;
-                 bestdistrgblist[i]=testdistancergb;
+                bestdistrgblist[i]=testdistancergb;
                 break;
             }
         }
@@ -360,7 +360,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
                 (
                     ((testdistance > (bestdistlist[0] * 2.0) && (testdistancergb > ceil(bestdistrgblist[0])+5)))
                     ||
-                    ((testdistance > bestdistlist[25]) && (testdistancergb > bestdistrgblist[25]))
+                    ((testdistance > bestdistlist[124]) && (testdistancergb > bestdistrgblist[124]))
                 )
         ){
             //printf("\tNOT queuing neighbors.\n");
