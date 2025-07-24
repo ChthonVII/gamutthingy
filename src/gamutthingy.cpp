@@ -187,7 +187,7 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gamma
 // Search backwards for an input that yields the chosen output when run through processcolor(),
 // Or closest possible if none exists.
 // WARNING: VERY SLOW!!!
-vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool usehint, unsigned int redhint, unsigned int greenhint, unsigned int bluehint){
+vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
 
     typedef struct frontiernode{
         unsigned int red;
@@ -238,14 +238,8 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
     // well, sometimes it's not...
-    // if this is a LUT, we can use the neighboring answer as the starting point for our guess
-    if (usehint){
-        tempnode.red = redhint;
-        tempnode.green = greenhint;
-        tempnode.blue = bluehint;
-    }
-    // otherwise, if the gamma doesn't match, let's at least fix that...
-    else if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
+    // if the gamma doesn't match, let's at least fix that...
+    if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
         // tempgoal already holds the output reversed back to linear
         vec3 betterguess = tempgoal;
         // now reverse the input gamma
@@ -356,8 +350,8 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         // Are we too far off the best to continue searching this direction?
         if (!isbest &&
                 (
-                    //((testdistance > (bestdistlist[0] * 2.0) && (testdistancergb > ceil(bestdistrgblist[0])+5)))
-                    //||
+                    ((testdistance > (bestdistlist[0] * 2.0) && (testdistancergb > ceil(bestdistrgblist[0])+5)))
+                    ||
                     ((testdistance > bestdistlist[25]) && (testdistancergb > bestdistrgblist[25]))
                 )
         ){
@@ -384,9 +378,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         bool redworst = ((deltared > deltagreen) && (deltared > deltablue));
         bool greenworst = ((deltared < deltagreen) && (deltagreen > deltablue));
         bool blueworst = ((deltablue > deltagreen) && (deltared < deltablue));
-        bool redonly = (redworst && ((deltared > deltagreen+3) && (deltared > deltablue+3)));
-        bool greenonly = (greenworst && ((deltared+3 < deltagreen) && (deltagreen > deltablue+3)));
-        bool blueonly = (blueworst && ((deltablue > deltagreen+3) && (deltared+3 < deltablue)));
+        bool redonly = (redworst && ((deltared > deltagreen+2) && (deltared > deltablue+2)));
+        bool greenonly = (greenworst && ((deltared+2 < deltagreen) && (deltagreen > deltablue+2)));
+        bool blueonly = (blueworst && ((deltablue > deltagreen+2) && (deltared+2 < deltablue)));
 
         // if one axis has a much bigger error than the others, go that way and don't bother with other neighbors
         bool onedirection = false;
@@ -661,10 +655,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     return output;
 }
 
-vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode, bool usehint, unsigned int redhint, unsigned int greenhint, unsigned int bluehint){
+vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
     vec3 output;
     if (backwardsmode){
-        output = inverseprocesscolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, usehint, redhint, greenhint, bluehint);
+        output = inverseprocesscolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
     }
     else {
         output = processcolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
@@ -3198,7 +3192,7 @@ int main(int argc, const char **argv){
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode, false, 0, 0, 0);
+        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode);
 
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
@@ -3528,7 +3522,7 @@ int main(int argc, const char **argv){
                 }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
-                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode, false, 0, 0, 0);
+                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode);
                     // for now screen barf
                     //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
                     //nesrgb.printout();
@@ -3700,12 +3694,6 @@ int main(int argc, const char **argv){
                     sourcegamut.attachedCRT->superblacks = oldsuperblackmode;
                 }
 
-                // do we need hints for backwards mode LUT generation?
-                bool needhints = (lutgen && backwardsmode);
-                unsigned int priorred = 0;
-                unsigned int priorgreen = 0;
-                unsigned int priorblue = 0;
-
                 // iterate over every pixel
                 int width = image.width;
                 int height = image.height;
@@ -3784,35 +3772,9 @@ int main(int argc, const char **argv){
                                 // don't touch alpha value
                             }
 
-                            // set the hints for backwards mode LUT generation)
-                            bool dohint = needhints;
-                            if (needhints){
-
-                                // if top left corner, hint is black
-                                if ((x==0) && (y==0)){
-                                    priorred = 0;
-                                    priorgreen = 0;
-                                    priorblue = 0;
-                                }
-                                // no hints when we don't have a left pixel
-                                else if (x % lutsize == 0){
-                                    dohint = false;
-                                }
-                                // otherwise, use the left and up pixels to make a hint
-                                else {
-                                    unsigned int upred = buffer[ ((y * width) + x) * 4];
-                                    unsigned int upgreen = buffer[ (((y * width) + x) * 4) + 1 ];
-                                    unsigned int upblue = buffer[ (((y * width) + x) * 4) + 2 ];
-
-                                    priorred = (int)((((double)(priorred + upred)) / 2.0) + 0.5);
-                                    priorgreen = (int)((((double)(priorgreen + upgreen)) / 2.0) + 0.5);
-                                    priorblue = (int)((((double)(priorblue + upblue)) / 2.0) + 0.5);
-                                }
-                            }
-
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode, dohint, priorred, priorgreen, priorblue);
+                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*
@@ -3852,13 +3814,6 @@ int main(int argc, const char **argv){
                         // we need to set opacity data id generating a LUT; if reading an image, leave it unchanged
                         if (lutgen){
                             buffer[ (((y * width) + x) * 4) + 3 ] = 255;
-                        }
-
-                        // save as hints for next pixel
-                        if (needhints){
-                            priorred = toRGB8nodither(outcolor.x);
-                            priorgreen = toRGB8nodither(outcolor.y);
-                            priorblue = toRGB8nodither(outcolor.z);
                         }
                                                 
                     }
