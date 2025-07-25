@@ -244,8 +244,13 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
     bestnode = tempnode; //initialize to silence compile warning
+    /*
     // well, sometimes it's not...
     // if the gamma doesn't match, let's at least fix that...
+
+    // Actually, no. Tweaking the guess gives a nice speed up, but causes artifacts in the resulting LUT, presumably because we're getting stuck in local maxima.
+    // So far, every attempt to fix the artifacts just makes more artifacts somewhere else.
+    // So I'm just disabling this.
     if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
         // tempgoal already holds the output reversed back to linear
         vec3 betterguess = tempgoal;
@@ -269,6 +274,22 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         tempnode.green = betterguessgreen;
         tempnode.blue = betterguessblue;
     }
+    // move the initial guess away from the edges so we're less likely to get stuck on a local maximum in a convex spot
+    // but not if the guess has low chroma, since we don't want to mess with black and white
+    unsigned int maxguess = (tempnode.red > tempnode.green) ? tempnode.red : tempnode.green;
+    maxguess = (maxguess > tempnode.blue) ? maxguess : tempnode.blue;
+    unsigned int minguess = (tempnode.red < tempnode.green) ? tempnode.red : tempnode.green;
+    minguess = (minguess < tempnode.blue) ? minguess : tempnode.blue;
+    unsigned int chroma = maxguess - minguess;
+    if (chroma > 30){
+        tempnode.red = (tempnode.red > 245) ? 245 : tempnode.red;
+        tempnode.green = (tempnode.green > 245) ? 245 : tempnode.green;
+        tempnode.blue = (tempnode.blue > 245) ? 245 : tempnode.blue;
+        tempnode.red = (tempnode.red < 10) ? 10 : tempnode.red;
+        tempnode.green = (tempnode.green < 10) ? 10 : tempnode.green;
+        tempnode.blue = (tempnode.blue < 10) ? 10 : tempnode.blue;
+    }
+    */
     frontier.push_back(tempnode);
 
 
