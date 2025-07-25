@@ -221,8 +221,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     std::deque<frontiernode> frontier;
     frontiernode bestnode;
-    double bestdistrgb = 500; //impossibly big
-    double bestdist = 1000000000.0; //impossibly big
+    double bestdistlist[64];
+    double bestdistrgblist[64];
+    for (int i=0; i<64; i++){
+        bestdistlist[i] = 1000000000.0; //impossibly big
+        bestdistrgblist[i] = 500; //impossibly big
+    }
 
     // clear the visited list
     // this is too big for stack, so it's global
@@ -233,8 +237,34 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.red = goalred;
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
+    bestnode = tempnode; //initialize to silence compile warning
+    // well, sometimes it's not...
+    // if the gamma doesn't match, let's at least fix that...
+    if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
+        // tempgoal already holds the output reversed back to linear
+        vec3 betterguess = tempgoal;
+        // now reverse the input gamma
+        if (sourcegamut.crtemumode == CRT_EMU_FRONT){
+            betterguess = sourcegamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(betterguess, false);
+        }
+        else if (gammamodein == GAMMA_SRGB){
+            betterguess = vec3(togamma(betterguess.x), togamma(betterguess.y), togamma(betterguess.z));
+        }
+        else if (gammamodein == GAMMA_REC2084){
+            betterguess = vec3(rec2084togamma(betterguess.x, hdrsdrmaxnits), rec2084togamma(betterguess.y, hdrsdrmaxnits), rec2084togamma(betterguess.z, hdrsdrmaxnits));
+        }
+        else if (gammamodein == GAMMA_POWER){
+            betterguess = vec3(pow(betterguess.x, 1.0/gammapowin), pow(betterguess.y, 1.0/gammapowin), pow(betterguess.z, 1.0/gammapowin));
+        }
+        int betterguessred = toRGB8nodither(betterguess.x);
+        int betterguessgreen = toRGB8nodither(betterguess.y);
+        int betterguessblue = toRGB8nodither(betterguess.z);
+        tempnode.red = betterguessred;
+        tempnode.green = betterguessgreen;
+        tempnode.blue = betterguessblue;
+    }
     frontier.push_back(tempnode);
-    bestnode = tempnode;
+
 
     //printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
     // for as long as we have something left to check in the frontier, check one
@@ -303,17 +333,30 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
         //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
-        if (testdistance < bestdist){
-            //printf("\t BEST SO FAR\n");
-            isbest = true;
-            bestdist = testdistance;
-            bestnode = examnode;
-            bestdistrgb = ceil(testdistancergb) + 1.5; // inflate the rgb distance so we can wander a bit when deciding which neighbors to check
+        for (int i=0; i<64; i++){
+            if (testdistance < bestdistlist[i]){
+                if (i==0){
+                    isbest = true;
+                    bestnode = examnode;
+                }
+                for (int j=63; j>i; j--){
+                    bestdistlist[j] = bestdistlist[j-1];
+                    bestdistrgblist[j] = bestdistrgblist[j-1];
+                }
+                bestdistlist[i]=testdistance;
+                bestdistrgblist[i]=testdistancergb;
+                break;
+            }
         }
 
         // Are we too far off the best to continue searching this direction?
-        // The last condition is a bit flexible since bestdistrgb is inflated
-        if (!isbest && (testdistance > (bestdist * 1.05)) && (testdistancergb > bestdistrgb)){
+        if (!isbest &&
+                (
+                    ((testdistance > (bestdistlist[0] * 1.5) && (testdistancergb > ceil(bestdistrgblist[0])+3.5)))
+                    ||
+                    ((testdistance > bestdistlist[63]) && (testdistancergb > bestdistrgblist[63]))
+                )
+        ){
             //printf("\tNOT queuing neighbors.\n");
             continue;
         }
@@ -337,9 +380,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         bool redworst = ((deltared > deltagreen) && (deltared > deltablue));
         bool greenworst = ((deltared < deltagreen) && (deltagreen > deltablue));
         bool blueworst = ((deltablue > deltagreen) && (deltared < deltablue));
-        bool redonly = (redworst && ((deltared > deltagreen+2) && (deltared > deltablue+2)));
-        bool greenonly = (greenworst && ((deltared+2 < deltagreen) && (deltagreen > deltablue+2)));
-        bool blueonly = (blueworst && ((deltablue > deltagreen+2) && (deltared+2 < deltablue)));
+        bool redonly = (redworst && (((deltared > deltagreen+3) && (deltared > deltablue+3)) || (deltared > 12)));
+        bool greenonly = (greenworst && (((deltared+3 < deltagreen) && (deltagreen > deltablue+3)) || (deltagreen > 12)));
+        bool blueonly = (blueworst && (((deltablue > deltagreen+3) && (deltared+3 < deltablue)) || (deltablue > 12)));
 
         // if one axis has a much bigger error than the others, go that way and don't bother with other neighbors
         bool onedirection = false;
@@ -613,6 +656,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     return output;
 }
+
 
 vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
     vec3 output;
