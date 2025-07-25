@@ -1,0 +1,17 @@
+Something is wrong here.
+
+Try making a LUT in backwards mode with size 32+ and you'll see some pixels obviously darker than they should be, usually in the blue=0 square.
+
+Try it again and you'll get a different output, with the dark spots in different locations.
+
+I cannot fix it because I cannot find anything that's getting written by the threads that isn't protected by a mutex.
+
+Perhaps there's something somewhere deep in the gamut descriptors that changes while it's running.
+
+Or perhaps the threadpool library is bugged.
+
+Anyway, this doesn't work.
+
+So I'm shelving it.
+
+Probably indefinitely, unless I end up with a ton of unexpected free time.
