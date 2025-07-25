@@ -227,9 +227,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     std::deque<frontiernode> frontier;
     frontiernode bestnode;
-    double bestdistlist[125];
-    double bestdistrgblist[125];
-    for (int i=0; i<125; i++){
+    double bestdistlist[54];
+    double bestdistrgblist[54];
+    for (int i=0; i<54; i++){
         bestdistlist[i] = 1000000000.0; //impossibly big
         bestdistrgblist[i] = 500; //impossibly big
     }
@@ -360,13 +360,13 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
         //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
-        for (int i=0; i<125; i++){
+        for (int i=0; i<54; i++){
             if (testdistance < bestdistlist[i]){
                 if (i==0){
                     isbest = true;
                     bestnode = examnode;
                 }
-                for (int j=124; j>i; j--){
+                for (int j=53; j>i; j--){
                     bestdistlist[j] = bestdistlist[j-1];
                     bestdistrgblist[j] = bestdistrgblist[j-1];
                 }
@@ -379,9 +379,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         // Are we too far off the best to continue searching this direction?
         if (!isbest &&
                 (
-                    ((testdistance > (bestdistlist[0] * 2.0) && (testdistancergb > ceil(bestdistrgblist[0])+5)))
+                    ((testdistance > (bestdistlist[0] * 1.2) && (testdistancergb > ceil(bestdistrgblist[0])+3.5)))
                     ||
-                    ((testdistance > bestdistlist[124]) && (testdistancergb > bestdistrgblist[124]))
+                    ((testdistance > bestdistlist[53]) && (testdistancergb > bestdistrgblist[53]))
                 )
         ){
             //printf("\tNOT queuing neighbors.\n");
