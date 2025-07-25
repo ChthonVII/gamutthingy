@@ -234,6 +234,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
     frontier.push_back(tempnode);
+    bestnode = tempnode;
 
     //printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
     // for as long as we have something left to check in the frontier, check one
@@ -3676,9 +3677,9 @@ int main(int argc, const char **argv){
                         
                         // read bytes from buffer (unless doing LUT)
 
-                        png_byte redin;
-                        png_byte greenin;
-                        png_byte bluein;
+                        png_byte redin = 0;
+                        png_byte greenin = 0;
+                        png_byte bluein = 0;
                         if (!lutgen){
                             redin = buffer[ ((y * width) + x) * 4];
                             greenin = buffer[ (((y * width) + x) * 4) + 1 ];
