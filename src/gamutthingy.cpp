@@ -386,9 +386,9 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         bool redworst = ((deltared > deltagreen) && (deltared > deltablue));
         bool greenworst = ((deltared < deltagreen) && (deltagreen > deltablue));
         bool blueworst = ((deltablue > deltagreen) && (deltared < deltablue));
-        bool redonly = (redworst && ((deltared > deltagreen+2) && (deltared > deltablue+2)));
-        bool greenonly = (greenworst && ((deltared+2 < deltagreen) && (deltagreen > deltablue+2)));
-        bool blueonly = (blueworst && ((deltablue > deltagreen+2) && (deltared+2 < deltablue)));
+        bool redonly = (redworst && (((deltared > deltagreen+3) && (deltared > deltablue+3)) || (deltared > 12)));
+        bool greenonly = (greenworst && (((deltared+3 < deltagreen) && (deltagreen > deltablue+3)) || (deltagreen > 12)));
+        bool blueonly = (blueworst && (((deltablue > deltagreen+3) && (deltared+3 < deltablue)) || (deltablue > 12)));
 
         // if one axis has a much bigger error than the others, go that way and don't bother with other neighbors
         bool onedirection = false;
