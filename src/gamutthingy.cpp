@@ -227,12 +227,8 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     std::deque<frontiernode> frontier;
     frontiernode bestnode;
-    double bestdistlist[54];
-    double bestdistrgblist[54];
-    for (int i=0; i<54; i++){
-        bestdistlist[i] = 1000000000.0; //impossibly big
-        bestdistrgblist[i] = 500; //impossibly big
-    }
+    double bestdistrgb = 500; //impossibly big
+    double bestdist = 1000000000.0; //impossibly big
 
     // clear the visited list
     // this is too big for stack, so it's global
@@ -243,55 +239,8 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     tempnode.red = goalred;
     tempnode.green = goalgreen;
     tempnode.blue = goalblue;
-    bestnode = tempnode; //initialize to silence compile warning
-    /*
-    // well, sometimes it's not...
-    // if the gamma doesn't match, let's at least fix that...
-
-    // Actually, no. Tweaking the guess gives a nice speed up, but causes artifacts in the resulting LUT, presumably because we're getting stuck in local maxima.
-    // So far, every attempt to fix the artifacts just makes more artifacts somewhere else.
-    // So I'm just disabling this.
-    if ((sourcegamut.crtemumode == CRT_EMU_FRONT) || (destgamut.crtemumode == CRT_EMU_BACK) || (gammamodein != gammamodeout)){
-        // tempgoal already holds the output reversed back to linear
-        vec3 betterguess = tempgoal;
-        // now reverse the input gamma
-        if (sourcegamut.crtemumode == CRT_EMU_FRONT){
-            betterguess = sourcegamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(betterguess, false);
-        }
-        else if (gammamodein == GAMMA_SRGB){
-            betterguess = vec3(togamma(betterguess.x), togamma(betterguess.y), togamma(betterguess.z));
-        }
-        else if (gammamodein == GAMMA_REC2084){
-            betterguess = vec3(rec2084togamma(betterguess.x, hdrsdrmaxnits), rec2084togamma(betterguess.y, hdrsdrmaxnits), rec2084togamma(betterguess.z, hdrsdrmaxnits));
-        }
-        else if (gammamodein == GAMMA_POWER){
-            betterguess = vec3(pow(betterguess.x, 1.0/gammapowin), pow(betterguess.y, 1.0/gammapowin), pow(betterguess.z, 1.0/gammapowin));
-        }
-        int betterguessred = toRGB8nodither(betterguess.x);
-        int betterguessgreen = toRGB8nodither(betterguess.y);
-        int betterguessblue = toRGB8nodither(betterguess.z);
-        tempnode.red = betterguessred;
-        tempnode.green = betterguessgreen;
-        tempnode.blue = betterguessblue;
-    }
-    // move the initial guess away from the edges so we're less likely to get stuck on a local maximum in a convex spot
-    // but not if the guess has low chroma, since we don't want to mess with black and white
-    unsigned int maxguess = (tempnode.red > tempnode.green) ? tempnode.red : tempnode.green;
-    maxguess = (maxguess > tempnode.blue) ? maxguess : tempnode.blue;
-    unsigned int minguess = (tempnode.red < tempnode.green) ? tempnode.red : tempnode.green;
-    minguess = (minguess < tempnode.blue) ? minguess : tempnode.blue;
-    unsigned int chroma = maxguess - minguess;
-    if (chroma > 30){
-        tempnode.red = (tempnode.red > 245) ? 245 : tempnode.red;
-        tempnode.green = (tempnode.green > 245) ? 245 : tempnode.green;
-        tempnode.blue = (tempnode.blue > 245) ? 245 : tempnode.blue;
-        tempnode.red = (tempnode.red < 10) ? 10 : tempnode.red;
-        tempnode.green = (tempnode.green < 10) ? 10 : tempnode.green;
-        tempnode.blue = (tempnode.blue < 10) ? 10 : tempnode.blue;
-    }
-    */
     frontier.push_back(tempnode);
-
+    bestnode = tempnode; // initialize to silence compilar warning
 
     //printf("\nstarting search. goal is %i, %i, %i, (Jzazbz: %f, %f, %f)\n", goalred, goalgreen, goalblue, goalJzazbz.x, goalJzazbz.y, goalJzazbz.z);
     // for as long as we have something left to check in the frontier, check one
@@ -360,30 +309,17 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         double testdistance = sqrt((deltaJz * deltaJz) + (deltaaz * deltaaz) + (deltabz * deltabz));
         //printf("\tJzazbz is %f, %f, %f, off by %f\n", testresultJzazbz.x, testresultJzazbz.y, testresultJzazbz.z, testdistance);
         bool isbest = false;
-        for (int i=0; i<54; i++){
-            if (testdistance < bestdistlist[i]){
-                if (i==0){
-                    isbest = true;
-                    bestnode = examnode;
-                }
-                for (int j=53; j>i; j--){
-                    bestdistlist[j] = bestdistlist[j-1];
-                    bestdistrgblist[j] = bestdistrgblist[j-1];
-                }
-                bestdistlist[i]=testdistance;
-                bestdistrgblist[i]=testdistancergb;
-                break;
-            }
+        if (testdistance < bestdist){
+            //printf("\t BEST SO FAR\n");
+            isbest = true;
+            bestdist = testdistance;
+            bestnode = examnode;
+            bestdistrgb = ceil(testdistancergb) + 1.5; // inflate the rgb distance so we can wander a bit when deciding which neighbors to check
         }
 
         // Are we too far off the best to continue searching this direction?
-        if (!isbest &&
-                (
-                    ((testdistance > (bestdistlist[0] * 1.2) && (testdistancergb > ceil(bestdistrgblist[0])+3.5)))
-                    ||
-                    ((testdistance > bestdistlist[53]) && (testdistancergb > bestdistrgblist[53]))
-                )
-        ){
+        // The last condition is a bit flexible since bestdistrgb is inflated
+        if (!isbest && (testdistance > (bestdist * 1.05)) && (testdistancergb > bestdistrgb)){
             //printf("\tNOT queuing neighbors.\n");
             continue;
         }
