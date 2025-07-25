@@ -39,6 +39,7 @@ typedef struct memo{
 memo memos[256][256][256];
 
 std::mutex memomtx;
+std::mutex datamtx;
 std::mutex printfmtx;
 std::mutex progressbarmtx;
 
@@ -642,10 +643,11 @@ void loopGuts(int x, int y, int width, int height, bool lutgen, png_bytep buffer
     png_byte greenin = 0;
     png_byte bluein = 0;
     if (!lutgen){
-        // we don't need a mutex here because no other instance will write at these array indices
+        datamtx.lock();
         redin = buffer[ ((y * width) + x) * 4];
         greenin = buffer[ (((y * width) + x) * 4) + 1 ];
         bluein = buffer[ (((y * width) + x) * 4) + 2 ];
+        datamtx.unlock();
     }
 
     vec3 outcolor;
@@ -737,7 +739,7 @@ void loopGuts(int x, int y, int width, int height, bool lutgen, png_bytep buffer
     }
 
     // save back to buffer
-    // we don't need a mutex here because no other instance will read or write at these array indices
+    datamtx.lock();
     buffer[ ((y * width) + x) * 4] = redout;
     buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
     buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
@@ -745,6 +747,9 @@ void loopGuts(int x, int y, int width, int height, bool lutgen, png_bytep buffer
     if (lutgen){
         buffer[ (((y * width) + x) * 4) + 3 ] = 255;
     }
+    datamtx.unlock();
+
+    return;
 
 } // end loopGuts()
 
