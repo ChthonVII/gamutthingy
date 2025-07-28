@@ -701,7 +701,7 @@ vec3 gamutdescriptor::linearRGBtoXYZ(vec3 input){
 }
 
 vec3 gamutdescriptor::XYZtoLinearRGB(vec3 input){
-    if (needschromaticadapt &!forcenoadapt){
+    if (needschromaticadapt && !forcenoadapt){
         return multMatrixByColor(inverseMatrixNPMadaptToD65, input);
     }
     return multMatrixByColor(inverseMatrixNPM, input);
@@ -844,7 +844,7 @@ void gamutdescriptor::WarpBoundaries(){
                 else {
                         double newceilrotation = (HuePerStep * (double)(i + 1));
                         double newceilrotationpercent = newceilrotation / fmaxrotation;
-                        double scalefactor;
+                        double scalefactor = 1.0;
                         if (spiralcarismascalemode == SC_EXPONENTIAL){
                             inversepowermap(spiralcarismafloor, spiralcarismaceiling,newceilrotationpercent, spiralcharismaexponent);
                         }
@@ -919,7 +919,7 @@ void gamutdescriptor::WarpBoundaries(){
 // TODO: This function seems unused. Remove?
 // TODO: forcenoadapt case may be wrong. needs more thought
 double gamutdescriptor::GetLuminosity(vec3 input){
-    if (needschromaticadapt & !forcenoadapt){
+    if (needschromaticadapt && !forcenoadapt){
         return (input.x * matrixNPMadaptToD65[1][0]) + (input.y * matrixNPMadaptToD65[1][1]) + (input.z * matrixNPMadaptToD65[1][2]);
     }
     else {
@@ -1659,7 +1659,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     // find the highest chroma we've sampled so far
     int pointcount = data[huestep].size();
     double biggestchroma = 0.0;
-    double lumaforbiggestchroma;
+    double lumaforbiggestchroma = 0.0;
     for (int i=0; i<pointcount; i++){
         if (data[huestep][i].x > biggestchroma){
             biggestchroma = data[huestep][i].x;
@@ -1957,7 +1957,7 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
     // if we made it this far, we've probably just missed a boundary node to the outside due to a floating point error
     // so just take the intersection that falls closest to a node
     // (this should be super rare, so we're doing a third loop rather than slow down the first two.)
-    float bestdist = DBL_MAX;
+    double bestdist = DBL_MAX;
     vec2 bestpoint = vec2(0,0);
     vec2 bestnode = vec2(0,0);
     foundcusp = false;
@@ -2622,7 +2622,7 @@ double gamutdescriptor::FindHueRotation(vec3 input){
     }
     
     // otherwise use our mapping function
-    double scalefactor;
+    double scalefactor = 1.0;
     if (spiralcarismascalemode == SC_EXPONENTIAL){
         scalefactor = powermap(spiralcarismafloor, spiralcarismaceiling, chromapercent, spiralcharismaexponent);
     }
@@ -2699,7 +2699,7 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
     // for VP, it depends on the step
     //      the first step is black
     //      the second step is the input's luma (as modified by step 1)
-    double maptoluma;
+    double maptoluma = 0.0;
     int boundtype = BOUND_NORMAL;
     bool skip = false;
     if (mapdirection == MAP_GCUSP){

@@ -39,8 +39,8 @@ public:
 class warprange{
 public:
     int index;
-    float floor;
-    float ceiling;
+    double floor;
+    double ceiling;
 };
 
 class gamutdescriptor{
