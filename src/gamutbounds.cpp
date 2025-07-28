@@ -7,7 +7,11 @@
 #include "jzazbz.h"
 #include "colormisc.h"
 
+#ifdef _WIN32
+#include <cmath>
+#else
 #include <math.h>
+#endif
 #include <cfloat>
 #include <numbers>
 #include <cstring> //for memcpy
@@ -1879,7 +1883,14 @@ vec2 gamutdescriptor::getBoundary2D(vec2 color, double focalpointluma, int huein
 
     vec2 focalpoint = vec2(0.0, focalpointluma);
     int linecount = data[hueindex].size() - 1;
+#ifdef _WIN32
+    // Visual Studio isn't C17 compliant and doesn't support variable length arrays
+    // This should be big enough we dont' run out of space.
+    // And the loops are all bounded by linecount, so the emmpty spots in the array shouldn't matter.
+    vec2 intersections[(LUMA_STEPS * CHROMA_STEPS) + 20];
+#else
     vec2 intersections[linecount];
+#endif
 
     // Note: We'll get false positives if mapping towards white.
     // If we ever want to do that, we'll need to selectively flip the loop order.

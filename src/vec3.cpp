@@ -2,7 +2,12 @@
 #include "constants.h"
 
 #include <stdio.h>
+#ifdef _WIN32
+#include <cmath>
+#else
 #include <math.h>
+#endif
+
 #include <numbers>
 
 

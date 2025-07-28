@@ -402,9 +402,16 @@ Linux:
 - Install libpng-dev >= 1.6.0
 - `make`
 
-Windows:
-- Either install libpng >= 1.6.0 where your linker knows to find it, or edit the #includes to use a local copy.
-- TODO make a visual studio project file
+Windows (Visual Studio):
+- Download and build 64-bit static libraries for zlib and libpng.
+     - Since the official libpng source does not include 64-bit project files for Visual Studio, I recommend using [libpng-win](https://github.com/apotocki/libpng-win)'s project files.
+     - Replace the zlib and libpng sources in libpng-win with the latest versions. (Works without any changes as of zlib=1.2.11; libpng=1.6.50.)
+- Open gamutthingy.sln in Visual Studio.
+- Adjust project properties to find zlib and libpng:
+     - Edit "Linker" > "General" > "Additional Library Directories" to point to the directory (or directories) containing the .lib files for zlib and libpng.
+     - Edit "Link" > "Input" > "Additional Dependencies" to include the file names of the .lib files for zlib and libpng (if they are named something other than `zlib.lib` abnd `libpng.lib`).
+     - Edit "C/C++" > "General" > "Additional Include Directories" to point to the directory containing `png.h`. (You probably need to change this.)
+- Set to "Release" "x64" and build.
 
 
 TODO: cite NES stuff, cite CRT color correction, cite poyton PAL gamma, CRT gamma section, add res tof modulator chips, explain spiracl charisma, explain vprc, cite gamut sources
