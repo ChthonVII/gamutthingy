@@ -107,6 +107,13 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
         memcpy(overallMatrix, newoverall, 9 * sizeof(double));
     }
 
+    // screen barf
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("CRT matrix incorporating demodulation (color correction), hue knob, and saturation knob:\n");
+        print3x3matrix(overallMatrix);
+        printf("\n----------\n");
+    }
+
     output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
 
     return output;
@@ -634,7 +641,7 @@ bool crtdescriptor::InitializeDemodulator(){
 
     // screen barf
     if (verbosity >= VERBOSITY_SLIGHT){
-        printf("CRT matrix incorporating demodulation (color correction), hue knob, and saturation knob:\n");
+        printf("CRT demodulation matrix (color correction):\n");
         print3x3matrix(demodulatorMatrix);
         printf("\n----------\n");
     }
