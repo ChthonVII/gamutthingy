@@ -427,6 +427,7 @@ const double gamutpoints[20][3][3] = {
 
     // Sony PVM 20M2U (~1996) measured by Keith Raney
     // https://github.com/danmons/colour_matrix_adaptations/blob/main/csv/inputs.csv
+    // It appears this model used a CXA1739S demodulator. Unfortunately, I can't find a datasheet for it. :(
     {
         {0.63, 0.345, 0.025}, //red
         {0.285, 0.605, 0.11}, //green
