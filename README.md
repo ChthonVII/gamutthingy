@@ -96,9 +96,9 @@ Four general modes of operation:
      - `CXA1465AS` Used in U.S. Sony Trinitron ~1993-1995.
      - `CXA1870S_JP` Used in Japan Sony Trinitron ~1996.
      - `CXA1870S_US` Used in U.S. Sony Trinitron ~1996.
-     - `CXA2060BS_JP` Likely used in Japan Sony Trinitron ~1997.
-     - `CXA2060BS_US` Likely used in U.S. Sony Trinitron ~1997.
-     - `CXA2060BS_PAL` Likely used in Europe Sony Trinitron ~1997.
+     - `CXA2060BS_JP` Used in Japan Sony Trinitron PVM ~1998.
+     - `CXA2060BS_US` Used in U.S. Sony Trinitron PVM ~1998.
+     - `CXA2060BS_PAL` Used in Europe Sony Trinitron PVM ~1998.
      - `CXA2025AS_JP` Used in Japan Sony Trinitron ~1997.
      - `CXA2025AS_US` Used in U.S. Sony Trinitron ~1997.
      - `CXA1213AS` Probably used in Sony Trinitron ~1992. Unclear if this chip was meant for Japan, U.S., or both.

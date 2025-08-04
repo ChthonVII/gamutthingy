@@ -676,21 +676,21 @@ const double demodulatorinfo[15][2][3] = {
     // or Sony might have changed phosphors at some point -- I don't know.
     
     // CXA2060BS (JP mode)
-    // Used in Sony Trinitron ~??? (probably around 1997)
+    // Used in Sony Trinitron PVM 1998
     {
         {95, 236, 0}, // angles (degrees)
         {0.78, 0.33, 1.0} // gains
     },
     
     // CXA2060BS (US mode)
-    // Used in Sony Trinitron ~??? (probably around 1997)
+    // Used in Sony Trinitron PVM 1998
     {
         {102, 236, 0}, // angles (degrees)
         {0.78, 0.3, 1.0} // gains
     },
     
     // CXA2060BS (PAL mode)
-    // Used in Sony Trinitron ~??? (probably around 1997)
+    // Used in Sony Trinitron PVM 1998
     {
         {90, 227, 0}, // angles (degrees)
         {Vupscale/Uupscale, 0.34, 1.0} // gains
