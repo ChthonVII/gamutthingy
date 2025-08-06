@@ -565,7 +565,7 @@ vec3 xycoordfromfromCCT(double cct, int locus, double mpcd, int mpcdtype){
         // (c) The MacAdams version gives a result for 9300+27mpcd that is pretty close to the defined 0.281, 0.311.
         // 9300+27mpcd was defined using Judd-space MPCD according to
         // Development of the White-Standard Apparatus for Color Cathode-ray Tubes" by Yoshinobu Nayatani, Shoichi Hitani, Kyosuke Furukawa, Yutaka Kurioka and Isamu Ueda, Television, vol 24, No 2, p116 (1970)
-        double mpcdsize;
+        double mpcdsize = 0.0;
         switch (mpcdtype){
             case MPCD_CIE:
                 mpcdsize = 0.0004;
