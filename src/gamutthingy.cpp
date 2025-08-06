@@ -2521,6 +2521,10 @@ int main(int argc, const char **argv){
             printf("\nForcing dither to false because nespalgen is true.\n");
             dither = false;
         }
+        if (backwardsmode && dither){
+            printf("\nForcing dither to false because backwards is true.\n");
+            dither = false;
+        }
     }
     else{
         if (!incolorset){
