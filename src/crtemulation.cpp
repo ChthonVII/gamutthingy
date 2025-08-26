@@ -104,6 +104,21 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
         // ... might need another parameter to pick which happens first...)
         double newoverall[3][3];
         mult3x3Matrices(overallMatrix, saturationmatrix, newoverall);
+        // normalize
+        double redsum = newoverall[0][0] + newoverall[0][1] + newoverall[0][2];
+        double greensum = newoverall[1][0] + newoverall[1][1] + newoverall[1][2];
+        double bluesum = newoverall[2][0] + newoverall[2][1] + newoverall[2][2];
+
+        newoverall[0][0] /= redsum;
+        newoverall[0][1] /= redsum;
+        newoverall[0][2] /= redsum;
+        newoverall[1][0] /= greensum;
+        newoverall[1][1] /= greensum;
+        newoverall[1][2] /= greensum;
+        newoverall[2][0] /= bluesum;
+        newoverall[2][1] /= bluesum;
+        newoverall[2][2] /= bluesum;
+
         memcpy(overallMatrix, newoverall, 9 * sizeof(double));
     }
 
@@ -641,7 +656,7 @@ bool crtdescriptor::InitializeDemodulator(){
 
     // screen barf
     if (verbosity >= VERBOSITY_SLIGHT){
-        printf("CRT demodulation matrix (color correction):\n");
+        printf("CRT matrix incorporating demodulation (color correction) and hue knob:\n");
         print3x3matrix(demodulatorMatrix);
         printf("\n----------\n");
     }
