@@ -131,6 +131,13 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
 
     output = Invert3x3Matrix(overallMatrix,  inverseOverallMatrix);
 
+    // screen barf
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("Inverse of CRT matrix incorporating demodulation (color correction), hue knob, and saturation knob:\n");
+        print3x3matrix(inverseOverallMatrix);
+        printf("\n----------\n");
+    }
+
     return output;
 }
 
