@@ -286,9 +286,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         // evaluate the current color
         vec3 testcolor;
 
-        testcolor.x = examnode.red/255.0;
-        testcolor.y = examnode.green/255.0;
-        testcolor.z = examnode.blue/255.0;
+        //testcolor.x = examnode.red/255.0;
+        //testcolor.y = examnode.green/255.0;
+        //testcolor.z = examnode.blue/255.0;
+        testcolor.x = BetterDAC(examnode.red, 256);
+        testcolor.y = BetterDAC(examnode.green, 256);
+        testcolor.z = BetterDAC(examnode.blue, 256);
 
         vec3 testtresult = processcolor(testcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
 
@@ -652,7 +655,8 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     // bestnode should now contain the input that yields the result closest to the goal output
     // convert to double so we can have same return type as processcolor()
-    vec3 output = vec3(bestnode.red / 255.0, bestnode.green / 255.0, bestnode.blue / 255.0);
+    //vec3 output = vec3(bestnode.red / 255.0, bestnode.green / 255.0, bestnode.blue / 255.0);
+    vec3 output = vec3(BetterDAC(bestnode.red, 256), BetterDAC(bestnode.green, 256), BetterDAC(bestnode.blue, 256));
 
     return output;
 }
@@ -2551,9 +2555,12 @@ int main(int argc, const char **argv){
             printf("Invalid input color. Format is  \"0xRRGGBB\" a 0x-prefixed hexadecimal representation of a RGB8 pixel value.\n");
             return ERROR_BAD_PARAM_INVALID_COLOR;
         }
-        inputcolor.x = (input >> 16) / 255.0;
-        inputcolor.y = ((input & 0x0000FF00) >> 8) / 255.0;
-        inputcolor.z = (input & 0x000000FF) / 255.0;
+        //inputcolor.x = (input >> 16) / 255.0;
+        //inputcolor.y = ((input & 0x0000FF00) >> 8) / 255.0;
+        //inputcolor.z = (input & 0x000000FF) / 255.0;
+        inputcolor.x = BetterDAC(input >> 16, 256);
+        inputcolor.y = BetterDAC((input & 0x0000FF00) >> 8, 256);
+        inputcolor.z = BetterDAC(input & 0x000000FF, 256);
     }
 
     if (crtclamphigh < 1.0){
@@ -3747,9 +3754,16 @@ int main(int argc, const char **argv){
                             double bluevalue;
 
                             if (lutgen){
+                                // In this one place ONLY, use a "left of bin" DAC so that interpolation will be easier
+                                // (When stored values are derived from the floor of each bin, relative distance between indices is proportional to relative distance between stored values)
                                 redvalue = (double)(x % lutsize) / ((double)(lutsize - 1));
                                 greenvalue = (double)y / ((double)(lutsize - 1));
                                 bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
+
+                                // In this place ONLY, don't use this DAC
+                                //redvalue = BetterDAC(x % lutsize, lutsize);
+                                //greenvalue = BetterDAC(y, lutsize);
+                                //bluevalue = BetterDAC(x / lutsize, lutsize); // integer math implicitly floors x/ lutsize
 
                                 // expanded intermediate LUT uses range specified by crt clamping parameters
                                 if (lutmode == LUTMODE_POSTCC){
@@ -3773,9 +3787,9 @@ int main(int argc, const char **argv){
                             }
                             else {
                                 // convert to double
-                                redvalue = redin/255.0;
-                                greenvalue = greenin/255.0;
-                                bluevalue = bluein/255.0;
+                                redvalue = BetterDAC(redin, 256);
+                                greenvalue = BetterDAC(greenin, 256);
+                                bluevalue = BetterDAC(bluein, 256);
                                 // don't touch alpha value
                             }
 

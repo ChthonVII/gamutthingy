@@ -1119,9 +1119,17 @@ bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
     // Rule out cases where we could not have clipped to reach the input in the first place
     // In order to avoid gamut extrusions that are infinitely thin,
     // Treat anything that quantizes to the clamping value in RGB8 as potentially clamped
-    const double halfstep = 1.0/510.0;
-    const double highthreshhold = floor((attachedCRT->rgbclamphighlevel * 255.0) + 0.5)/255.0 - halfstep;
-    const double lowthreshhold = ceil((attachedCRT->rgbclamplowlevel * 255.0) - 0.5)/255.0 + halfstep;
+    //const double halfstep = 1.0/510.0;
+    //const double highthreshhold = floor((attachedCRT->rgbclamphighlevel * 255.0) + 0.5)/255.0 - halfstep;
+    //const double lowthreshhold = ceil((attachedCRT->rgbclamplowlevel * 255.0) - 0.5)/255.0 + halfstep;
+
+    // lowest value with same quantization as rgbclamphighlevel
+    const double highthreshhold = floor(attachedCRT->rgbclamphighlevel * 256.0) / 256.0;
+    // lowest value with +1 higher quantization than rgbclamplowlevel (~= highest value with same quantization)
+    // (Below we use >= for high threshhold but < for low threshhold)
+    const double lowthreshhold = ceil(attachedCRT->rgbclamplowlevel * 256.0) / 256.0;
+
+
     bool redcliphigh = false;
     bool redcliplow = false;
     bool greencliphigh = false;

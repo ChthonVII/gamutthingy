@@ -40,7 +40,8 @@ png_byte quasirandomdither(double input, int x, int y){
         dither = 2.0 - (2.0 * dither);
     }
     // if we ever get exactly 0.5, don't touch it; otherwise we might end up adding 1.0 to a black that means transparency.
-    int output = (int)((input * 255.0) + dither);
+    //int output = (int)((input * 255.0) + dither);
+    int output = (int)((input * 256.0) + dither);
     if (output > 255) output = 255;
     if (output < 0) output = 0;
     return (png_byte)output;
@@ -48,9 +49,11 @@ png_byte quasirandomdither(double input, int x, int y){
 
 // return to RGB8 with just rounding
 png_byte toRGB8nodither(double input){
-    int output = (int)((input * 255.0) + 0.5);
-    if (output > 255) output = 255;
-    if (output < 0) output = 0;
+    //int output = (int)((input * 255.0) + 0.5);
+    //if (output > 255) output = 255;
+    //if (output < 0) output = 0;
+    //return (png_byte)output;
+    int output = BetterADC(input, 256);
     return (png_byte)output;
 }
 
@@ -850,4 +853,39 @@ vec2 juddmacadamuvtoxy(vec2 input){
     double y = (input.y * d) / (e - input.y -((c * ((e * input.x) - (input.y * b))) / a));
     double x = y * (((e * input.x) - (b * input.y))/(a * input.y));
     return vec2(x, y);
+}
+
+// Convert integer value 0 through (steps-1) to floating point value 0.0 to 1.0
+// Uses "middle of the bin," plus a parabolic fudge factor to pull 0 to 0.0 and (steps-1) to 1.0,
+// with less impact on values in the middle of the scale than just dividing by (steps-1).
+// (The common practice of dividing by (steps-1) is equivalent to using a linear fudge factor.)
+double BetterDAC(unsigned int input, unsigned int steps){
+    double middleofbin = (((double)input) + 0.5) / (double)steps;
+    double fudge = ((((double)input)/(double)(steps - 1)) - 0.5) / 0.5;
+    double sqfudge = fudge * fudge;
+    if (fudge < 0.0){
+        sqfudge *= -1.0;
+    }
+    double finalfudge = sqfudge * (1.0 / (double)steps) * 0.5;
+    double output = middleofbin + finalfudge;
+    if (output < 0.0){
+        output= 0.0;
+    }
+    if (output > 1.0){
+        output = 1.0;
+    }
+    return output;
+}
+
+// Convert floating point value 0.0 to 1.0 to integer value 0 through (steps-1)
+// Inverts BetterDAC()
+unsigned int BetterADC(double input, unsigned int steps){
+    unsigned int output = (int)(input * (double)steps);
+    if (output > steps - 1){
+        output = steps - 1;
+    }
+    if (output < 0){
+        output = 0;
+    }
+    return output;
 }

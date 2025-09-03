@@ -78,4 +78,13 @@ vec2 juddxytoxy(vec2 input);
 vec2 xytojuddmacadamuv(vec2 input);
 vec2 juddmacadamuvtoxy(vec2 input);
 
+// Convert integer value 0 through (steps-1) to floating point value 0.0 to 1.0
+// Uses "middle of the bin," plus a parabolic fudge factor to pull 0 to 0.0 and (steps-1) to 1.0,
+// with less impact on values in the middle of the scale than just dividing by (steps-1).
+// (The common practice of dividing by (steps-1) is equivalent to using a linear fudge factor.)
+double BetterDAC(unsigned int input, unsigned int steps);
+// Convert floating point value 0.0 to 1.0 to integer value 0 through (steps-1)
+// Inverts BetterDAC()
+unsigned int BetterADC(double input, unsigned int steps);
+
 #endif
