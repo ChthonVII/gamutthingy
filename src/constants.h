@@ -776,8 +776,9 @@ const double demodulatorinfo[16][2][3] = {
     // used ~1989
     // used by Mitsubishi? (https://forums.nesdev.org/viewtopic.php?t=26521)
     // unclear if intended for US or US+Japan
+    // datasheet says angles are 105, 240, 0, but tint default is -4
     {
-        {105, 240, 0}, // angles (degrees)
+        {101, 236, -4}, // angles (degrees)
         {0.9, 0.3, 1.0} // gains
     }
 
