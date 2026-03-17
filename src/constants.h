@@ -603,8 +603,9 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_COLORTRAK 12
 #define CRT_DEMODULATOR_TA7644BP 13
 #define CRT_DEMODULATOR_TA7644BP_MEASURED 14
+#define CRT_DEMODULATOR_LA7655N 15
 
-const std::string demodulatornames[15] = {
+const std::string demodulatornames[16] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -620,9 +621,10 @@ const std::string demodulatornames[15] = {
     "Unknown Chip - RCA ColorTrak Remote (US)",
     "TA7644BP (US)"
     "TA7644BP (US) (measured)"
+    "LA7655N"
 };
 
-const double demodulatorinfo[15][2][3] = {
+const double demodulatorinfo[16][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -768,6 +770,15 @@ const double demodulatorinfo[15][2][3] = {
     {
         {108.9, 243.3, 0}, // angles (degrees)
         {0.996, 0.351, 1.0} // gains
+    },
+
+    // LA7655N
+    // used ~1989
+    // used by Mitsubishi? (https://forums.nesdev.org/viewtopic.php?t=26521)
+    // unclear if intended for US or US+Japan
+    {
+        {105, 240, 0}, // angles (degrees)
+        {0.9, 0.3, 1.0} // gains
     }
 
 };
