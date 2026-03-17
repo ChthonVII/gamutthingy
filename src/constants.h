@@ -263,28 +263,30 @@ const double whitepoints[20][3] = {
 #define GAMUT_EBU 3
 #define GAMUT_REC2020 4
 #define GAMUT_P22_AVERAGE 5
-#define GAMUT_P22_TRINITRON 6
-#define GAMUT_P22_EBUISH 7
-#define GAMUT_P22_HITACHI 8
-#define GAMUT_P22_NEC_MULTISYNC_C400 9
-#define GAMUT_P22_KDS_VS19 10
-#define GAMUT_DELL 11
-#define GAMUT_JAPAN_SPEC 12
-#define GAMUT_P22_TRINITRON_RANEY1 13
-#define GAMUT_P22_TRINITRON_RANEY2 14
-#define GAMUT_P22_TRINITRON_MIXANDMATCH 15
-#define GAMUT_P22_TRINITRON_BOHNSACK 16
-#define GAMUT_P22_APPLE_MULTISCAN1705 17
-#define GAMUT_P22_COLORTRAK 18
-#define GAMUT_P22_BLACKSTRIPE 19
+#define GAMUT_P22_AVERAGE_GOLZ 6
+#define GAMUT_P22_TRINITRON 7
+#define GAMUT_P22_EBUISH 8
+#define GAMUT_P22_HITACHI 9
+#define GAMUT_P22_NEC_MULTISYNC_C400 10
+#define GAMUT_P22_KDS_VS19 11
+#define GAMUT_DELL 12
+#define GAMUT_JAPAN_SPEC 13
+#define GAMUT_P22_TRINITRON_RANEY1 14
+#define GAMUT_P22_TRINITRON_RANEY2 15
+#define GAMUT_P22_TRINITRON_MIXANDMATCH 16
+#define GAMUT_P22_TRINITRON_BOHNSACK 17
+#define GAMUT_P22_APPLE_MULTISCAN1705 18
+#define GAMUT_P22_COLORTRAK 19
+#define GAMUT_P22_BLACKSTRIPE 20
 
-const std::string gamutnames[20] = {
+const std::string gamutnames[21] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
     "EBU (470bg) (specification)",
     "Rec2020 (specification)",
     "P22 phosphors, Average",
+    "P22 phosphors, Average, Golz",
     "P22 phosphors, Trinitron",
     "P22 phosphors, EBU-ish",
     "P22 phosphors, Hitachi",
@@ -301,7 +303,7 @@ const std::string gamutnames[20] = {
     "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
 };
 
-const double gamutpoints[20][3][3] = {
+const double gamutpoints[21][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -342,6 +344,14 @@ const double gamutpoints[20][3][3] = {
         {0.625, 0.350, 0.025}, //red
         {0.280, 0.605, 0.115}, //green
         {0.152, 0.062, 0.786} //blue
+    },
+    // P22_average_golz
+    // The average of "a haphazard collection of 15 color monitors of different models from eight different manufacturers (Tek-tronix, Mitsubishi, Nanao/Eizo, Sony, Apple, NEC, Nokia, and Micron Electronics)."
+    // https://www.uni-kiel.de/psychologie/golz/publications/2003a/Golz_MacLeod_JosaA_2003_20_769-781.pdf
+    {
+        {0.620, 0.342, 0.038}, //red
+        {0.288, 0.597, 0.115}, //green
+        {0.153, 0.070, 0.777} //blue
     },
     // P22_trinitron
     // NTSC-J with Trinitron P22 phosphors

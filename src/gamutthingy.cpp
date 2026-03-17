@@ -988,7 +988,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[21] = {
+    const paramvalue gamutlist[22] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -1012,6 +1012,10 @@ int main(int argc, const char **argv){
         {
             "P22_average",
             GAMUT_P22_AVERAGE
+        },
+        {
+            "P22_average_golz",
+            GAMUT_P22_AVERAGE_GOLZ
         },
         {
             "P22_trinitron",
