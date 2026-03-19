@@ -7,6 +7,8 @@
 #include <deque>
 #include <iomanip>
 #include <numeric>
+#include <thread>
+#include <mutex>
 
 // Include either installed libpng or local copy. Linux should have libpng-dev installed; Windows users can figure stuff out.
 //#include "../../png.h"
@@ -37,7 +39,21 @@ typedef struct memo{
 memo memos[256][256][256];
 
 // visited list for backwards search
-bool inversesearchvisitlist[256][256][256];
+// we need 8 copies for multithreading
+bool inversesearchvisitlist0[256][256][256];
+bool inversesearchvisitlist1[256][256][256];
+bool inversesearchvisitlist2[256][256][256];
+bool inversesearchvisitlist3[256][256][256];
+bool inversesearchvisitlist4[256][256][256];
+bool inversesearchvisitlist5[256][256][256];
+bool inversesearchvisitlist6[256][256][256];
+bool inversesearchvisitlist7[256][256][256];
+
+std::mutex printfmtx;
+std::mutex coordsmtx;
+std::mutex buffermtx;
+std::mutex memomtx;
+std::mutex descriptormtx;
 
 // Do the full conversion process on a given color
 vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
@@ -187,7 +203,7 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gamma
 // Search backwards for an input that yields the chosen output when run through processcolor(),
 // Or closest possible if none exists.
 // WARNING: VERY SLOW!!!
-vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
+vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool inversesearchvisitlist[256][256][256]){
 
     typedef struct frontiernode{
         unsigned int red;
@@ -230,7 +246,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 
     // clear the visited list
     // this is too big for stack, so it's global
-    memset(&inversesearchvisitlist, 0, sizeof(bool) * 256 * 256 * 256);
+    memset(&inversesearchvisitlist[0][0][0], 0, sizeof(bool) * 256 * 256 * 256);
 
     // start with the goal as the first guess, since it's probably close to the right answer
     frontiernode tempnode;
@@ -662,10 +678,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
 }
 
 
-vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode){
+vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits, bool backwardsmode, bool inversesearchvisitlist[256][256][256]){
     vec3 output;
     if (backwardsmode){
-        output = inverseprocesscolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
+        output = inverseprocesscolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits, inversesearchvisitlist);
     }
     else {
         output = processcolor(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, nesmode, hdrsdrmaxnits);
@@ -673,6 +689,284 @@ vec3 processcolorwrapper(vec3 inputcolor, int gammamodein, double gammapowin, in
     return output;
 }
 
+void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode, bool inversesearchvisitlist[256][256][256]){
+
+    //printfmtx.lock();
+    //printf("Thread %i does pixel %i, %i.\n", threadno, x, y);
+    //fflush(stdout);
+    //printfmtx.unlock();
+
+    png_byte redin = 0;
+    png_byte greenin = 0;
+    png_byte bluein = 0;
+    if (!lutgen){
+        buffermtx.lock();
+        redin = buffer[ ((y * width) + x) * 4];
+        greenin = buffer[ (((y * width) + x) * 4) + 1 ];
+        bluein = buffer[ (((y * width) + x) * 4) + 2 ];
+        buffermtx.unlock();
+
+        printfmtx.lock();
+        printf("Input %i, %i, %i.\n", redin, greenin, bluein);
+        fflush(stdout);
+        printfmtx.unlock();
+
+    }
+
+    vec3 outcolor;
+
+    // if we've already processed the same input color, just recall the memo
+    bool havememo = false;
+    if (!lutgen){
+        memomtx.lock();
+        if (memos[redin][greenin][bluein].known){
+            outcolor = memos[redin][greenin][bluein].data;
+            havememo = true;
+
+            //printfmtx.lock();
+            //printf("Memo found. Outcolor is %f, %f, %f.\n", outcolor.x, outcolor.y, outcolor.z);
+            //fflush(stdout);
+            //printfmtx.unlock();
+
+        }
+        memomtx.unlock();
+    }
+    if (!havememo){
+
+        double redvalue;
+        double greenvalue;
+        double bluevalue;
+
+        if (lutgen){
+            // In this one place ONLY, use a "left of bin" DAC so that interpolation will be easier
+            // (When stored values are derived from the floor of each bin, relative distance between indices is proportional to relative distance between stored values)
+            redvalue = (double)(x % lutsize) / ((double)(lutsize - 1));
+            greenvalue = (double)y / ((double)(lutsize - 1));
+            bluevalue = (double)(x / lutsize) / ((double)(lutsize - 1));
+
+            // In this place ONLY, don't use this DAC
+            //redvalue = BetterDAC(x % lutsize, lutsize);
+            //greenvalue = BetterDAC(y, lutsize);
+            //bluevalue = BetterDAC(x / lutsize, lutsize); // integer math implicitly floors x/ lutsize
+
+            // expanded intermediate LUT uses range specified by crt clamping parameters
+            if (lutmode == LUTMODE_POSTCC){
+                double scaleby = crtclamphigh - crtclamplow;
+                redvalue = (redvalue * scaleby) + crtclamplow;
+                greenvalue = (greenvalue * scaleby) + crtclamplow;
+                bluevalue = (bluevalue * scaleby) + crtclamplow;
+            }
+            // LUTMODE_POSTGAMMA_UNLIMITED ranges from zero light to maximum output value
+            else if (lutmode == LUTMODE_POSTGAMMA_UNLIMITED){
+                redvalue *= lpguscale;
+                greenvalue *= lpguscale;
+                bluevalue *= lpguscale;
+                if (!crtsuperblacks){
+                    // crush the superblacks we added earlier so that the LUT indices include the superblack range, but they map to outputs without the super blacks
+                    redvalue = sourcegamut.attachedCRT->UnSuperBlack(redvalue);
+                    greenvalue = sourcegamut.attachedCRT->UnSuperBlack(greenvalue);
+                    bluevalue = sourcegamut.attachedCRT->UnSuperBlack(bluevalue);
+                }
+            }
+        }
+        else {
+            // convert to double
+            redvalue = BetterDAC(redin, 256);
+            greenvalue = BetterDAC(greenin, 256);
+            bluevalue = BetterDAC(bluein, 256);
+            // don't touch alpha value
+        }
+
+        vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
+
+        //printfmtx.lock();
+        //printf("Input to processcolorwrapper is %f, %f, %f.\n", inputcolor.x, inputcolor.y, inputcolor.z);
+        //fflush(stdout);
+        //printfmtx.unlock();
+
+        outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode, inversesearchvisitlist);
+
+        //printfmtx.lock();
+        //printf("Output from processcolorwrapper is %f, %f, %f.\n", outcolor.x, outcolor.y, outcolor.z);
+        //fflush(stdout);
+        //printfmtx.unlock();
+
+        // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
+        /*
+        if ((redvalue < 0.0) || (greenvalue < 0.0) || (bluevalue < 0.0) || (redvalue > 1.0) || (greenvalue > 1.0) || (bluevalue > 1.0)){
+            outcolor = vec3(1.0, 1.0, 1.0);
+        }
+        */
+
+        // memoize the result of the conversion so we don't need to do it again for this input color
+        if (!lutgen){
+            memomtx.lock();
+            memos[redin][greenin][bluein].known = true;
+            memos[redin][greenin][bluein].data = outcolor;
+            memomtx.unlock();
+        }
+    }
+
+    png_byte redout, greenout, blueout;
+
+    // dither and back to RGB8 if enabled
+    if (dither){
+        // use inverse x coord for red and inverse y coord for blue to decouple dither patterns across channels
+        // see https://blog.kaetemi.be/2015/04/01/practical-bayer-dithering/
+        redout = quasirandomdither(outcolor.x, width - x - 1, y);
+        greenout = quasirandomdither(outcolor.y, x, y);
+        blueout = quasirandomdither(outcolor.z, x, height - y - 1);
+    }
+    // otherwise just back to RGB 8
+    else {
+        redout = toRGB8nodither(outcolor.x);
+        greenout = toRGB8nodither(outcolor.y);
+        blueout = toRGB8nodither(outcolor.z);
+    }
+
+    //printfmtx.lock();
+    //printf("Final output %i, %i, %i.\n", redout, greenout, blueout);
+    //fflush(stdout);
+    //printfmtx.unlock();
+
+    // save back to buffer
+    buffermtx.lock();
+    buffer[ ((y * width) + x) * 4] = redout;
+    buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
+    buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
+    // we need to set opacity data id generating a LUT; if reading an image, leave it unchanged
+    if (lutgen){
+        buffer[ (((y * width) + x) * 4) + 3 ] = 255;
+    }
+    buffermtx.unlock();
+    return;
+} //end loopGuts()
+
+void threadDoStuff(int threadno, gamutdescriptor* sourcegamutptr, gamutdescriptor* destgamutptr, int width, int height, int* globalx, int* globaly, int verbosity, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode){
+
+    // announce thread start
+    printfmtx.lock();
+    printf("Thread %i started.\n", threadno);
+    fflush(stdout);
+    printfmtx.unlock();
+
+    // make local copies of gamut descriptors and crt simulations
+    descriptormtx.lock();
+    if (!sourcegamutptr || !destgamutptr){
+        printfmtx.lock();
+        printf("Unexpected null pointer! Kablooey!\n");
+        fflush(stdout);
+        printfmtx.unlock();
+        descriptormtx.unlock();
+        return;
+    }
+    gamutdescriptor localsourcegamut = *sourcegamutptr;
+    gamutdescriptor localdestgamut = *destgamutptr;
+    if (sourcegamutptr->attachedCRT){
+        crtdescriptor localsourceattachedCRT = *sourcegamutptr->attachedCRT;
+        localsourcegamut.attachedCRT = &localsourceattachedCRT;
+    }
+    if (destgamutptr->attachedCRT){
+        crtdescriptor localdestattachedCRT = *destgamutptr->attachedCRT;
+        localdestgamut.attachedCRT = &localdestattachedCRT;
+    }
+    descriptormtx.unlock();
+
+    // pick the correct inversesearchvisitlist
+    bool* inversesearchvisitlist;
+    switch (threadno){
+        case 0:
+            inversesearchvisitlist = &inversesearchvisitlist0[0][0][0];
+            break;
+        case 1:
+            inversesearchvisitlist = &inversesearchvisitlist1[0][0][0];
+            break;
+        case 2:
+            inversesearchvisitlist = &inversesearchvisitlist2[0][0][0];
+            break;
+        case 3:
+            inversesearchvisitlist = &inversesearchvisitlist3[0][0][0];
+            break;
+        case 4:
+            inversesearchvisitlist = &inversesearchvisitlist4[0][0][0];
+            break;
+        case 5:
+            inversesearchvisitlist = &inversesearchvisitlist5[0][0][0];
+            break;
+        case 6:
+            inversesearchvisitlist = &inversesearchvisitlist6[0][0][0];
+            break;
+        case 7:
+            inversesearchvisitlist = &inversesearchvisitlist7[0][0][0];
+            break;
+        default:
+            printfmtx.lock();
+            printf("Unexpected thread number! Kablooey!\n");
+            fflush(stdout);
+            printfmtx.unlock();
+            return;
+    }
+    // syntax for using this later as a multidimensional array (bool(*)[256][256])inversesearchvisitlist
+
+    bool done = false;
+    int localx = 0;
+    int localy = 0;
+    while (true){
+        // figure out which pixel needs doing next
+        // (or exit if no pixels left to do)
+        // update pixel coords for next iteration (likely on another thread)
+        coordsmtx.lock();
+        if (*globaly >= height){
+            done = true;
+        }
+        else {
+            localx = *globalx;
+            localy = *globaly;
+            *globalx = *globalx + 1;
+            if (*globalx >= width){
+                *globalx = 0;
+                *globaly = *globaly + 1;
+            }
+        }
+        coordsmtx.unlock();
+        if (done){
+            break;
+        }
+        else {
+            // progress bar
+            if (localx == 0){
+                if (verbosity >= VERBOSITY_HIGH){
+                    printfmtx.lock();
+                    printf("\trow %i of %i...\n", localy+1, height);
+                    fflush(stdout);
+                    printfmtx.unlock();
+                }
+                else if (verbosity >= VERBOSITY_MINIMAL){
+                    if (localy == 0){
+                        printfmtx.lock();
+                        printf("0%%... ");
+                        fflush(stdout);
+                        printfmtx.unlock();
+                    }
+                    else if ((localy < height -1) && ((((localy+1)*20)/height) > ((localy*20)/height))){
+                        printfmtx.lock();
+                        printf("%i%%... ", ((localy+1)*100)/height);
+                        if (((localy+1)*100)/height == 50){
+                            printf("\n");
+                        }
+                        fflush(stdout);
+                        printfmtx.unlock();
+                    }
+                }
+            }
+            // process the pixel
+            //loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, localsourcegamut, localdestgamut, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
+            loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, *sourcegamutptr, *destgamutptr, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
+        }
+    }
+
+    return;
+} // end threadDoStuff()
 
 // structs for holding our ever-growing list of parameters
 typedef struct boolparam{
@@ -3214,7 +3508,7 @@ int main(int argc, const char **argv){
         int greenout;
         int blueout;
         
-        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode);
+        vec3 outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, false, false, hdrsdrmaxnits, backwardsmode, inversesearchvisitlist0);
 
         redout = toRGB8nodither(outcolor.x);
         greenout = toRGB8nodither(outcolor.y);
@@ -3544,7 +3838,7 @@ int main(int argc, const char **argv){
                 }
                 for (int hue=0; hue < 16; hue++){
                     vec3 nesrgb = nessim.NEStoRGB(hue,luma, emp);
-                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode);
+                    vec3 outcolor = processcolorwrapper(nesrgb, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, true, hdrsdrmaxnits, backwardsmode, inversesearchvisitlist0);
                     // for now screen barf
                     //printf("NES palette: Luma %i, hue %i, emp %i yeilds RGB: ", luma, hue, emp);
                     //nesrgb.printout();
@@ -3716,9 +4010,33 @@ int main(int argc, const char **argv){
                     sourcegamut.attachedCRT->superblacks = oldsuperblackmode;
                 }
 
-                // iterate over every pixel
                 int width = image.width;
                 int height = image.height;
+                int threadx = 0;
+                int thready = 0;
+
+                // launch threads!
+                std::thread thread0(threadDoStuff, 0, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread1(threadDoStuff, 1, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread2(threadDoStuff, 2, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread3(threadDoStuff, 3, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread4(threadDoStuff, 4, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread5(threadDoStuff, 5, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread6(threadDoStuff, 6, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread7(threadDoStuff, 7, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+
+                thread0.join();
+                thread1.join();
+                thread2.join();
+                thread3.join();
+                thread4.join();
+                thread5.join();
+                thread6.join();
+                thread7.join();
+#if 0
+                // iterate over every pixel
+                //int width = image.width;
+                //int height = image.height;
                 for (int y=0; y<height; y++){
                     if (verbosity >= VERBOSITY_HIGH){
                         printf("\trow %i of %i...\n", y+1, height);
@@ -3803,7 +4121,7 @@ int main(int argc, const char **argv){
 
                             vec3 inputcolor = vec3(redvalue, greenvalue, bluevalue);
                             
-                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode);
+                            outcolor = processcolorwrapper(inputcolor, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, lutmode, false, hdrsdrmaxnits, backwardsmode, inversesearchvisitlist0);
 
                             // blank the out-of-bounds stuff for sanity checking extended intermediate LUTSs
                             /*
@@ -3847,6 +4165,7 @@ int main(int argc, const char **argv){
                                                 
                     }
                 }
+#endif
                 if ((verbosity >= VERBOSITY_MINIMAL) && (verbosity < VERBOSITY_HIGH)){
                     printf("100%%\n");
                 }
