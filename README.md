@@ -231,6 +231,7 @@ Four general modes of operation:
 **Misc Parameters:**
 - `--help` or `-h`: Displays help.
 - `--verbosity` or `-v`: Specify verbosity level. Integer numbers 0-5. Default 2.
+- `--maxthreads`: Set the maximum number of threads to use for image file input and lut generation modes. Integer numbers 0-8. Default 2. 0 means autodetect. Up to 8 threads are supported.
 
 #### Usage Tips
 - Destination primaries and whitepoint should generally be sRGB spec and D65. (Unless you're trying to prepare something for roundtrip conversion.)

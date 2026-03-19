@@ -38,8 +38,8 @@ typedef struct memo{
 // this has to be global because it's too big for the stack
 memo memos[256][256][256];
 
-// visited list for backwards search
-// we need 8 copies for multithreading
+// visited list for backwards search (also too big for stack)
+// we need 8 copies for multithreading (ouch)
 bool inversesearchvisitlist0[256][256][256];
 bool inversesearchvisitlist1[256][256][256];
 bool inversesearchvisitlist2[256][256][256];
@@ -53,7 +53,7 @@ std::mutex printfmtx;
 std::mutex coordsmtx;
 std::mutex buffermtx;
 std::mutex memomtx;
-std::mutex descriptormtx;
+std::mutex prettyprintmtx;
 
 // Do the full conversion process on a given color
 vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, gamutdescriptor &sourcegamut, gamutdescriptor &destgamut, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, int lutmode, bool nesmode, double hdrsdrmaxnits){
@@ -706,11 +706,10 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
         bluein = buffer[ (((y * width) + x) * 4) + 2 ];
         buffermtx.unlock();
 
-        printfmtx.lock();
-        printf("Input %i, %i, %i.\n", redin, greenin, bluein);
-        fflush(stdout);
-        printfmtx.unlock();
-
+        //printfmtx.lock();
+        //printf("Input %i, %i, %i.\n", redin, greenin, bluein);
+        //fflush(stdout);
+        //printfmtx.unlock();
     }
 
     vec3 outcolor;
@@ -727,7 +726,6 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
             //printf("Memo found. Outcolor is %f, %f, %f.\n", outcolor.x, outcolor.y, outcolor.z);
             //fflush(stdout);
             //printfmtx.unlock();
-
         }
         memomtx.unlock();
     }
@@ -842,7 +840,28 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
     return;
 } //end loopGuts()
 
-void threadDoStuff(int threadno, gamutdescriptor* sourcegamutptr, gamutdescriptor* destgamutptr, int width, int height, int* globalx, int* globaly, int verbosity, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode){
+void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutdescriptor* sourcegamutptr, gamutdescriptor* destgamutptr, int width, int height, int* globalx, int* globaly, int verbosity, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode){
+
+    while (true){
+        prettyprintmtx.lock();
+        int ppcounter = *prettyprintcounter;
+        prettyprintmtx.unlock();
+        if (ppcounter == threadno){
+            break;
+        }
+        std::this_thread::yield();
+    }
+
+    if (threadno >= maxthreads){
+        printfmtx.lock();
+        printf("Not using thread %i.\n", threadno);
+        fflush(stdout);
+        printfmtx.unlock();
+        prettyprintmtx.lock();
+        *prettyprintcounter = threadno + 1;
+        prettyprintmtx.unlock();
+        return;
+    }
 
     // announce thread start
     printfmtx.lock();
@@ -850,27 +869,19 @@ void threadDoStuff(int threadno, gamutdescriptor* sourcegamutptr, gamutdescripto
     fflush(stdout);
     printfmtx.unlock();
 
-    // make local copies of gamut descriptors and crt simulations
-    descriptormtx.lock();
-    if (!sourcegamutptr || !destgamutptr){
-        printfmtx.lock();
-        printf("Unexpected null pointer! Kablooey!\n");
-        fflush(stdout);
-        printfmtx.unlock();
-        descriptormtx.unlock();
-        return;
+    prettyprintmtx.lock();
+    *prettyprintcounter = threadno + 1;
+    prettyprintmtx.unlock();
+
+    while (true){
+        prettyprintmtx.lock();
+        int ppcounter = *prettyprintcounter;
+        prettyprintmtx.unlock();
+        if (ppcounter == 8){
+            break;
+        }
+        std::this_thread::yield();
     }
-    gamutdescriptor localsourcegamut = *sourcegamutptr;
-    gamutdescriptor localdestgamut = *destgamutptr;
-    if (sourcegamutptr->attachedCRT){
-        crtdescriptor localsourceattachedCRT = *sourcegamutptr->attachedCRT;
-        localsourcegamut.attachedCRT = &localsourceattachedCRT;
-    }
-    if (destgamutptr->attachedCRT){
-        crtdescriptor localdestattachedCRT = *destgamutptr->attachedCRT;
-        localdestgamut.attachedCRT = &localdestattachedCRT;
-    }
-    descriptormtx.unlock();
 
     // pick the correct inversesearchvisitlist
     bool* inversesearchvisitlist;
@@ -960,7 +971,6 @@ void threadDoStuff(int threadno, gamutdescriptor* sourcegamutptr, gamutdescripto
                 }
             }
             // process the pixel
-            //loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, localsourcegamut, localdestgamut, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
             loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, *sourcegamutptr, *destgamutptr, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
         }
     }
@@ -1131,6 +1141,7 @@ int main(int argc, const char **argv){
     double crtgammaknob = 1.0;
     bool retroarchwritetext = false;
     char* retroarchtextfilename;
+    int maxthreads = 0;
     
     const boolparam params_bool[19] = {
         {
@@ -2276,7 +2287,7 @@ int main(int argc, const char **argv){
         // Leaving them on the backend in case they ever prove useful in the future.
     };
 
-    const intparam params_int[3] = {
+    const intparam params_int[4] = {
         {
             "--verbosity",         //std::string paramstring; // parameter's text
             "Verbosity",        //std::string prettyname; // name for pretty printing
@@ -2291,6 +2302,11 @@ int main(int argc, const char **argv){
             "--lutsize",         //std::string paramstring; // parameter's text
             "LUT Size",        //std::string prettyname; // name for pretty printing
             &lutsize            //int* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--maxthreads",         //std::string paramstring; // parameter's text
+            "Max Threads",        //std::string prettyname; // name for pretty printing
+            &maxthreads            //int* vartobind; // pointer to variable whose value to set
         },
     };
 
@@ -2955,6 +2971,21 @@ int main(int argc, const char **argv){
     if (forcedisablechromaticadapt && (destwhitepointindex != WHITEPOINT_D65)){
         forcedisablechromaticadapt = false;
         printf("Chromatic adapation cannot be disabled when destination whitepoint is not D65.\n");
+    }
+
+    if (filemode || lutgen){
+        if (maxthreads == 0){
+            maxthreads = std::thread::hardware_concurrency();
+            printf("Detected %i processor cores.\n", maxthreads);
+        }
+        if (maxthreads < 1){
+            printf("%i threads specified, but you cannot use less than 1 thread.\n", maxthreads);
+            maxthreads = 1;
+        }
+        else if (maxthreads > 8){
+            printf("%i threads specified, but gamutthingy only supports 8.\n", maxthreads);
+            maxthreads = 8;
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -4014,16 +4045,17 @@ int main(int argc, const char **argv){
                 int height = image.height;
                 int threadx = 0;
                 int thready = 0;
+                int prettyprintcounter = 0;
 
                 // launch threads!
-                std::thread thread0(threadDoStuff, 0, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread1(threadDoStuff, 1, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread2(threadDoStuff, 2, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread3(threadDoStuff, 3, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread4(threadDoStuff, 4, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread5(threadDoStuff, 5, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread6(threadDoStuff, 6, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread7(threadDoStuff, 7, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread0(threadDoStuff, 0, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread1(threadDoStuff, 1, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread2(threadDoStuff, 2, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread3(threadDoStuff, 3, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread4(threadDoStuff, 4, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread5(threadDoStuff, 5, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread6(threadDoStuff, 6, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread7(threadDoStuff, 7, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
 
                 thread0.join();
                 thread1.join();
