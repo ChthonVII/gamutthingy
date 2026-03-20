@@ -51,7 +51,7 @@ bool inversesearchvisitlist7[256][256][256];
 
 std::mutex printfmtx;
 std::mutex coordsmtx;
-std::mutex buffermtx;
+//std::mutex buffermtx; // in theory we don't need this because each index is only accessed one time by one thread
 std::mutex memomtx;
 std::mutex prettyprintmtx;
 
@@ -700,11 +700,11 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
     png_byte greenin = 0;
     png_byte bluein = 0;
     if (!lutgen){
-        buffermtx.lock();
+        //buffermtx.lock(); // in theory we don't need this because each index is only accessed one time by one thread
         redin = buffer[ ((y * width) + x) * 4];
         greenin = buffer[ (((y * width) + x) * 4) + 1 ];
         bluein = buffer[ (((y * width) + x) * 4) + 2 ];
-        buffermtx.unlock();
+        //buffermtx.unlock();
 
         //printfmtx.lock();
         //printf("Input %i, %i, %i.\n", redin, greenin, bluein);
@@ -828,7 +828,7 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
     //printfmtx.unlock();
 
     // save back to buffer
-    buffermtx.lock();
+    //buffermtx.lock(); // in theory we don't need this because each index is only accessed one time by one thread
     buffer[ ((y * width) + x) * 4] = redout;
     buffer[ (((y * width) + x) * 4) + 1 ] = greenout;
     buffer[ (((y * width) + x) * 4) + 2 ] = blueout;
@@ -836,12 +836,13 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
     if (lutgen){
         buffer[ (((y * width) + x) * 4) + 3 ] = 255;
     }
-    buffermtx.unlock();
+    //buffermtx.unlock();
     return;
 } //end loopGuts()
 
 void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutdescriptor* sourcegamutptr, gamutdescriptor* destgamutptr, int width, int height, int* globaly, int verbosity, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode){
 
+    // start the threads in order so the console output looks nice
     while (true){
         prettyprintmtx.lock();
         int ppcounter = *prettyprintcounter;
@@ -852,6 +853,7 @@ void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutd
         std::this_thread::yield();
     }
 
+    // immediately kill threads beyond maxthreads
     if (threadno >= maxthreads){
         printfmtx.lock();
         printf("Not using thread %i.\n", threadno);
@@ -869,10 +871,12 @@ void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutd
     fflush(stdout);
     printfmtx.unlock();
 
+    // advance counter so next thread can start
     prettyprintmtx.lock();
     *prettyprintcounter = threadno + 1;
     prettyprintmtx.unlock();
 
+    // don't start processing pixels until all threads are started
     while (true){
         prettyprintmtx.lock();
         int ppcounter = *prettyprintcounter;
@@ -922,6 +926,7 @@ void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutd
     bool done = false;
     int localx = 0;
     int localy = 0;
+    // loop until there's nothing left to do
     while (true){
         // figure out which pixel needs doing next
         // (or exit if no pixels left to do)
@@ -941,6 +946,14 @@ void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutd
         else {
             for (localx = 0; localx < width; localx++){
 
+                // progress bar
+                if ((localy == 0) && (localx == 0) && (verbosity < VERBOSITY_HIGH) && (verbosity >= VERBOSITY_MINIMAL)){
+                    printfmtx.lock();
+                    printf("0%%... ");
+                    fflush(stdout);
+                    printfmtx.unlock();
+                }
+
                 // process the pixel
                 loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, *sourcegamutptr, *destgamutptr, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
 
@@ -948,18 +961,12 @@ void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutd
                 if (localx == width - 1){
                     if (verbosity >= VERBOSITY_HIGH){
                         printfmtx.lock();
-                        printf("\trow %i of %i...\n", localy+1, height);
+                        printf("\t(thread %i) finished row %i of %i...\n", threadno, localy+1, height);
                         fflush(stdout);
                         printfmtx.unlock();
                     }
                     else if (verbosity >= VERBOSITY_MINIMAL){
-                        if (localy == 0){
-                            printfmtx.lock();
-                            printf("0%%... ");
-                            fflush(stdout);
-                            printfmtx.unlock();
-                        }
-                        else if ((localy < height -1) && ((((localy+1)*20)/height) > ((localy*20)/height))){
+                        if ((localy > 0) && (localy < height -1) && ((((localy+1)*20)/height) > ((localy*20)/height))){
                             printfmtx.lock();
                             printf("%i%%... ", ((localy+1)*100)/height);
                             if (((localy+1)*100)/height == 50){
