@@ -840,7 +840,7 @@ void loopGuts(int threadno, int width, int height, int x, int y, bool lutgen, pn
     return;
 } //end loopGuts()
 
-void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutdescriptor* sourcegamutptr, gamutdescriptor* destgamutptr, int width, int height, int* globalx, int* globaly, int verbosity, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode){
+void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutdescriptor* sourcegamutptr, gamutdescriptor* destgamutptr, int width, int height, int* globaly, int verbosity, bool lutgen, png_bytep buffer, int lutsize, int lutmode, double crtclamplow, double crtclamphigh, double lpguscale, bool crtsuperblacks, bool dither, int gammamodein, double gammapowin, int gammamodeout, double gammapowout, int mapmode, int cccfunctiontype, double cccfloor, double cccceiling, double cccexp, double remapfactor, double remaplimit, bool softkneemode, double kneefactor, int mapdirection, int safezonetype, bool spiralcarisma, double hdrsdrmaxnits, bool backwardsmode){
 
     while (true){
         prettyprintmtx.lock();
@@ -931,47 +931,46 @@ void threadDoStuff(int threadno, int maxthreads, int* prettyprintcounter, gamutd
             done = true;
         }
         else {
-            localx = *globalx;
             localy = *globaly;
-            *globalx = *globalx + 1;
-            if (*globalx >= width){
-                *globalx = 0;
-                *globaly = *globaly + 1;
-            }
+            *globaly = *globaly + 1;
         }
         coordsmtx.unlock();
         if (done){
             break;
         }
         else {
-            // progress bar
-            if (localx == 0){
-                if (verbosity >= VERBOSITY_HIGH){
-                    printfmtx.lock();
-                    printf("\trow %i of %i...\n", localy+1, height);
-                    fflush(stdout);
-                    printfmtx.unlock();
-                }
-                else if (verbosity >= VERBOSITY_MINIMAL){
-                    if (localy == 0){
+            for (localx = 0; localx < width; localx++){
+
+                // process the pixel
+                loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, *sourcegamutptr, *destgamutptr, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
+
+                // progress bar
+                if (localx == width - 1){
+                    if (verbosity >= VERBOSITY_HIGH){
                         printfmtx.lock();
-                        printf("0%%... ");
+                        printf("\trow %i of %i...\n", localy+1, height);
                         fflush(stdout);
                         printfmtx.unlock();
                     }
-                    else if ((localy < height -1) && ((((localy+1)*20)/height) > ((localy*20)/height))){
-                        printfmtx.lock();
-                        printf("%i%%... ", ((localy+1)*100)/height);
-                        if (((localy+1)*100)/height == 50){
-                            printf("\n");
+                    else if (verbosity >= VERBOSITY_MINIMAL){
+                        if (localy == 0){
+                            printfmtx.lock();
+                            printf("0%%... ");
+                            fflush(stdout);
+                            printfmtx.unlock();
                         }
-                        fflush(stdout);
-                        printfmtx.unlock();
+                        else if ((localy < height -1) && ((((localy+1)*20)/height) > ((localy*20)/height))){
+                            printfmtx.lock();
+                            printf("%i%%... ", ((localy+1)*100)/height);
+                            if (((localy+1)*100)/height == 50){
+                                printf("\n");
+                            }
+                            fflush(stdout);
+                            printfmtx.unlock();
+                        }
                     }
                 }
             }
-            // process the pixel
-            loopGuts(threadno, width, height, localx, localy, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, *sourcegamutptr, *destgamutptr, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode, (bool(*)[256][256])inversesearchvisitlist);
         }
     }
 
@@ -4043,19 +4042,18 @@ int main(int argc, const char **argv){
 
                 int width = image.width;
                 int height = image.height;
-                int threadx = 0;
                 int thready = 0;
                 int prettyprintcounter = 0;
 
                 // launch threads!
-                std::thread thread0(threadDoStuff, 0, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread1(threadDoStuff, 1, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread2(threadDoStuff, 2, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread3(threadDoStuff, 3, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread4(threadDoStuff, 4, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread5(threadDoStuff, 5, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread6(threadDoStuff, 6, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
-                std::thread thread7(threadDoStuff, 7, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &threadx, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread0(threadDoStuff, 0, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread1(threadDoStuff, 1, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread2(threadDoStuff, 2, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread3(threadDoStuff, 3, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread4(threadDoStuff, 4, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread5(threadDoStuff, 5, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread6(threadDoStuff, 6, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
+                std::thread thread7(threadDoStuff, 7, maxthreads, &prettyprintcounter, &sourcegamut, &destgamut, width, height, &thready, verbosity, lutgen, buffer, lutsize, lutmode, crtclamplow, crtclamphigh, lpguscale, crtsuperblacks, dither, gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, spiralcarisma, hdrsdrmaxnits, backwardsmode);
 
                 thread0.join();
                 thread1.join();
