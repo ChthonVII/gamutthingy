@@ -39,35 +39,82 @@ const double signal_table_composite[4][2][2] = {
         { 0.880, 0.712 }
     }
 };
-const double composite_black = signal_table_composite[1][1][0];
-const double composite_white = signal_table_composite[3][0][0];
-// set "white" as the highest signal we can get, in IRE
-const double signal_white_point = 140.0 * (composite_white - composite_black);
-
-// Colorburst is supposed to be 40 IRE, but NES's colorburst is 52.64 IRE
-// In theory, TV should be normalizing chroma against the colorburst amplitude
-// In practice, some did and some didn't.
-const double colorburst_amp_correction = (40.0 / (140.0 * (0.524 - 0.148)));
-
+const double sync_volts = 0.048;
+const double cburst_low_volts = 0.148;
+const double cburst_high_volts = 0.524;
+// NES uses $1D for blanking
+// https://forums.nesdev.org/viewtopic.php?p=131995&hilit=porch#p131995
+const double blanking_volts = signal_table_composite[1][1][0]; //0.312v
+const double max_volts = signal_table_composite[3][0][0]; // 1.1v
+const double nominal_IRE_divisor = 140.0; // ~0.00714v per IRE
+const double sync_IRE_divisor = 40.0 / (blanking_volts - sync_volts); // 151.5151...; 0.0066v per IRE
+const double burst_IRE_divisor = 40.0 / (cburst_high_volts - cburst_low_volts); // ~106.38; 0.0094v per IRE
 
 // verboselevel: verbostiy level
 // ispal: simulate PAL's alternating phases?
-// cbcorrection: Normalize chroma to NES's non-standard colorburst amplitude?
 // skew26A: Phase skew for hues 0x2, 0x6, and 0xA due to trace design. Degrees. Sane value is ~4.5
 // boost48C: Luma boost for hues 0x4, 0x8 and 0xC due to trace design. IRE. Sane value is 1.0
 // skewstep: Phase skew per luma level. Degrees. Sane value depends on which chip we're simulating:
 //      2C02E: ~-2.5 degrees per luma step
 //      2C02G: ~-5 degrees per luma step
 //      2C07: ~10 dgrees per luma step (but PAL so it cancels out)
-bool nesppusimulation::Initialize(int verboselevel, bool ispal, bool cbcorrection, double skew26A, double boost48C, double skewstep, int yuvconstprec){
+// agcluma: What kind of automatic gain control to use for luma
+// agcchroma: What kind of automatic gain control to use for chroma
+bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, double boost48C, double skewstep, int yuvconstprec,  int agcluma, int agcchroma, bool showsuperwhite){
 
     verbosity = verboselevel;
     palmode = ispal;
-    docolorburstampcorrection = cbcorrection;
     phaseskew26A = skew26A;
     lumaboost48C = boost48C;
     phaseskewperlumastep = skewstep;
     YUVconstantprecision = yuvconstprec;
+    agclumatype = agcluma;
+    agcchromatype = agcchroma;
+    superwhites = showsuperwhite;
+
+    switch (agclumatype){
+        case NES_AGC_LUMA_NONE:
+            IRE_divisor = nominal_IRE_divisor; //results in 110.32 IRE white
+            break;
+        case NES_AGC_LUMA_SYNC:
+            IRE_divisor = sync_IRE_divisor; // results in 119.3939... IRE white
+            break;
+        case NES_AGC_LUMA_BURST:
+            IRE_divisor = burst_IRE_divisor; // results in ~83.83 IRE white
+            break;
+        default:
+            break;
+    }
+
+    switch (agcchromatype){
+        case NES_AGC_CHROMA_SAME:
+            chroma_IRE_correction = 1.0;
+            break;
+        case NES_AGC_CHROMA_BURST:
+            if (agclumatype == NES_AGC_LUMA_BURST){
+                chroma_IRE_correction = 1.0;
+            }
+            else {
+                chroma_IRE_correction = burst_IRE_divisor / IRE_divisor;
+            }
+            break;
+        default:
+            break;
+    }
+
+    // assume documentation on 48C luma boost is stated in nominal IRE
+    if (agclumatype != NES_AGC_LUMA_NONE){
+        lumaboost48C *= 140.0 / IRE_divisor;
+    }
+
+    IRE_norm_factor = IRE_divisor * (max_volts - blanking_volts);
+    if ((IRE_norm_factor > 100.0) && !superwhites){
+        IRE_norm_factor = 100.0;
+    }
+    else if (IRE_norm_factor < 100.0){
+        underwhite = IRE_norm_factor / 100.0;
+        IRE_norm_factor = 100.0;
+    }
 
     bool output = InitializeYUVtoRGBMatrix();
 
@@ -212,8 +259,8 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
 
     // shift black to 0 and convert from volts to IRE
     for (int i=0; i<12; i++){
-        voltage_buffer[i] = 140.0 * (voltage_buffer[i] - composite_black);
-        voltage_buffer_b[i] = 140.0 * (voltage_buffer_b[i] - composite_black);
+        voltage_buffer[i] = IRE_divisor * (voltage_buffer[i] - blanking_volts);
+        voltage_buffer_b[i] = IRE_divisor * (voltage_buffer_b[i] - blanking_volts);
     }
 
     // bandpass filter
@@ -261,7 +308,7 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
         // The phase shift per luma step moves blue towards cyan, red towards magenta, and green towards yellow (and also moves everything else in that same direction).
 
         // 2x due to integral of sin(2*PI*x)^2
-        double saturation_correction = docolorburstampcorrection ? 2.0 * colorburst_amp_correction : 2.0;
+        double saturation_correction = 2.0 * chroma_IRE_correction;
 
         U_decode[i] = saturation_correction * sin((((2.0 * std::numbers::pi_v<long double>) / 12.0) * (i - 1.0 - colorburst_phase - 0.5)) - phaseskew_pt1 + phaseskew_pt2);
 
@@ -294,10 +341,23 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
     Yout += lumaboost;
 
     // normalize IRE to 0-1 range
-    // (Though we still may have out-of-bounds values b/c NES does crazy things.)
-    Yout /= signal_white_point;
-    Uout /= signal_white_point;
-    Vout /= signal_white_point;
+    Yout /= IRE_norm_factor;
+    Uout /= IRE_norm_factor;
+    Vout /= IRE_norm_factor;
+
+    if (!superwhites){
+        if (Yout > 1.0){
+            Yout = 1.0;
+        }
+        // For now, just clamp Y.
+        // let's see how much we need to worry about clamping UV
+        if ((Uout < -0.5) || (Uout > 0.5)){
+            printf("out of bounds U for luma %i, hue %i, emp %i: U= %f\n", luma, hue, emphasis, Uout);
+        }
+        if ((Vout < -0.5) || (Vout > 0.5)){
+            printf("out of bounds V for luma %i, hue %i, emp %i: U= %f\n", luma, hue, emphasis, Vout);
+        }
+    }
 
     return vec3(Yout, Uout, Vout);
 
@@ -315,4 +375,12 @@ vec3 nesppusimulation::NEStoRGB(int hue, int luma, int emphasis){
     //rgb.printout();
 
     return rgb;
+}
+
+// Get the constant needed to account for superwhite scaling
+double nesppusimulation::GetSuperWhiteScaleConstant(){
+    if (!superwhites){
+        return 1.0;
+    }
+    return 100.0 / IRE_norm_factor;
 }

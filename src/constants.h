@@ -120,6 +120,24 @@ extern const vec3 D65;
 #define YUV_CONSTANT_PRECISION_MID 1 // less truncated constants from 1994 SMPTE-C (170M) standard
 #define YUV_CONSTANT_PRECISION_FULL 2 // compute precise constants from 1953 primaries and Illuminant C.
 
+#define NES_AGC_LUMA_NONE 0
+#define NES_AGC_LUMA_SYNC 1
+#define NES_AGC_LUMA_BURST 2
+
+#define NES_AGC_CHROMA_SAME 0
+#define NES_AGC_CHROMA_BURST 1
+
+const std::string nesagclumanames[3] = {
+    "nominal 1/140 volts per IRE",
+    "normalize to sync tip",
+    "normalize to color burst"
+};
+
+const std::string nesagcchromanames[2] = {
+    "same as luma",
+    "normalize to color burst"
+};
+
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html

@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, double showsuperblack){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -916,6 +916,14 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushb
     }
 
     return output;
+}
+
+void crtdescriptor::ScaleBlackPedestalForNESSuperWhite(double scalefactor){
+    if (blackpedestalcrush && (verbosity >= VERBOSITY_SLIGHT) && (scalefactor != 1.0)){
+        printf("Scaling black pedestal crush from %f to %f to account for NES superwhites.\n", blackpedestalcrushamount, blackpedestalcrushamount * scalefactor);
+    }
+    blackpedestalcrushamount *= scalefactor;
+    return;
 }
 
 bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision){

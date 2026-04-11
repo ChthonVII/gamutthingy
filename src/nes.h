@@ -19,11 +19,17 @@ public:
     int verbosity = 0;
     int YUVconstantprecision = YUV_CONSTANT_PRECISION_FULL;
     bool palmode = false;
-    bool docolorburstampcorrection = true;
     double phaseskew26A = 4.5; // degrees
     double lumaboost48C = 1.0; // IRE
     double phaseskewperlumastep = -2.5; // degrees
     double idealizedYUVtoRGBMatrix[3][3];
+    int agclumatype = NES_AGC_LUMA_NONE;
+    int agcchromatype = NES_AGC_CHROMA_BURST;
+    double IRE_divisor = 140.0;
+    double IRE_norm_factor = 140.0 * (1.1 - 0.312);
+    double underwhite = 1.0;
+    double chroma_IRE_correction = 1.0;
+    bool superwhites = true;
 
     // verboselevel: verbostiy level
     // ispal: simulate PAL's alternating phases?
@@ -34,7 +40,9 @@ public:
     //      2C02E: ~-2.5 degrees per luma step
     //      2C02G: ~-5 degrees per luma step
     //      2C07: ~10 dgrees per luma step (but PAL so it cancels out)
-    bool Initialize(int verboselevel, bool ispal, bool cbcorrection, double skew26A, double boost48C, double skewstep, int yuvconstprec);
+    // agcluma: What kind of automatic gain control to use for luma
+    // agcchroma: What kind of automatic gain control to use for chroma
+    bool Initialize(int verboselevel, bool ispal, double skew26A, double boost48C, double skewstep, int yuvconstprec, int agcluma, int agcchroma, bool showsuperwhite);
 
     // We need R'G'B' output from the NES simulation b/c the color correction built into the TV's demodulation
     // is represented as a R'G'B' to R'G'B' matrix in crt.cpp.
@@ -57,6 +65,9 @@ public:
 
     // Convert NES hue/luma/emphasis triad to R'G'B'
     vec3 NEStoRGB(int hue, int luma, int emphasis);
+
+    // Get the constant needed to account for superwhite scaling
+    double GetSuperWhiteScaleConstant();
 
 };
 

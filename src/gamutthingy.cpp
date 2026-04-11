@@ -1135,12 +1135,14 @@ int main(int argc, const char **argv){
     double lpguscalereciprocal = 1.0; // needs to be a function-wide variable so we can print it later
     bool nesmode = false;
     bool nesispal = false;
-    bool nescbc = true;
     double nesskew26A = 4.5;
     double nesboost48C = 1.0;
     double nesskewstep = 2.5;
     bool neswritehtml = false;
     char* neshtmlfilename;
+    int nesagcluma = NES_AGC_LUMA_NONE;
+    int nesagcchroma = NES_AGC_CHROMA_BURST;
+    bool nessuperwhites = true;
     bool backwardsmode = false;
     double crthueknob = 0.0;
     double crtsaturationknob = 1.0;
@@ -1186,9 +1188,9 @@ int main(int argc, const char **argv){
             &nesispal                 //bool* vartobind; // pointer to variable whose value to set
         },
         {
-            "--nesburstnorm",                     //std::string paramstring; // parameter's text
-            "NES simulation normalize chroma to colorburst",           //std::string prettyname; // name for pretty printing
-            &nescbc                //bool* vartobind; // pointer to variable whose value to set
+            "--nessuperwhites",                     //std::string paramstring; // parameter's text
+            "NES simulation CRT show \"super white\" colors",           //std::string prettyname; // name for pretty printing
+            &nessuperwhites               //bool* vartobind; // pointer to variable whose value to set
         },
         {
             "--crtclamphighenable",                     //std::string paramstring; // parameter's text
@@ -1794,7 +1796,33 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[39] = {
+    const paramvalue nesagclumalist[3] = {
+        {
+            "nominal",
+            NES_AGC_LUMA_NONE
+        },
+        {
+            "sync",
+            NES_AGC_LUMA_SYNC
+        },
+        {
+            "burst",
+            NES_AGC_LUMA_BURST
+        }
+    };
+
+    const paramvalue nesagcchromalist[2] = {
+        {
+            "same",
+            NES_AGC_CHROMA_SAME
+        },
+        {
+            "burst",
+            NES_AGC_CHROMA_BURST
+        }
+    };
+
+    const selectparam params_select[41] = {
         {
             "--source-primaries",            //std::string paramstring; // parameter's text
             "Source Primaries",             //std::string prettyname; // name for pretty printing
@@ -2067,6 +2095,20 @@ int main(int argc, const char **argv){
             &destcustomwhitempcdtype,          //int* vartobind; // pointer to variable whose value to set
             mpcdtypelist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(mpcdtypelist)/sizeof(mpcdtypelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--nesagcluma",            //std::string paramstring; // parameter's text
+            "NES Simulation, CRT Automatic Gain Control Type for Luma",             //std::string prettyname; // name for pretty printing
+            &nesagcluma,          //int* vartobind; // pointer to variable whose value to set
+            nesagclumalist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(nesagclumalist)/sizeof(nesagclumalist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--nesagcchroma",            //std::string paramstring; // parameter's text
+            "NES Simulation, CRT Automatic Gain Control Type for Chroma",             //std::string prettyname; // name for pretty printing
+            &nesagcchroma,          //int* vartobind; // pointer to variable whose value to set
+            nesagcchromalist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(nesagcchromalist)/sizeof(nesagcchromalist[0])  //int tablesize; // number of items in the table
         },
     };
 
@@ -3402,10 +3444,17 @@ int main(int argc, const char **argv){
         }
         if (nesmode){
             printf("NES simulate PAL phase alternation: %i\n", nesispal);
-            printf("NES normalize chroma to colorburst: %i\n", nescbc);
             printf("NES phase skew for hues 0x2, 0x6, and 0xA: %f degrees\n", nesskew26A);
             printf("NES luma boost for hues 0x4, 0x8, and 0xC: %f IRE\n", nesboost48C);
             printf("NES phase skew per luma step: %f degrees\n", nesskewstep);
+            printf("NES CRT automatic gain control type for luma: %s\n", nesagclumanames[nesagcluma].c_str());
+            printf("NES CRT automatic gain control type for chroma: %s\n", nesagcchromanames[nesagcchroma].c_str());
+            if (nessuperwhites){
+                printf("NES CRT \"super white\" colors shown.\n");
+            }
+            else {
+                printf("NES CRT \"super white\" colors clipped.\n");
+            }
         }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
@@ -3567,7 +3616,10 @@ int main(int argc, const char **argv){
     else if (nesmode){
 
         nesppusimulation nessim;
-        nessim.Initialize(verbosity, nesispal, nescbc, nesskew26A, nesboost48C, nesskewstep, crtyuvconstantprecision);
+        nessim.Initialize(verbosity, nesispal, nesskew26A, nesboost48C, nesskewstep, crtyuvconstantprecision, nesagcluma, nesagcchroma, nessuperwhites);
+        if (sourcegamut.attachedCRT){
+            sourcegamut.attachedCRT->ScaleBlackPedestalForNESSuperWhite(nessim.GetSuperWhiteScaleConstant());
+        }
         printf("Generating NES palette and saving result to %s...\n", outputfilename);
 
         std::ofstream palfile(outputfilename, std::ios::out | std::ios::binary);
@@ -3585,13 +3637,13 @@ int main(int argc, const char **argv){
             }
             htmlfile << "<html>\n\t<head>\n\t\t<title>NES Palette</title>\n\t<head>\n\t<body>\n\t\t<div style=\"margin-left:auto; margin-right:auto; margin-top: 1em; margin-bottom: 1em; width:60%;\">\n";
 
-            htmlfile << "\t\t\tPalette saved to: " << outputfilename << "<BR>\n";
+            htmlfile << "\t\t\tPalette saved to: " << outputfilename << "<BR>&nbsp;<BR>\n";
 
             htmlfile << "\t\t\tCommand: gamutthingy";
             for (int i=1; i<argc; i++){
                 htmlfile << " " << argv[i];
             }
-            htmlfile << "<BR>\n";
+            htmlfile << "<BR>&nbsp;<BR>\n";
 
             htmlfile << "\t\t\tParameters:<BR>\n";
 
@@ -3600,10 +3652,12 @@ int main(int argc, const char **argv){
             }
 
             htmlfile << "\t\t\tNES simulate PAL phase alternation: " << (nesispal ? "true" : "false") << "<BR>\n";
-            htmlfile << "\t\t\tNES normalize chroma to colorburst: " << (nescbc ? "true" : "false") << "<BR>\n";
             htmlfile << "\t\t\tNES phase skew for hues 0x2, 0x6, and 0xA: " << nesskew26A << " degrees<BR>\n";
             htmlfile << "\t\t\tNES luma boost for hues 0x4, 0x8, and 0xC: " << nesboost48C << " IRE<BR>\n";
             htmlfile << "\t\t\tNES phase skew per luma step: " << nesskewstep << " degrees<BR>\n";
+
+            htmlfile << "\t\t\tCRT automatic gain control type for luma: " << nesagclumanames[nesagcluma] << "<BR>\n";
+            htmlfile << "\t\t\tCRT automatic gain control type for chroma: " << nesagcchromanames[nesagcchroma] << "<BR>\n";
 
             htmlfile << "\t\t\tCRT YUV white balance constant precision: ";
             if (crtyuvconstantprecision == YUV_CONSTANT_PRECISION_CRAP){
@@ -3638,18 +3692,30 @@ int main(int argc, const char **argv){
                 htmlfile << "\t\t\tCRT R'G'B' high output values not clamped. (Out-of-bounds values resolved by gamut compression algorithm.)<BR>\n";
             }
 
+            if (nessuperwhites){
+                htmlfile << "\t\t\tCRT \"super white\" colors shown. (Renormalized before CRT R'G'B' high output clamping.)<BR>\n";
+            }
+            else {
+                htmlfile << "\t\t\tCRT \"super white\" colors clipped.<BR>\n";
+            }
+
             if (crtblackpedestalcrush){
-                htmlfile << "\t\t\tCRT black pedestal " << (100.0 * crtblackpedestalcrushamount) << " IRE crushed to 0 IRE.<BR>\n";
+                htmlfile << "\t\t\tCRT black pedestal " << (100.0 * crtblackpedestalcrushamount) << " IRE crushed to 0 IRE.";
+                double swscale = nessim.GetSuperWhiteScaleConstant();
+                if (swscale != 1.0){
+                    htmlfile << " (" << (100.0 * crtblackpedestalcrushamount) << " automatically rescaled to " << (100.0 * crtblackpedestalcrushamount * swscale) << " to account for scaling for \"super white\" colors.)";
+                }
+                htmlfile << "<BR>\n";
             }
             else {
                 htmlfile << "\t\t\tCRT black pedestal crush disabled.<BR>\n";
             }
 
             if (crtsuperblacks){
-                htmlfile << "CRT \"super black\" colors shown.<BR>\n";
+                htmlfile << "\t\t\tCRT \"super black\" colors shown.<BR>\n";
             }
             else {
-                htmlfile << "CRT \"super black\" colors clipped.<BR>\n";
+                htmlfile << "\t\t\tCRT \"super black\" colors clipped.<BR>\n";
             }
 
             htmlfile << "\t\t\tCRT bt1886 Appendix1 EOTF function calibrated to:<BR>\n";
