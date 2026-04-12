@@ -69,6 +69,9 @@ public:
     // Get the constant needed to account for superwhite scaling
     double GetSuperWhiteScaleConstant();
 
+    // Get the underwhite value needed for scaling
+    double GetUnderWhite();
+
 };
 
 #endif

@@ -3619,6 +3619,7 @@ int main(int argc, const char **argv){
         nessim.Initialize(verbosity, nesispal, nesskew26A, nesboost48C, nesskewstep, crtyuvconstantprecision, nesagcluma, nesagcchroma, nessuperwhites);
         if (sourcegamut.attachedCRT){
             sourcegamut.attachedCRT->ScaleBlackPedestalForNESSuperWhite(nessim.GetSuperWhiteScaleConstant());
+            sourcegamut.attachedCRT->SetRenomalizationForNESUnderWhite(nessim.GetUnderWhite());
         }
         printf("Generating NES palette and saving result to %s...\n", outputfilename);
 

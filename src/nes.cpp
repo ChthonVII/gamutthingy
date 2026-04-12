@@ -72,6 +72,7 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
     agcchromatype = agcchroma;
     superwhites = showsuperwhite;
 
+    //see https://forums.nesdev.org/viewtopic.php?p=86782#p86782
     switch (agclumatype){
         case NES_AGC_LUMA_NONE:
             IRE_divisor = nominal_IRE_divisor; //results in 110.32 IRE white
@@ -350,13 +351,15 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
             Yout = 1.0;
         }
         // For now, just clamp Y.
-        // let's see how much we need to worry about clamping UV
+        // And let gamut compression algorithm deal with out-of-bounds chroma.
+        /*
         if ((Uout < -0.5) || (Uout > 0.5)){
             printf("out of bounds U for luma %i, hue %i, emp %i: U= %f\n", luma, hue, emphasis, Uout);
         }
         if ((Vout < -0.5) || (Vout > 0.5)){
             printf("out of bounds V for luma %i, hue %i, emp %i: U= %f\n", luma, hue, emphasis, Vout);
         }
+        */
     }
 
     return vec3(Yout, Uout, Vout);
@@ -383,4 +386,8 @@ double nesppusimulation::GetSuperWhiteScaleConstant(){
         return 1.0;
     }
     return 100.0 / IRE_norm_factor;
+}
+
+double nesppusimulation::GetUnderWhite(){
+    return underwhite;
 }

@@ -58,6 +58,8 @@ public:
     double blackpedestalcrushamount = 0.075;
     bool superblacks = false;
 
+    double NESrenormaliztionfactor = 1.0;
+
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
     bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack);
@@ -92,6 +94,8 @@ public:
     vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks);
 
     void ScaleBlackPedestalForNESSuperWhite(double scalefactor);
+
+    void SetRenomalizationForNESUnderWhite(double underwhite);
 };
 
 // helper functions

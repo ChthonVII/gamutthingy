@@ -306,6 +306,8 @@ double crtdescriptor::tolinear1886appx1(double input){
     double bottom = superblacks ? 0.0 : CRT_EOTF_blacklevel;
     output -= bottom;
     output /= (CRT_EOTF_whitelevel - bottom);
+
+    output *= NESrenormaliztionfactor;
     
     // fix floating point errors very near 0 or 1
     if ((output != 0.0) && (fabs(output - 0.0) < 1e-10)){
@@ -322,6 +324,8 @@ double crtdescriptor::tolinear1886appx1(double input){
 // Initialize1886EOTF() must be run once before this can be used.
 double crtdescriptor::togamma1886appx1(double input){
     
+    input /= NESrenormaliztionfactor;
+
     // undo the chop and normalization post-processing
     double bottom = superblacks ? 0.0 : CRT_EOTF_blacklevel;
     input *= (CRT_EOTF_whitelevel - bottom);
@@ -923,6 +927,14 @@ void crtdescriptor::ScaleBlackPedestalForNESSuperWhite(double scalefactor){
         printf("Scaling black pedestal crush from %f to %f to account for NES superwhites.\n", blackpedestalcrushamount, blackpedestalcrushamount * scalefactor);
     }
     blackpedestalcrushamount *= scalefactor;
+    return;
+}
+
+void crtdescriptor::SetRenomalizationForNESUnderWhite(double underwhite){
+    if (underwhite != 1.0){
+        double linearuw = tolinear1886appx1(underwhite);
+        NESrenormaliztionfactor = 1.0 / linearuw;
+    }
     return;
 }
 
