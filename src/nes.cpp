@@ -1,6 +1,5 @@
 #include "nes.h"
 #include "matrix.h"
-#include "crtemulation.h"
 
 #include <cstring> // for memset & memcpy
 #include <numbers> // for PI
@@ -60,7 +59,7 @@ const double burst_IRE_divisor = 40.0 / (cburst_high_volts - cburst_low_volts); 
 //      2C07: ~10 dgrees per luma step (but PAL so it cancels out)
 // agcluma: What kind of automatic gain control to use for luma
 // agcchroma: What kind of automatic gain control to use for chroma
-bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, double boost48C, double skewstep, int yuvconstprec,  int agcluma, int agcchroma, bool showsuperwhite){
+bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, double boost48C, double skewstep, int yuvconstprec,  int agcluma, int agcchroma, double superwhitefactor, crtdescriptor* thecrt){
 
     verbosity = verboselevel;
     palmode = ispal;
@@ -70,7 +69,7 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
     YUVconstantprecision = yuvconstprec;
     agclumatype = agcluma;
     agcchromatype = agcchroma;
-    superwhites = showsuperwhite;
+    superwhiteshowfactor = superwhitefactor;
 
     //see https://forums.nesdev.org/viewtopic.php?p=86782#p86782
     switch (agclumatype){
@@ -86,6 +85,7 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
         default:
             break;
     }
+    printf("IRE divisor is %f\n", IRE_divisor);
 
     switch (agcchromatype){
         case NES_AGC_CHROMA_SAME:
@@ -102,19 +102,30 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
         default:
             break;
     }
+    //printf("chroma_IRE_correction is %f\n", chroma_IRE_correction);
 
     // assume documentation on 48C luma boost is stated in nominal IRE
     if (agclumatype != NES_AGC_LUMA_NONE){
         lumaboost48C *= 140.0 / IRE_divisor;
     }
+    //printf("lumaboost48C is %f\n", lumaboost48C);
 
-    IRE_norm_factor = IRE_divisor * (max_volts - blanking_volts);
-    if ((IRE_norm_factor > 100.0) && !superwhites){
-        IRE_norm_factor = 100.0;
+    double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
+    whiteIRE /= 100.0;
+    whiteIRE = pow(whiteIRE, thecrt->globalgammaadjust);
+    double linearwhite = thecrt->tolinear1886appx1(whiteIRE);
+    if (linearwhite > 1.0){
+        double overage = linearwhite - 1.0;
+        overage *= superwhiteshowfactor;
+        double newlinearwhite = 1.0 + overage;
+        thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
+        Ycliplevel = thecrt->togamma1886appx1(newlinearwhite);
+        Ycliplevel = pow(Ycliplevel, 1.0 / thecrt->globalgammaadjust);
+        //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
     }
-    else if (IRE_norm_factor < 100.0){
-        underwhite = IRE_norm_factor / 100.0;
-        IRE_norm_factor = 100.0;
+    else {
+        thecrt->SetNESScaleFactor(1.0 / linearwhite);
+        //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
     }
 
     bool output = InitializeYUVtoRGBMatrix();
@@ -342,14 +353,12 @@ vec3 nesppusimulation::NEStoYUV(int hue, int luma, int emphasis){
     Yout += lumaboost;
 
     // normalize IRE to 0-1 range
-    Yout /= IRE_norm_factor;
-    Uout /= IRE_norm_factor;
-    Vout /= IRE_norm_factor;
+    Yout /= 100.0;
+    Uout /= 100.0;
+    Vout /= 100.0;
 
-    if (!superwhites){
-        if (Yout > 1.0){
-            Yout = 1.0;
-        }
+    if (Yout > Ycliplevel){
+        Yout = Ycliplevel;
         // For now, just clamp Y.
         // And let gamut compression algorithm deal with out-of-bounds chroma.
         /*
@@ -378,16 +387,4 @@ vec3 nesppusimulation::NEStoRGB(int hue, int luma, int emphasis){
     //rgb.printout();
 
     return rgb;
-}
-
-// Get the constant needed to account for superwhite scaling
-double nesppusimulation::GetSuperWhiteScaleConstant(){
-    if (!superwhites){
-        return 1.0;
-    }
-    return 100.0 / IRE_norm_factor;
-}
-
-double nesppusimulation::GetUnderWhite(){
-    return underwhite;
 }

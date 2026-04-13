@@ -93,9 +93,7 @@ public:
     vec3 CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input);
     vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks);
 
-    void ScaleBlackPedestalForNESSuperWhite(double scalefactor);
-
-    void SetRenomalizationForNESUnderWhite(double underwhite);
+    void SetNESScaleFactor(double input);
 };
 
 // helper functions

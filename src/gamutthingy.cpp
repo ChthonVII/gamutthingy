@@ -1142,7 +1142,7 @@ int main(int argc, const char **argv){
     char* neshtmlfilename;
     int nesagcluma = NES_AGC_LUMA_NONE;
     int nesagcchroma = NES_AGC_CHROMA_BURST;
-    bool nessuperwhites = true;
+    double nessuperwhiteshowfactor = 1.0;
     bool backwardsmode = false;
     double crthueknob = 0.0;
     double crtsaturationknob = 1.0;
@@ -1151,7 +1151,7 @@ int main(int argc, const char **argv){
     char* retroarchtextfilename;
     int maxthreads = 0;
     
-    const boolparam params_bool[19] = {
+    const boolparam params_bool[18] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -1186,11 +1186,6 @@ int main(int argc, const char **argv){
             "--nespalmode",                     //std::string paramstring; // parameter's text
             "NES simulation PAL mode",           //std::string prettyname; // name for pretty printing
             &nesispal                 //bool* vartobind; // pointer to variable whose value to set
-        },
-        {
-            "--nessuperwhites",                     //std::string paramstring; // parameter's text
-            "NES simulation CRT show \"super white\" colors",           //std::string prettyname; // name for pretty printing
-            &nessuperwhites               //bool* vartobind; // pointer to variable whose value to set
         },
         {
             "--crtclamphighenable",                     //std::string paramstring; // parameter's text
@@ -2113,7 +2108,7 @@ int main(int argc, const char **argv){
     };
 
 
-    const floatparam params_float[44] = {
+    const floatparam params_float[45] = {
         {
             "--remap-factor",         //std::string paramstring; // parameter's text
             "Gamut Compression Remap Factor",        //std::string prettyname; // name for pretty printing
@@ -2328,6 +2323,11 @@ int main(int argc, const char **argv){
             "--goutp",         //std::string paramstring; // parameter's text
             "Gamma out power",        //std::string prettyname; // name for pretty printing
             &gammapowout        //double* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nessuperwhites",         //std::string paramstring; // parameter's text
+            "Fraction of NES \"super white\" range to display",        //std::string prettyname; // name for pretty printing
+            &nessuperwhiteshowfactor       //double* vartobind; // pointer to variable whose value to set
         }
 
         // Intentionally omitting cccfloor, cccceiling, cccexp for color correction methods derived from patent filings
@@ -3036,6 +3036,15 @@ int main(int argc, const char **argv){
         }
     }
 
+    if (nessuperwhiteshowfactor > 1.0){
+        printf("Cannot display more than 100%% of NES superwhites. Forcing to 1.0.\n");
+        nessuperwhiteshowfactor = 1.0;
+    }
+    else if (nessuperwhiteshowfactor < 0.0){
+        printf("Cannot display less than 0%% of NES superwhites. Forcing to 0.0.\n");
+        nessuperwhiteshowfactor = 0.0;
+    }
+
     // ---------------------------------------------------------------------
     // process custom constants
 
@@ -3449,12 +3458,7 @@ int main(int argc, const char **argv){
             printf("NES phase skew per luma step: %f degrees\n", nesskewstep);
             printf("NES CRT automatic gain control type for luma: %s\n", nesagclumanames[nesagcluma].c_str());
             printf("NES CRT automatic gain control type for chroma: %s\n", nesagcchromanames[nesagcchroma].c_str());
-            if (nessuperwhites){
-                printf("NES CRT \"super white\" colors shown.\n");
-            }
-            else {
-                printf("NES CRT \"super white\" colors clipped.\n");
-            }
+            printf("NES %f%% of CRT \"super white\" colors shown.\n", nessuperwhiteshowfactor * 100.0);
         }
         printf("Verbosity: %i\n", verbosity);
         printf("----------\n\n");
@@ -3616,11 +3620,7 @@ int main(int argc, const char **argv){
     else if (nesmode){
 
         nesppusimulation nessim;
-        nessim.Initialize(verbosity, nesispal, nesskew26A, nesboost48C, nesskewstep, crtyuvconstantprecision, nesagcluma, nesagcchroma, nessuperwhites);
-        if (sourcegamut.attachedCRT){
-            sourcegamut.attachedCRT->ScaleBlackPedestalForNESSuperWhite(nessim.GetSuperWhiteScaleConstant());
-            sourcegamut.attachedCRT->SetRenomalizationForNESUnderWhite(nessim.GetUnderWhite());
-        }
+        nessim.Initialize(verbosity, nesispal, nesskew26A, nesboost48C, nesskewstep, crtyuvconstantprecision, nesagcluma, nesagcchroma, nessuperwhiteshowfactor, sourcegamut.attachedCRT);
         printf("Generating NES palette and saving result to %s...\n", outputfilename);
 
         std::ofstream palfile(outputfilename, std::ios::out | std::ios::binary);
@@ -3692,21 +3692,10 @@ int main(int argc, const char **argv){
             else {
                 htmlfile << "\t\t\tCRT R'G'B' high output values not clamped. (Out-of-bounds values resolved by gamut compression algorithm.)<BR>\n";
             }
-
-            if (nessuperwhites){
-                htmlfile << "\t\t\tCRT \"super white\" colors shown. (Renormalized before CRT R'G'B' high output clamping.)<BR>\n";
-            }
-            else {
-                htmlfile << "\t\t\tCRT \"super white\" colors clipped.<BR>\n";
-            }
+            htmlfile << (nessuperwhiteshowfactor * 100.0) << "%% of CRT \"super white\" colors shown.<BR>\n";
 
             if (crtblackpedestalcrush){
-                htmlfile << "\t\t\tCRT black pedestal " << (100.0 * crtblackpedestalcrushamount) << " IRE crushed to 0 IRE.";
-                double swscale = nessim.GetSuperWhiteScaleConstant();
-                if (swscale != 1.0){
-                    htmlfile << " (" << (100.0 * crtblackpedestalcrushamount) << " automatically rescaled to " << (100.0 * crtblackpedestalcrushamount * swscale) << " to account for scaling for \"super white\" colors.)";
-                }
-                htmlfile << "<BR>\n";
+                htmlfile << "\t\t\tCRT black pedestal " << (100.0 * crtblackpedestalcrushamount) << " IRE crushed to 0 IRE.<BR>\n";
             }
             else {
                 htmlfile << "\t\t\tCRT black pedestal crush disabled.<BR>\n";

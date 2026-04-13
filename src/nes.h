@@ -3,6 +3,7 @@
 
 #include "constants.h"
 #include "vec3.h"
+#include "crtemulation.h"
 
 /*
  * Simulates the PPU of a NES/Famicom for purposes of palette generation.
@@ -29,7 +30,8 @@ public:
     double IRE_norm_factor = 140.0 * (1.1 - 0.312);
     double underwhite = 1.0;
     double chroma_IRE_correction = 1.0;
-    bool superwhites = true;
+    double superwhiteshowfactor = 1.0;
+    double Ycliplevel = 1.0;
 
     // verboselevel: verbostiy level
     // ispal: simulate PAL's alternating phases?
@@ -42,7 +44,7 @@ public:
     //      2C07: ~10 dgrees per luma step (but PAL so it cancels out)
     // agcluma: What kind of automatic gain control to use for luma
     // agcchroma: What kind of automatic gain control to use for chroma
-    bool Initialize(int verboselevel, bool ispal, double skew26A, double boost48C, double skewstep, int yuvconstprec, int agcluma, int agcchroma, bool showsuperwhite);
+    bool Initialize(int verboselevel, bool ispal, double skew26A, double boost48C, double skewstep, int yuvconstprec, int agcluma, int agcchroma, double superwhitefactor, crtdescriptor* thecrt);
 
     // We need R'G'B' output from the NES simulation b/c the color correction built into the TV's demodulation
     // is represented as a R'G'B' to R'G'B' matrix in crt.cpp.
@@ -65,12 +67,6 @@ public:
 
     // Convert NES hue/luma/emphasis triad to R'G'B'
     vec3 NEStoRGB(int hue, int luma, int emphasis);
-
-    // Get the constant needed to account for superwhite scaling
-    double GetSuperWhiteScaleConstant();
-
-    // Get the underwhite value needed for scaling
-    double GetUnderWhite();
 
 };
 

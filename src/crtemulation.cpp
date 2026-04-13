@@ -306,8 +306,6 @@ double crtdescriptor::tolinear1886appx1(double input){
     double bottom = superblacks ? 0.0 : CRT_EOTF_blacklevel;
     output -= bottom;
     output /= (CRT_EOTF_whitelevel - bottom);
-
-    output *= NESrenormaliztionfactor;
     
     // fix floating point errors very near 0 or 1
     if ((output != 0.0) && (fabs(output - 0.0) < 1e-10)){
@@ -324,8 +322,6 @@ double crtdescriptor::tolinear1886appx1(double input){
 // Initialize1886EOTF() must be run once before this can be used.
 double crtdescriptor::togamma1886appx1(double input){
     
-    input /= NESrenormaliztionfactor;
-
     // undo the chop and normalization post-processing
     double bottom = superblacks ? 0.0 : CRT_EOTF_blacklevel;
     input *= (CRT_EOTF_whitelevel - bottom);
@@ -878,10 +874,24 @@ vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
     output.x = tolinear1886appx1(output.x);
     output.y = tolinear1886appx1(output.y);
     output.z = tolinear1886appx1(output.z);
+
+    if (NESrenormaliztionfactor != 1.0){
+        output.x *= NESrenormaliztionfactor;
+        output.y *= NESrenormaliztionfactor;
+        output.z *= NESrenormaliztionfactor;
+    }
+
     return output;
 }
 
 vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks){
+
+    if (NESrenormaliztionfactor != 1.0){
+        input.x /= NESrenormaliztionfactor;
+        input.y /= NESrenormaliztionfactor;
+        input.z /= NESrenormaliztionfactor;
+    }
+
     input.x = togamma1886appx1(input.x);
     input.y = togamma1886appx1(input.y);
     input.z = togamma1886appx1(input.z);
@@ -922,19 +932,16 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushb
     return output;
 }
 
-void crtdescriptor::ScaleBlackPedestalForNESSuperWhite(double scalefactor){
-    if (blackpedestalcrush && (verbosity >= VERBOSITY_SLIGHT) && (scalefactor != 1.0)){
-        printf("Scaling black pedestal crush from %f to %f to account for NES superwhites.\n", blackpedestalcrushamount, blackpedestalcrushamount * scalefactor);
+void crtdescriptor::SetNESScaleFactor(double input){
+    NESrenormaliztionfactor = input;
+    if (clamphighrgb){
+        rgbclamphighlevel = tolinear1886appx1(rgbclamphighlevel);
+        rgbclamphighlevel /= input;
+        rgbclamphighlevel = togamma1886appx1(rgbclamphighlevel);
     }
-    blackpedestalcrushamount *= scalefactor;
-    return;
-}
-
-void crtdescriptor::SetRenomalizationForNESUnderWhite(double underwhite){
-    if (underwhite != 1.0){
-        double linearuw = tolinear1886appx1(underwhite);
-        NESrenormaliztionfactor = 1.0 / linearuw;
-    }
+    rgbclamplowlevel = tolinear1886appx1(rgbclamplowlevel);
+    rgbclamplowlevel /= input;
+    rgbclamplowlevel = togamma1886appx1(rgbclamplowlevel);
     return;
 }
 
