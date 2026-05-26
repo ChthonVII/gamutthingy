@@ -110,7 +110,7 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
 
     // assume documentation on 48C luma boost is stated in nominal IRE
     if (agclumatype != NES_AGC_LUMA_NONE){
-        lumaboost48C *= 140.0 / IRE_divisor;
+        lumaboost48C *= IRE_divisor / nominal_IRE_divisor;
     }
     //printf("lumaboost48C is %f\n", lumaboost48C);
 
