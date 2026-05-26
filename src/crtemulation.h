@@ -95,6 +95,8 @@ public:
 
     void SetNESScaleFactor(double input);
     void NESScaleBlackPedestal(double input);
+    double NESWhiteEstimateToLinear(double input);
+    double NESWhiteEstimateToGamma(double input);
 };
 
 // helper functions

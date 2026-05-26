@@ -947,9 +947,41 @@ void crtdescriptor::SetNESScaleFactor(double input){
 
 void crtdescriptor::NESScaleBlackPedestal(double input){
     if (blackpedestalcrush && (verbosity >= VERBOSITY_SLIGHT) && (input != 1.0)){
-        printf("Scaling black pedestal crush from %f to %f to account for adaptive gain control with NES simulation.\n", blackpedestalcrushamount, blackpedestalcrushamount * input);
+        printf("Scaling black pedestal crush from %f to %f to account for gain control with NES simulation.\n", blackpedestalcrushamount, blackpedestalcrushamount * input);
     }
     blackpedestalcrushamount *= input;
+}
+
+// figure out what unclamped NES $30 white will be in linear space
+// make sure NESScaleBlackPedestal() is called first
+double crtdescriptor::NESWhiteEstimateToLinear(double input){
+    double output = input;
+    if (blackpedestalcrush){
+        double scale = 1.0 - blackpedestalcrushamount;
+        output = (output - blackpedestalcrushamount) / scale;
+    }
+    if (globalgammaadjust != 1.0){
+        output = pow(output, globalgammaadjust);
+    }
+    output = tolinear1886appx1(output);
+
+    return output;
+}
+
+// figure out what some clamped linear NES white will be in gamma space
+// make sure NESScaleBlackPedestal() is called first
+double crtdescriptor::NESWhiteEstimateToGamma(double input){
+    double output = input;
+    output = togamma1886appx1(output);
+    if (globalgammaadjust != 1.0){
+        output = pow(output, 1.0/globalgammaadjust);
+    }
+    if (blackpedestalcrush){
+        double scale = 1.0 - blackpedestalcrushamount;
+        output = (output * scale) + blackpedestalcrushamount;
+    }
+
+    return output;
 }
 
 bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision){

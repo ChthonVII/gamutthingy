@@ -108,36 +108,29 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
     }
     //printf("chroma_IRE_correction is %f\n", chroma_IRE_correction);
 
-    // assume documentation on 48C luma boost is stated in nominal IRE
+    // if we aren't using nominal IRE (1 IRE = 1/140volts), scale things that are stated in nominal IRE
     if (agclumatype != NES_AGC_LUMA_NONE){
+        // assume documentation on 48C luma boost is stated in nominal IRE
         lumaboost48C *= IRE_divisor / nominal_IRE_divisor;
+        // assume black pedestal is in nominal IRE
+        thecrt->NESScaleBlackPedestal(adaptive_IRE_divisior/140.0);
     }
     //printf("lumaboost48C is %f\n", lumaboost48C);
 
-    if (agclumatype == NES_AGC_LUMA_ADAPTIVE){
-        // don't call SetNESScaleFactor() because it defaults to 1.0
-        // ditto Ycliplevel
-        // do tell the CRT to adjust the size of the black pedestal so that it correctly behaves like black crush happens before adaptive gain.
-        thecrt->NESScaleBlackPedestal(adaptive_IRE_divisior/140.0);
+    double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
+    whiteIRE /= 100.0;
+    double linearwhite = thecrt->NESWhiteEstimateToLinear(whiteIRE);
+    if (linearwhite > 1.0){
+        double overage = linearwhite - 1.0;
+        overage *= superwhiteshowfactor;
+        double newlinearwhite = 1.0 + overage;
+        thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
+        Ycliplevel = thecrt->NESWhiteEstimateToGamma(newlinearwhite);
+        //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
     }
     else {
-        double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
-        whiteIRE /= 100.0;
-        whiteIRE = pow(whiteIRE, thecrt->globalgammaadjust);
-        double linearwhite = thecrt->tolinear1886appx1(whiteIRE);
-        if (linearwhite > 1.0){
-            double overage = linearwhite - 1.0;
-            overage *= superwhiteshowfactor;
-            double newlinearwhite = 1.0 + overage;
-            thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
-            Ycliplevel = thecrt->togamma1886appx1(newlinearwhite);
-            Ycliplevel = pow(Ycliplevel, 1.0 / thecrt->globalgammaadjust);
-            //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
-        }
-        else {
-            thecrt->SetNESScaleFactor(1.0 / linearwhite);
-            //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
-        }
+        thecrt->SetNESScaleFactor(1.0 / linearwhite);
+        //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
     }
 
     bool output = InitializeYUVtoRGBMatrix();
