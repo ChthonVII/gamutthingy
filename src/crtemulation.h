@@ -94,6 +94,7 @@ public:
     vec3 CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushblacks);
 
     void SetNESScaleFactor(double input);
+    void NESScaleBlackPedestal(double input);
 };
 
 // helper functions

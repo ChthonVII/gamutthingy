@@ -945,6 +945,13 @@ void crtdescriptor::SetNESScaleFactor(double input){
     return;
 }
 
+void crtdescriptor::NESScaleBlackPedestal(double input){
+    if (blackpedestalcrush && (verbosity >= VERBOSITY_SLIGHT) && (input != 1.0)){
+        printf("Scaling black pedestal crush from %f to %f to account for adaptive gain control with NES simulation.\n", blackpedestalcrushamount, blackpedestalcrushamount * input);
+    }
+    blackpedestalcrushamount *= input;
+}
+
 bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision){
 
     bool status = true;

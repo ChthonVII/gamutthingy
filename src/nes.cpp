@@ -48,6 +48,7 @@ const double max_volts = signal_table_composite[3][0][0]; // 1.1v
 const double nominal_IRE_divisor = 140.0; // ~0.00714v per IRE
 const double sync_IRE_divisor = 40.0 / (blanking_volts - sync_volts); // 151.5151...; 0.0066v per IRE
 const double burst_IRE_divisor = 40.0 / (cburst_high_volts - cburst_low_volts); // ~106.38; 0.0094v per IRE
+const double adaptive_IRE_divisior = 100.0 / (max_volts - blanking_volts); // ~126.904...; 0.00788v per IRE
 
 // verboselevel: verbostiy level
 // ispal: simulate PAL's alternating phases?
@@ -82,6 +83,9 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
         case NES_AGC_LUMA_BURST:
             IRE_divisor = burst_IRE_divisor; // results in ~83.83 IRE white
             break;
+        case NES_AGC_LUMA_ADAPTIVE:
+            IRE_divisor = adaptive_IRE_divisior; // results in 100 IRE white
+            break;
         default:
             break;
     }
@@ -110,22 +114,30 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
     }
     //printf("lumaboost48C is %f\n", lumaboost48C);
 
-    double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
-    whiteIRE /= 100.0;
-    whiteIRE = pow(whiteIRE, thecrt->globalgammaadjust);
-    double linearwhite = thecrt->tolinear1886appx1(whiteIRE);
-    if (linearwhite > 1.0){
-        double overage = linearwhite - 1.0;
-        overage *= superwhiteshowfactor;
-        double newlinearwhite = 1.0 + overage;
-        thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
-        Ycliplevel = thecrt->togamma1886appx1(newlinearwhite);
-        Ycliplevel = pow(Ycliplevel, 1.0 / thecrt->globalgammaadjust);
-        //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
+    if (agclumatype == NES_AGC_LUMA_ADAPTIVE){
+        // don't call SetNESScaleFactor() because it defaults to 1.0
+        // ditto Ycliplevel
+        // do tell the CRT to adjust the size of the black pedestal so that it correctly behaves like black crush happens before adaptive gain.
+        thecrt->NESScaleBlackPedestal(adaptive_IRE_divisior/140.0);
     }
     else {
-        thecrt->SetNESScaleFactor(1.0 / linearwhite);
-        //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
+        double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
+        whiteIRE /= 100.0;
+        whiteIRE = pow(whiteIRE, thecrt->globalgammaadjust);
+        double linearwhite = thecrt->tolinear1886appx1(whiteIRE);
+        if (linearwhite > 1.0){
+            double overage = linearwhite - 1.0;
+            overage *= superwhiteshowfactor;
+            double newlinearwhite = 1.0 + overage;
+            thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
+            Ycliplevel = thecrt->togamma1886appx1(newlinearwhite);
+            Ycliplevel = pow(Ycliplevel, 1.0 / thecrt->globalgammaadjust);
+            //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
+        }
+        else {
+            thecrt->SetNESScaleFactor(1.0 / linearwhite);
+            //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
+        }
     }
 
     bool output = InitializeYUVtoRGBMatrix();

@@ -1791,7 +1791,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue nesagclumalist[3] = {
+    const paramvalue nesagclumalist[4] = {
         {
             "nominal",
             NES_AGC_LUMA_NONE
@@ -1803,6 +1803,10 @@ int main(int argc, const char **argv){
         {
             "burst",
             NES_AGC_LUMA_BURST
+        },
+        {
+            "adaptive",
+            NES_AGC_LUMA_ADAPTIVE
         }
     };
 

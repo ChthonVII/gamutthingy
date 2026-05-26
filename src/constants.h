@@ -123,6 +123,7 @@ extern const vec3 D65;
 #define NES_AGC_LUMA_NONE 0
 #define NES_AGC_LUMA_SYNC 1
 #define NES_AGC_LUMA_BURST 2
+#define NES_AGC_LUMA_ADAPTIVE 3
 
 #define NES_AGC_CHROMA_SAME 0
 #define NES_AGC_CHROMA_BURST 1
