@@ -113,7 +113,8 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
         // assume documentation on 48C luma boost is stated in nominal IRE
         lumaboost48C *= IRE_divisor / nominal_IRE_divisor;
         // assume black pedestal is in nominal IRE
-        thecrt->NESScaleBlackPedestal(adaptive_IRE_divisior/140.0);
+        // On second thought, no. Never do this. Automatic gain control must come *before* black pedestal crush; otherwise it wouldn't work right with broadcast signals, which may often have scale factors nowhere near 1.0. So the black pedestal's proper units are "whatever an IRE is after automatic gain control."
+        //thecrt->NESScaleBlackPedestal(adaptive_IRE_divisior/140.0);
     }
     //printf("lumaboost48C is %f\n", lumaboost48C);
 
