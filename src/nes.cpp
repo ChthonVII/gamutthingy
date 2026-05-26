@@ -118,20 +118,22 @@ bool nesppusimulation::Initialize(int verboselevel, bool ispal, double skew26A, 
     }
     //printf("lumaboost48C is %f\n", lumaboost48C);
 
-    double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
-    whiteIRE /= 100.0;
-    double linearwhite = thecrt->NESWhiteEstimateToLinear(whiteIRE);
-    if (linearwhite > 1.0){
-        double overage = linearwhite - 1.0;
-        overage *= superwhiteshowfactor;
-        double newlinearwhite = 1.0 + overage;
-        thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
-        Ycliplevel = thecrt->NESWhiteEstimateToGamma(newlinearwhite);
-        //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
-    }
-    else {
-        thecrt->SetNESScaleFactor(1.0 / linearwhite);
-        //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
+    if (agclumatype != NES_AGC_LUMA_ADAPTIVE){
+        double whiteIRE = IRE_divisor * (max_volts - blanking_volts);
+        whiteIRE /= 100.0;
+        double linearwhite = thecrt->NESWhiteEstimateToLinear(whiteIRE);
+        if (linearwhite > 1.0){
+            double overage = linearwhite - 1.0;
+            overage *= superwhiteshowfactor;
+            double newlinearwhite = 1.0 + overage;
+            thecrt->SetNESScaleFactor(1.0 / newlinearwhite);
+            Ycliplevel = thecrt->NESWhiteEstimateToGamma(newlinearwhite);
+            //printf("linearwhite is %f, newlinearwhite is %f, scale factor is %f, set as %f\n", linearwhite, newlinearwhite, 1.0 / newlinearwhite, thecrt->NESrenormaliztionfactor);
+        }
+        else if (linearwhite < 1.0) {
+            thecrt->SetNESScaleFactor(1.0 / linearwhite);
+            //printf("linearwhite is %f,  scale factor is %f, set as %f\n", linearwhite, 1.0 / linearwhite, thecrt->NESrenormaliztionfactor);
+        }
     }
 
     bool output = InitializeYUVtoRGBMatrix();
