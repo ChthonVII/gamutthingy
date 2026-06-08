@@ -646,8 +646,12 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_TA7644BP_MEASURED 14
 #define CRT_DEMODULATOR_LA7655N 15
 #define CRT_DEMODULATOR_CT36D30B 16
+#define CRT_DEMODULATOR_TA8867AN 17
+#define CRT_DEMODULATOR_TA8801AN 18
+#define CRT_DEMODULATOR_TA8867BN 19
+#define CRT_DEMODULATOR_TA7698AP 20
 
-const std::string demodulatornames[17] = {
+const std::string demodulatornames[21] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -664,7 +668,11 @@ const std::string demodulatornames[17] = {
     "TA7644BP (US)",
     "TA7644BP (US) (measured)",
     "LA7655N",
-    "Unknown Chip - Panasonic CT-36D30B (US)"
+    "Unknown Chip - Panasonic CT-36D30B (US)",
+    "TA8867AN",
+    "TA8801AN",
+    "TA8867BN",
+    "TA7698AP"
 };
 
 const double demodulatorinfo[17][2][3] = {
@@ -835,6 +843,46 @@ const double demodulatorinfo[17][2][3] = {
         {0.91062624791989, 0.388131199173125, 1.0}
     },
 
+    // TA8867AN
+    // From Toshiba CE-20D10, launched in 1994, manufactured in 1995
+    // I can't confirm, but the middle letter of Toshiba CE/CF CRTs seems to correspond to the launch year--C is 1993, D is 1994, E is 1995, etc.
+    // Might possibly pair with "EBU-ish" phosphors from a Toshiba patent in 1992.
+    // The chip has a PAL mode too with different settings.
+    // (research by Patchy68k)
+    {
+        {112, 237, 0},
+        {0.84, 0.33, 1.0}
+    },
+    // TA8801AN
+    // From Toshiba CF3272B, manufactured in 1993, and probably launched in 1993
+    // Might possibly pair with "EBU-ish" phosphors from a Toshiba patent in 1992
+    // The chip has a PAL mode too with different settings.
+    // (research by Patchy68k)
+    {
+        {95, 240, 0},
+        {0.84, 0.31, 1.0}
+    },
+    // TA8867BN
+    // Unknown what CRT this appears in, but similar chip to TA8867AN
+    // Might possibly pair with "EBU-ish" phosphors from a Toshiba patent in 1992
+    // The chip has a PAL mode too with different settings
+    // (research by Patchy68k)
+    {
+        {104, 240, 0},
+        {0.91, 0.31, 1.0}
+    },
+    // TA7698AP
+    // Datasheet paper has the year 1988
+    // Appears in JVC TM-9U(CV), also rebranded as the Sensormatic RM409
+    // I could've sworn that there was a Toshiba CRT from 1988 on crtdatabase that had this chip.
+    // Might pair with the same phosphors as the CF2005, but don't know.
+    // Also might pair with the "EBU-ish" phosphors from a 1992 Toshiba patent.
+    // The chip has a PAL mode too with different settings.
+    // (research by Patchy68k)
+    {
+        {105, 235, 0},
+        {1.0, 0.38, 1.0}
+    }
 };
 
 #endif
