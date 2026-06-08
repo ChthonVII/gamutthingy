@@ -147,6 +147,7 @@ Four general modes of operation:
      - `P22_apple_multiscan1705` Official chromaticity coordinates for P22 phosphors in Apple Multiple Scan 1705 computer monitor (manufactured 1995-1997). Whitepoint was 9300K+8mpcd. [new14], [new15]
      - `P22_rca_colortrak_patchy68k` Measurements of a RCA Colortrak Remote E13169GM CRT television (US model, 1989). [new16]
      - `P22_toshiba_blackstripe_patchy68k` Measurements of a Toshiba Blackstripe CF2005 CRT television (US model, 1985) The unit measured was in deteriorated condition, so take these measurements with a grain of salt. White point could not be measured due to poor condition. [new16]
+     - `P22_panasonic_CT36D30B` Measurements of a Panasonic CT-36D30B (US model, 2000) taken by patchy68k. [new25]
      - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
 - `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
@@ -400,6 +401,7 @@ TODO: fill in missing citations, then alphabetize
 - [new22] Donofrio, Robert; Hess, David; and Sember, William. "The White Color of Television Receivers." *Proc. IS&T 1st Color and Imaging Conf.*, pp. 185-187. 1993. ([Link](https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/1/1/art00047))
 - [new23] Nesdev Wiki. "Color $0D games" ([Link](https://www.nesdev.org/wiki/Color_$0D_games))
 - [new24] Golz, Jürgen and MacLeod, Donald I.A. "Colorimetry for CRT displays." *Journal of the Optical Society of America A*, Vol. 20, No. 5, pp. 769-781. May 2003.
+- [new25] https://github.com/ChthonVII/gamutthingy/issues/4
 
 
 **Building:**
