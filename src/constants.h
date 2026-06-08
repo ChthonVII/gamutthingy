@@ -297,8 +297,9 @@ const double whitepoints[20][3] = {
 #define GAMUT_P22_APPLE_MULTISCAN1705 18
 #define GAMUT_P22_COLORTRAK 19
 #define GAMUT_P22_BLACKSTRIPE 20
+#define GAMUT_P22_PANASONIC_CT36D30B 21
 
-const std::string gamutnames[21] = {
+const std::string gamutnames[22] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -320,9 +321,10 @@ const std::string gamutnames[21] = {
     "P22 phosphors, Apple Multiple Scan 1705",
     "P22 phosphors, RCA ColorTrak Remote E13169GM, Patchy68k measurement",
     "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
+    "P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement"
 };
 
-const double gamutpoints[21][3][3] = {
+const double gamutpoints[22][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -521,6 +523,15 @@ const double gamutpoints[21][3][3] = {
         {0.642, 0.339, 0.019}, //red
         {0.301, 0.601, 0.098}, //green
         {0.144, 0.071, 0.785} //blue
+    },
+
+
+    // P22_panasonic_CT36D30B
+    // P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement
+    {
+        {0.651212890899489, 0.327170850978215, 1 - 0.651212890899489 - 0.327170850978215},
+        {0.311678021451133, 0.607717178761663, 1 - 0.311678021451133 - 0.607717178761663},
+        {0.15033614521611, 0.0665766255634717, 1 - 0.15033614521611 - 0.0665766255634717}
     },
 
     // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
