@@ -1296,7 +1296,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[24] = {
+    const paramvalue gamutlist[25] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -1388,6 +1388,10 @@ int main(int argc, const char **argv){
         {
             "P22_panasonic_CT36D30B",
             GAMUT_P22_PANASONIC_CT36D30B
+        },
+        {
+            "P22_1979ish",
+            GAMUT_P22_MATSUSHITA1979
         },
         {
             "customcoord",
@@ -1625,7 +1629,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue crtdemodulatorlist[22] = {
+    const paramvalue crtdemodulatorlist[23] = {
         {
             "none",
             CRT_DEMODULATOR_NONE
@@ -1713,6 +1717,10 @@ int main(int argc, const char **argv){
         {
             "TA7698AP",
             CRT_DEMODULATOR_TA7698AP
+        },
+        {
+            "1979ish",
+            CRT_DEMODULATOR_1979ISH
         },
     };
 

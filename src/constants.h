@@ -299,8 +299,9 @@ const double whitepoints[20][3] = {
 #define GAMUT_P22_COLORTRAK 20
 #define GAMUT_P22_BLACKSTRIPE 21
 #define GAMUT_P22_PANASONIC_CT36D30B 22
+#define GAMUT_P22_MATSUSHITA1979 23
 
-const std::string gamutnames[23] = {
+const std::string gamutnames[24] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -323,10 +324,11 @@ const std::string gamutnames[23] = {
     "P22 phosphors, Apple Multiple Scan 1705",
     "P22 phosphors, RCA ColorTrak Remote E13169GM, Patchy68k measurement",
     "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
-    "P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement"
+    "P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement",
+    "P22 phosphors, 1979ish"
 };
 
-const double gamutpoints[23][3][3] = {
+const double gamutpoints[24][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -545,6 +547,17 @@ const double gamutpoints[23][3][3] = {
         {0.15033614521611, 0.0665766255634717, 1 - 0.15033614521611 - 0.0665766255634717}
     },
 
+    // P22_1979ish
+    // Described as "typical chromaticities of phosphors... in a recent television receiver" in a 1979 patent filing by Matsushita Electric.
+    // Pairs with 9300K+27MPCD whitepoint.
+    // https://patents.google.com/patent/US4167750A/en?oq=us+patent+4167750
+    {
+        {0.631, 0.347, 0.022},
+        {0.268, 0.585, 0.147},
+        {0.150, 0.071, 0.779}
+    },
+
+
     // I am deliberately omitting grade's P22_90s_ph because it is definitely wrong.
     // Grade: https://github.com/libretro/slang-shaders/blob/master/misc/shaders/grade.slang#L728
     // Better explanation from Dogway: https://github.com/Dogway/Avisynth-Scripts/blob/258644dea7a1fbc9a71e7f39d6bb62234a80e1c7/TransformsPack%20-%20Main.avsi#L2348
@@ -650,8 +663,9 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_TA8801AN 18
 #define CRT_DEMODULATOR_TA8867BN 19
 #define CRT_DEMODULATOR_TA7698AP 20
+#define CRT_DEMODULATOR_1979ISH 21
 
-const std::string demodulatornames[21] = {
+const std::string demodulatornames[22] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -672,10 +686,11 @@ const std::string demodulatornames[21] = {
     "TA8867AN",
     "TA8801AN",
     "TA8867BN",
-    "TA7698AP"
+    "TA7698AP",
+    "Unknown Chip - 1979ish"
 };
 
-const double demodulatorinfo[21][2][3] = {
+const double demodulatorinfo[22][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -882,6 +897,14 @@ const double demodulatorinfo[21][2][3] = {
     {
         {105, 235, 0},
         {1.0, 0.38, 1.0}
+    },
+    // 1979ish
+    // Decsribed as "The specifications for the recent color-difference demodulators for recent phosphors and a higher color-temperature white" (meaning P22_1979ish phosphors and 9300K+27MPCD white) in a 1979 patent filing by Matsushita Electric.
+    // https://patents.google.com/patent/US4167750A/en?oq=us+patent+4167750
+    {
+        {100, 237, 0},
+        //{2.5, 0.75, 2.65} Unnormalized, presumably using odd YUV scale constants because Japanese broadcasts had different bandwidth constraints.
+        {2.5/2.65, 0.75/2.65, 1.0} // Normalized, ~0.94, ~0.28, 1.0
     }
 };
 

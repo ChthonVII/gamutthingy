@@ -114,6 +114,7 @@ Four general modes of operation:
      - `TA8801AN` Used in Toshiba CF-3272B (NTSC, 1993). Might possibly pair with `P22_ebuish` phosphors (dubious).
      - `TA8867BN` Probably used in Toshiba CRT televisions. Similar to TA8867AN. Might possibly pair with `P22_ebuish` phosphors (dubious).
      - `TA7698AP` Chip datasheet says 1988. Used in JVC TM-9U(CV), also rebranded as the Sensormatic RM409. Probably also used in Toshiba CRT televisions. Might possibly pair with `P22_ebuish` phosphors (dubious).
+     - `1979ish` Decsribed as "The specifications for the recent color-difference demodulators for recent phosphors and a higher color-temperature white" (meaning `P22_1979ish` phosphors and `9300K27mpcd` white) in a 1979 patent filing by Matsushita Electric. [new29]
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
 - `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
@@ -155,6 +156,7 @@ Four general modes of operation:
      - `P22_rca_colortrak_patchy68k` Measurements of a RCA Colortrak Remote E13169GM CRT television (US model, 1989). [new16]
      - `P22_toshiba_blackstripe_patchy68k` Measurements of a Toshiba Blackstripe CF2005 CRT television (US model, 1985) The unit measured was in deteriorated condition, so take these measurements with a grain of salt. White point could not be measured due to poor condition. [new16]
      - `P22_panasonic_CT36D30B` Measurements of a Panasonic CT-36D30B (US model, 2000) taken by patchy68k. [new25]
+     - `P22_1979ish` Described as "typical chromaticities of phosphors... in a recent television receiver" in a 1979 patent filing by Matsushita Electric. Pairs with `9300K27mpcd` whitepoint and `1979ish` demodulator. [new29]
      - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
 - `--source-primaries-custom-coords` or `-spcc`: Specify the CIE 1931 chromaticity coordinates for the color primaries of the source gamut as a comma-separated list (no spaces!) in the following order: redx,redy,greenx,greeny,bluex,bluey. For example: `0.621,0.34,0.281,0.606,0.152,0.067`. Does nothing unless `--source-primaries customcoord`.
 - `--source-whitepoint` or `--sw`: Specifies the whitepoint of the source gamut. Possible values are:
@@ -412,6 +414,7 @@ TODO: fill in missing citations, then alphabetize
 - [new26] Golz raw data. https://www.uni-kiel.de/psychologie/golz/publications/2003a/IndividualPhosphors.html
 - [new27] https://github.com/ChthonVII/gamutthingy/issues/4#issuecomment-4537915279
 - [new28] https://patents.google.com/patent/US5301017A/en?oq=+5%2c301%2c017
+- [new29] https://patents.google.com/patent/US4167750A/en?oq=us+patent+4167750
 
 
 **Building:**
