@@ -641,6 +641,7 @@ const double modulatorinfo[4][3][3] = {
 
 };
 
+#define CRT_DEMODULATOR_CUSTOM -2
 #define CRT_DEMODULATOR_NONE -1
 #define CRT_DEMODULATOR_DUMMY 0
 #define CRT_DEMODULATOR_CXA1464AS 1

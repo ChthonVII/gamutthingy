@@ -62,7 +62,7 @@ public:
 
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack);
+    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, double (&customdemod)[2][3], int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma
@@ -80,7 +80,7 @@ public:
     
     bool InitializeNTSC1953WhiteBalanceFactors();
     bool InitializeModulator();
-    bool InitializeDemodulator();
+    bool InitializeDemodulator(double (&customdemod)[2][3]);
     
     // Simulate black crushing behavior of U.S. CRT expecting 7.5IR black pedestal, but getting input with black at 0 IRE.
     vec3 CrushBlack(vec3 input);

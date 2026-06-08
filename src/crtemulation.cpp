@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, double (&customdemod)[2][3], int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -58,7 +58,7 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
-        InitializeDemodulator();
+        InitializeDemodulator(customdemod);
     }
     // get our modulator and demodulator into one matrix
     if (havemodulator || havedemodulator){
@@ -434,7 +434,7 @@ bool crtdescriptor::InitializeNTSC1953WhiteBalanceFactors(){
 
 // The seminal text on this sort of color correction is:
 // Parker, N.W.. "An Analysis of the Necessary Decoder Corrections for Color Receiver Operation with Non-Standard Receiver Primaries." IEEE Transactions on Broadcast and Television Receivers, Vol 12, Issue 1, pp 23-32. 1966. (https://libgen.is/scimag/10.1109%2Ftbtr1.1966.4319950)
-bool crtdescriptor::InitializeDemodulator(){
+bool crtdescriptor::InitializeDemodulator(double (&customdemod)[2][3]){
 
     bool output = true;
 
@@ -442,15 +442,36 @@ bool crtdescriptor::InitializeDemodulator(){
         printf("\n----------\nInitializing CRT demodulator matrix...\n");
     }
     
-    // convert angles to radians
-    double redangle = demodulatorinfo[demodulatorindex][0][0] * (std::numbers::pi_v<long double>/ 180.0); 
-    double greenangle = demodulatorinfo[demodulatorindex][0][1] * (std::numbers::pi_v<long double>/ 180.0); 
-    double blueangle = demodulatorinfo[demodulatorindex][0][2] * (std::numbers::pi_v<long double>/ 180.0); 
-    
-    // gains
-    double redgain = demodulatorinfo[demodulatorindex][1][0];
-    double greengain = demodulatorinfo[demodulatorindex][1][1];
-    double bluegain = demodulatorinfo[demodulatorindex][1][2];
+    double redangle;
+    double greenangle;
+    double blueangle;
+    double redgain;
+    double greengain;
+    double bluegain;
+
+    if (demodulatorindex == CRT_DEMODULATOR_CUSTOM){
+        // convert angles to radians
+        redangle = customdemod[0][0] * (std::numbers::pi_v<long double>/ 180.0);
+        greenangle = customdemod[0][1] * (std::numbers::pi_v<long double>/ 180.0);
+        blueangle = customdemod[0][2] * (std::numbers::pi_v<long double>/ 180.0);
+
+        // gains
+        redgain = customdemod[1][0];
+        greengain = customdemod[1][1];
+        bluegain = customdemod[1][2];
+    }
+    else {
+        // convert angles to radians
+        redangle = demodulatorinfo[demodulatorindex][0][0] * (std::numbers::pi_v<long double>/ 180.0);
+        greenangle = demodulatorinfo[demodulatorindex][0][1] * (std::numbers::pi_v<long double>/ 180.0);
+        blueangle = demodulatorinfo[demodulatorindex][0][2] * (std::numbers::pi_v<long double>/ 180.0);
+
+        // gains
+        redgain = demodulatorinfo[demodulatorindex][1][0];
+        greengain = demodulatorinfo[demodulatorindex][1][1];
+        bluegain = demodulatorinfo[demodulatorindex][1][2];
+    }
+
     // if red or green looks like it would be unmodified but for rounding/truncation in the datasheet, restore the full precision value
     if (demodfixes || (demodulatorindex == CRT_DEMODULATOR_DUMMY)){
         if ((redgain >= 0.55) && (redgain < 0.57)){
@@ -459,7 +480,10 @@ bool crtdescriptor::InitializeDemodulator(){
         }
         bool ganglefix = false;
         bool ggainfix = false;
-        if ((demodulatorinfo[demodulatorindex][0][1] >= 235.0) && (demodulatorinfo[demodulatorindex][0][1] <= 237.0)){
+        if ((demodulatorindex != CRT_DEMODULATOR_CUSTOM) && (demodulatorinfo[demodulatorindex][0][1] >= 235.0) && (demodulatorinfo[demodulatorindex][0][1] <= 237.0)){
+            ganglefix = true;
+        }
+        if ((demodulatorindex == CRT_DEMODULATOR_CUSTOM) && (customdemod[0][1] >= 235.0) && (customdemod[0][1] <= 237.0)){
             ganglefix = true;
         }
         if ((greengain >= 0.34) && (greengain <= 0.35)){

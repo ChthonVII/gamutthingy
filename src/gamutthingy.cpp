@@ -1121,6 +1121,12 @@ int main(int argc, const char **argv){
     int crtdemodindex = CRT_DEMODULATOR_NONE;
     int crtdemodrenorm = RENORM_DEMOD_INSANE;
     bool crtdemodfixes = true;
+    double custom_demod_constants[2][3] = {
+        // default to "straight" demodulation
+        {90, 236, 0}, // angles (degrees)
+        {0.56, 0.34, 1.0} // gains
+    };
+
     bool crtdoclamphigh = true;
     bool crtclamplowatzerolight = true;
     double crtclamphigh = 1.1;
@@ -1629,7 +1635,11 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue crtdemodulatorlist[23] = {
+    const paramvalue crtdemodulatorlist[24] = {
+        {
+            "custom",
+            CRT_DEMODULATOR_CUSTOM
+        },
         {
             "none",
             CRT_DEMODULATOR_NONE
@@ -2398,7 +2408,7 @@ int main(int argc, const char **argv){
         },
     };
 
-    const float6param params_float6[4] = {
+    const float6param params_float6[5] = {
         {
             "--source-primaries-custom-coords",         //std::string paramstring; // parameter's text
             "Source Primaries Custom Coordinants",        //std::string prettyname; // name for pretty printing
@@ -2438,6 +2448,16 @@ int main(int argc, const char **argv){
             &destcustomgamut[1][1],          //double* vartobind3; // pointer to variable whose value to set
             &destcustomgamut[2][0],          //double* vartobind4; // pointer to variable whose value to set
             &destcustomgamut[2][1]          //double* vartobind5; // pointer to variable whose value to set
+        },
+        {
+            "--custom_demod",         //std::string paramstring; // parameter's text
+            "Custom Demodulator Angles and Gains",        //std::string prettyname; // name for pretty printing
+            &custom_demod_constants[0][0],          //double* vartobind0; // pointer to variable whose value to set
+            &custom_demod_constants[0][1],          //double* vartobind1; // pointer to variable whose value to set
+            &custom_demod_constants[0][2],          //double* vartobind2; // pointer to variable whose value to set
+            &custom_demod_constants[1][0],          //double* vartobind3; // pointer to variable whose value to set
+            &custom_demod_constants[1][1],          //double* vartobind4; // pointer to variable whose value to set
+            &custom_demod_constants[1][2]          //double* vartobind5; // pointer to variable whose value to set
         }
     };
 
@@ -3474,6 +3494,10 @@ int main(int argc, const char **argv){
             if (crtdemodindex == CRT_DEMODULATOR_NONE){
                 printf("none\n");
             }
+            else if (crtdemodindex == CRT_DEMODULATOR_CUSTOM){
+                printf("Custom (angles: %f, %f, %f; gains: %f, %f, %f)\n", custom_demod_constants[0][0], custom_demod_constants[0][1], custom_demod_constants[0][2], custom_demod_constants[1][0], custom_demod_constants[1][1], custom_demod_constants[1][2]);
+                printf("CRT hue knob at %f degrees.\n", crthueknob);
+            }
             else {
                  printf("%s\n", demodulatornames[crtdemodindex].c_str());
                  printf("CRT hue knob at %f degrees.\n", crthueknob);
@@ -3516,7 +3540,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount, crtsuperblacks);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, custom_demod_constants, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount, crtsuperblacks);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -3715,9 +3739,13 @@ int main(int argc, const char **argv){
             if (crtdemodindex == CRT_DEMODULATOR_NONE){
                 htmlfile << "none<BR>\n";
             }
+            else if (crtdemodindex == CRT_DEMODULATOR_CUSTOM) {
+                htmlfile << "Custom (angles: " << custom_demod_constants[0][0] << ", " << custom_demod_constants[0][1] << ", " << custom_demod_constants[0][2] << "; gains: " << custom_demod_constants[1][0] << ", " << custom_demod_constants[1][1] << ", " << custom_demod_constants[1][2] << ")" << "<BR>\n";
+                htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
+            }
             else {
-                 htmlfile << demodulatornames[crtdemodindex] << "<BR>\n";
-                 htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
+                htmlfile << demodulatornames[crtdemodindex] << "<BR>\n";
+                htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
             }
             htmlfile << "\t\t\tCRT saturation knob at " << crtsaturationknob << " times normal.<BR>\n";
 

@@ -94,6 +94,7 @@ Four general modes of operation:
 - `--crtdemod`: Specifies the composite-to-R'G'B' demodulator chip in the CRT television. CRT "color correction" is accomplished via the demodulation angles and gains built into this chip. Possible values are:
      - `none` Do not simulate demodulation. Equivalent to an ideal "plain-vanilla" demodulator. (default)
      - `dummy` Assume an ideal "plain-vanilla" demodulator. Use this for chips implementing "no color correction" standards such as EBU and SMPTE-C. Same as `none` unless `--crt-hue-knob` is non-zero.
+     - `custom` Use custom demodulator angles and gains specified by `--custom_demod`
      - `CXA1464AS` Used in Japan Sony Trinitron ~1993-1995.
      - `CXA1465AS` Used in U.S. Sony Trinitron ~1993-1995.
      - `CXA1870S_JP` Used in Japan Sony Trinitron ~1996.
@@ -115,6 +116,7 @@ Four general modes of operation:
      - `TA8867BN` Probably used in Toshiba CRT televisions. Similar to TA8867AN. Might possibly pair with `P22_ebuish` phosphors (dubious).
      - `TA7698AP` Chip datasheet says 1988. Used in JVC TM-9U(CV), also rebranded as the Sensormatic RM409. Probably also used in Toshiba CRT televisions. Might possibly pair with `P22_ebuish` phosphors (dubious).
      - `1979ish` Decsribed as "The specifications for the recent color-difference demodulators for recent phosphors and a higher color-temperature white" (meaning `P22_1979ish` phosphors and `9300K27mpcd` white) in a 1979 patent filing by Matsushita Electric. [new29]
+- `--custom_demod`: Specifies angles and gains for custom demodulator as a comma-separated list (no spaces!) in the following order: red_angle,green_angle,blue_angle,red_gain,green_gain,blue_gain. For example: `90.0,236.0,0.0,0.56,0.34,1.0`. Default is the example shown (same as `dummy` demodulator). Does nothing unless `--crtdemod` is `custom`.
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
 - `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
