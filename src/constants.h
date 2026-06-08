@@ -675,7 +675,7 @@ const std::string demodulatornames[21] = {
     "TA7698AP"
 };
 
-const double demodulatorinfo[17][2][3] = {
+const double demodulatorinfo[21][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
