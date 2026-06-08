@@ -810,7 +810,7 @@ const double demodulatorinfo[17][2][3] = {
     // unclear if intended for US or US+Japan
     // datasheet says angles are 105, 240, 0, but tint default is -4
     {
-        {101, 236, -4}, // angles (degrees)
+        {105, 240, 0}, // angles (degrees)
         {0.9, 0.3, 1.0} // gains
     },
 

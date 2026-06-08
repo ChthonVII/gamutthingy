@@ -108,7 +108,7 @@ Four general modes of operation:
      - `rca_colortrak` Unknown chip used in RCA ColorTrak Remote E13169GM (US, 1989) calculated from measurements by Patchy68k. [new16]
      - `TA7644BP` Used in U.S. Toshiba Blackstripe CF2005 (1985) [new16].
      - `TA7644BP_measured` Values derived from measurements of a U.S. Toshiba Blackstripe CF2005 (1985). Discrepancies from datasheet may be due to poor condition of the unit measured, or datasheet being inaccurate in the first place. [new16].
-     - `LA7655N` Used in Mitsubishi(?) ~1989.
+     - `LA7655N` Used in Mitsubishi(?) ~1989. (Note: Datasheet says default tint setting was -4 degrees.)
      - `panasonic_CT36D30B` Unknown chip used in Panasonic CT-36D30B (US model, 2000). Calculated from measurements by Patchy68k. [new25]
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
