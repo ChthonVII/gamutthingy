@@ -149,7 +149,7 @@ Four general modes of operation:
      - `P22_dell` Chromaticity coordinates for P22 phosphors in Dell computer monitors ("all monitors except 21" Mitsubishi p/n 65532") according to 1999 e-mail from Dell support representative. [new5], [new6]
      - `P22_japan_specific` "Japan Specific Phosphor" used in Japanese broadcast master monitors until around 1996 (phased out in favor of EBU and SMPTE-C phosphors), as described in [insert cite ARIB TR B9 v1.0 (1998)]. 
      - `P22_kds_vs19` Chromaticity coordinates (measurements?) for P22 phosphors in a KDS VS19 computer monitor (model launched mid 90s?), stated without citation in [new5].
-     - `P22_ebuish` EBUish phosphors noted in a 1992 Toshiba patent. [insert cite]
+     - `P22_ebuish` EBU-ish phosphors described in a 1992 Toshiba patent as “the phosphor in a cathode ray tube(CRT) used in the typical television receiver.” Pairs with 9300K+27mpcd whitepoint. Unclear if Toshiba ever actually used phosphors with these coordinates, or when. (Red saturation is so good it borders on implausible.) [new28]
      - `P22_hitachi` Official chromaticity coordinates for P22 phosphors in CM2198 CRT computer monitor provided by Hitachi to the authors of [new4], published in 1995. Hitachi also made a CMT2198 CRT television, and it's plausible that the same phosphors were used.
      - `P22_apple_multiscan1705` Official chromaticity coordinates for P22 phosphors in Apple Multiple Scan 1705 computer monitor (manufactured 1995-1997). Whitepoint was 9300K+8mpcd. [new14], [new15]
      - `P22_rca_colortrak_patchy68k` Measurements of a RCA Colortrak Remote E13169GM CRT television (US model, 1989). [new16]
@@ -411,6 +411,7 @@ TODO: fill in missing citations, then alphabetize
 - [new25] https://github.com/ChthonVII/gamutthingy/issues/4#issue-4227360744
 - [new26] Golz raw data. https://www.uni-kiel.de/psychologie/golz/publications/2003a/IndividualPhosphors.html
 - [new27] https://github.com/ChthonVII/gamutthingy/issues/4#issuecomment-4537915279
+- [new28] https://patents.google.com/patent/US5301017A/en?oq=+5%2c301%2c017
 
 
 **Building:**

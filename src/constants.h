@@ -400,7 +400,7 @@ const double gamutpoints[23][3][3] = {
     },
 
     // P22_ebuish_9300K
-    // ntscj (EBUish phosphors noted in a 1992 Toshiba patent, whitepoint 9300K+27mpcd)
+    // ntscj (EBU-ish phosphors noted in a 1992 Toshiba patent, whitepoint 9300K+27mpcd)
     // see: https://patents.google.com/patent/US5301017A/en?oq=+5%2c301%2c017
     // The patent describes these as “the phosphor in a cathode ray tube(CRT) used in the typical television receiver”
     // Other sources say EBU phosphors were limited to professional and possibly high-end consumer models.
