@@ -105,6 +105,7 @@ Four general modes of operation:
      - `CXA2025AS_US` Used in U.S. Sony Trinitron ~1997.
      - `CXA1213AS` Probably used in Sony Trinitron ~1992. Unclear if this chip was meant for Japan, U.S., or both.
      - `TDA8362` Used in Hitachi CMT2187/2196/2198/2199 ~1994. Unclear if this television used different whitepoints in U.S. and Japan.
+     - `rca_colortrak` Unknown chip used in RCA ColorTrak Remote E13169GM (US, 1989) calculated from measurements by Patchy68k. [new16]
      - `TA7644BP` Used in U.S. Toshiba Blackstripe CF2005 (1985) [new16].
      - `TA7644BP_measured` Values derived from measurements of a U.S. Toshiba Blackstripe CF2005 (1985). Discrepancies from datasheet may be due to poor condition of the unit measured, or datasheet being inaccurate in the first place. [new16].
      - `LA7655N` Used in Mitsubishi(?) ~1989.
@@ -393,7 +394,7 @@ TODO: fill in missing citations, then alphabetize
 - [new13] Nagaoka, Yoshitomi. "テレビジョンの色再現と基準白色 (On the Color Reproduction and Reference White of Color Television)." *テレビジョン学会誌* (*Journal of the Television Society*), Vol. 33, No. 12, pp. 1013-1020. 1979. ([Link](https://www.jstage.jst.go.jp/article/itej1978/33/12/33_12_1013/_article/-char/ja/))
 - [new14] Apple Computer, Inc. "Multiple Scan 1705 Display: CIE Phosphor Settings." *AppleCare Tech Info Library*, Article ID 24445. March 30, 1998. ([Link](https://til-2001.mirror.kb1max.com/techinfo.nsf/artnum/n24445/index.html))
 - [new15] Apple Wiki. "Apple Multiple Scan Display." ([Link](https://apple.fandom.com/wiki/Apple_Multiple_Scan_Display))
-- [new16] insert cite to patchy68k
+- [new16] https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
 - [new17] Nayatani,Yoshinobu; Hitani,Shoichi; Furukawa, Kyosuke; Kurioka, Yutaka; and Ueda, Isamu. "カラー受像管用白色標準器の開発 (Development of the White-Standard Apparatus for Color Cathode-ray Tubes)." テレビジョン (*Television*), Vol. 24, No. 2, pp. 116-124. 1970. ([Link](https://www.jstage.jst.go.jp/article/itej1954/24/2/24_2_116/_article/-char/ja/))
 - [new18] "energizerfellow." "Re: Retro Consoles - 0 or 7.5 IRE for Black?" Shmups Forum. July 8, 2021 ([Link](https://shmups.system11.org/viewtopic.php?p=1461830#p1461830))
 - [new19] "Artemio." "Re: 240p test suite for DC,PCE,Wii,SNES,GC,MD and SCD." Shmups Forum. Jan. 18, 2020. ([Link](https://shmups.system11.org/viewtopic.php?p=1395743#p1395743))
