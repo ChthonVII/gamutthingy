@@ -134,7 +134,8 @@ Four general modes of operation:
      - `ebu_spec` The EBU specification. European broadcast/phosphor specification. [insert cite]
      - `rec2020_spec` Wide gamut specification for modern HDR monitors. [insert cite]
      - `P22_average` "Average" P22 phosphors used by grade.slang shader for Retroarch. Described as a "[m]ix between averaging KV-20M20, KDS VS19, Dell D93, 4-TR-B09v1_0.pdf and Phosphor Handbook 'P22.'" [new3]
-     - `P22_average_golz` Average of "a haphazard collection of 15 color monitors of different models from eight different manufacturers (Tek-tronix, Mitsubishi, Nanao/Eizo, Sony, Apple, NEC, Nokia, and Micron Electronics)." [new24]
+     - `P22_average_golz` Average of "a haphazard collection of 15 color monitors of different models from eight different manufacturers (Tek-tronix, Mitsubishi, Nanao/Eizo, Sony, Apple, NEC, Nokia, and Micron Electronics)." (You should probably use `P22_average_golz_gm` instead.)  [new24]
+     - `P22_average_golz_gm` Geometric median of "a haphazard collection of 15 color monitors of different models from eight different manufacturers (Tek-tronix, Mitsubishi, Nanao/Eizo, Sony, Apple, NEC, Nokia, and Micron Electronics)." Using the geometric median instead of simple average reduces the impact of outliers in the data set. [new24] [new26] [new27]
      - `P22_trinitron` Official chromaticity coordinates for P22 phosphors in Trinitron CRT computer monitor provided by Sony to the authors of [new4], published in 1995. It's plausible that the same phosphors were used in Trinitron CRT televisions from the same time period. Default.
      - `P22_trinitron_bohnsack` Measurements of a GDM-17SE1 Trinitron CRT computer monitor (model launched 1994) reported in [new2]. Very close to `P22_trinitron`.
      - `P22_trinitron_raney1` Measurements of a Sony PVM 20M2U professional-grade CRT television (model launched ~1996). See [insert cite].
@@ -404,6 +405,8 @@ TODO: fill in missing citations, then alphabetize
 - [new23] Nesdev Wiki. "Color $0D games" ([Link](https://www.nesdev.org/wiki/Color_$0D_games))
 - [new24] Golz, Jürgen and MacLeod, Donald I.A. "Colorimetry for CRT displays." *Journal of the Optical Society of America A*, Vol. 20, No. 5, pp. 769-781. May 2003.
 - [new25] https://github.com/ChthonVII/gamutthingy/issues/4#issue-4227360744
+- [new26] Golz raw data. https://www.uni-kiel.de/psychologie/golz/publications/2003a/IndividualPhosphors.html
+- [new27] https://github.com/ChthonVII/gamutthingy/issues/4#issuecomment-4537915279
 
 
 **Building:**

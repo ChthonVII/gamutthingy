@@ -283,23 +283,24 @@ const double whitepoints[20][3] = {
 #define GAMUT_REC2020 4
 #define GAMUT_P22_AVERAGE 5
 #define GAMUT_P22_AVERAGE_GOLZ 6
-#define GAMUT_P22_TRINITRON 7
-#define GAMUT_P22_EBUISH 8
-#define GAMUT_P22_HITACHI 9
-#define GAMUT_P22_NEC_MULTISYNC_C400 10
-#define GAMUT_P22_KDS_VS19 11
-#define GAMUT_DELL 12
-#define GAMUT_JAPAN_SPEC 13
-#define GAMUT_P22_TRINITRON_RANEY1 14
-#define GAMUT_P22_TRINITRON_RANEY2 15
-#define GAMUT_P22_TRINITRON_MIXANDMATCH 16
-#define GAMUT_P22_TRINITRON_BOHNSACK 17
-#define GAMUT_P22_APPLE_MULTISCAN1705 18
-#define GAMUT_P22_COLORTRAK 19
-#define GAMUT_P22_BLACKSTRIPE 20
-#define GAMUT_P22_PANASONIC_CT36D30B 21
+#define GAMUT_P22_AVERAGE_GOLZ_GM 7
+#define GAMUT_P22_TRINITRON 8
+#define GAMUT_P22_EBUISH 9
+#define GAMUT_P22_HITACHI 10
+#define GAMUT_P22_NEC_MULTISYNC_C400 11
+#define GAMUT_P22_KDS_VS19 12
+#define GAMUT_DELL 13
+#define GAMUT_JAPAN_SPEC 14
+#define GAMUT_P22_TRINITRON_RANEY1 15
+#define GAMUT_P22_TRINITRON_RANEY2 16
+#define GAMUT_P22_TRINITRON_MIXANDMATCH 17
+#define GAMUT_P22_TRINITRON_BOHNSACK 18
+#define GAMUT_P22_APPLE_MULTISCAN1705 19
+#define GAMUT_P22_COLORTRAK 20
+#define GAMUT_P22_BLACKSTRIPE 21
+#define GAMUT_P22_PANASONIC_CT36D30B 22
 
-const std::string gamutnames[22] = {
+const std::string gamutnames[23] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -307,6 +308,7 @@ const std::string gamutnames[22] = {
     "Rec2020 (specification)",
     "P22 phosphors, Average",
     "P22 phosphors, Average, Golz",
+    "P22 phosphors, Average, Golz (geometric median)",
     "P22 phosphors, Trinitron",
     "P22 phosphors, EBU-ish",
     "P22 phosphors, Hitachi",
@@ -324,7 +326,7 @@ const std::string gamutnames[22] = {
     "P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement"
 };
 
-const double gamutpoints[22][3][3] = {
+const double gamutpoints[23][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -373,6 +375,15 @@ const double gamutpoints[22][3][3] = {
         {0.620, 0.342, 0.038}, //red
         {0.288, 0.597, 0.115}, //green
         {0.153, 0.070, 0.777} //blue
+    },
+    // P22_average_golz_gm
+    // Geometric median of Goltz's data. Less impacted by outliers than simple average.
+    // https://www.uni-kiel.de/psychologie/golz/publications/2003a/IndividualPhosphors.html
+    // https://github.com/ChthonVII/gamutthingy/issues/4#issuecomment-4537915279
+    {
+        {0.6227603199252071, 0.34227901542637895, 1.0 - 0.6227603199252071 - 0.34227901542637895}, //red
+        {0.2875662570151019, 0.598778342054451, 1.0 - 0.2875662570151019 - 0.598778342054451}, //green
+        {0.15053792525882637, 0.07015571286550663, 1.0 - 0.15053792525882637 - 0.07015571286550663} //blue
     },
     // P22_trinitron
     // NTSC-J with Trinitron P22 phosphors
