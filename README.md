@@ -108,6 +108,7 @@ Four general modes of operation:
      - `TA7644BP` Used in U.S. Toshiba Blackstripe CF2005 (1985) [new16].
      - `TA7644BP_measured` Values derived from measurements of a U.S. Toshiba Blackstripe CF2005 (1985). Discrepancies from datasheet may be due to poor condition of the unit measured, or datasheet being inaccurate in the first place. [new16].
      - `LA7655N` Used in Mitsubishi(?) ~1989.
+     - `panasonic_CT36D30B` Unknown chip used in Panasonic CT-36D30B (US model, 2000). Calculated from measurements by Patchy68k. [new25]
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
 - `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
@@ -401,7 +402,7 @@ TODO: fill in missing citations, then alphabetize
 - [new22] Donofrio, Robert; Hess, David; and Sember, William. "The White Color of Television Receivers." *Proc. IS&T 1st Color and Imaging Conf.*, pp. 185-187. 1993. ([Link](https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/1/1/art00047))
 - [new23] Nesdev Wiki. "Color $0D games" ([Link](https://www.nesdev.org/wiki/Color_$0D_games))
 - [new24] Golz, Jürgen and MacLeod, Donald I.A. "Colorimetry for CRT displays." *Journal of the Optical Society of America A*, Vol. 20, No. 5, pp. 769-781. May 2003.
-- [new25] https://github.com/ChthonVII/gamutthingy/issues/4
+- [new25] https://github.com/ChthonVII/gamutthingy/issues/4#issue-4227360744
 
 
 **Building:**

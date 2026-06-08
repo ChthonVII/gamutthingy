@@ -527,7 +527,7 @@ const double gamutpoints[22][3][3] = {
 
 
     // P22_panasonic_CT36D30B
-    // P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement
+    // P22 phosphors, Panasonic CT-36D30B (US model, 2000), Patchy68k measurement
     {
         {0.651212890899489, 0.327170850978215, 1 - 0.651212890899489 - 0.327170850978215},
         {0.311678021451133, 0.607717178761663, 1 - 0.311678021451133 - 0.607717178761663},
@@ -634,8 +634,9 @@ const double modulatorinfo[4][3][3] = {
 #define CRT_DEMODULATOR_TA7644BP 13
 #define CRT_DEMODULATOR_TA7644BP_MEASURED 14
 #define CRT_DEMODULATOR_LA7655N 15
+#define CRT_DEMODULATOR_CT36D30B 16
 
-const std::string demodulatornames[16] = {
+const std::string demodulatornames[17] = {
     "Dummy/PAL/SMPTE-C (no color correction)",
     "CXA1464AS (JP)",
     "CXA1465AS (US)",
@@ -649,12 +650,13 @@ const std::string demodulatornames[16] = {
     "CXA1213AS",
     "TDA8362",
     "Unknown Chip - RCA ColorTrak Remote (US)",
-    "TA7644BP (US)"
-    "TA7644BP (US) (measured)"
-    "LA7655N"
+    "TA7644BP (US)",
+    "TA7644BP (US) (measured)",
+    "LA7655N",
+    "Unknown Chip - Panasonic CT-36D30B (US)"
 };
 
-const double demodulatorinfo[16][2][3] = {
+const double demodulatorinfo[17][2][3] = {
     
     // Dummy -- No color correction!
     // Use this for content in the PAL or SMPTE-C that did not use color correction.
@@ -810,7 +812,17 @@ const double demodulatorinfo[16][2][3] = {
     {
         {101, 236, -4}, // angles (degrees)
         {0.9, 0.3, 1.0} // gains
-    }
+    },
+
+    //
+    // Unknown chip used in Panasonic CT-36D30B
+    // US model, 2000
+    // calculated from measurements by Patchy68k
+    // https://github.com/ChthonVII/gamutthingy/issues/4#issue-4227360744
+    {
+        {101.580982936, 232.937328893, 0},
+        {0.91062624791989, 0.388131199173125, 1.0}
+    },
 
 };
 

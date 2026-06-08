@@ -1621,7 +1621,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const paramvalue crtdemodulatorlist[17] = {
+    const paramvalue crtdemodulatorlist[18] = {
         {
             "none",
             CRT_DEMODULATOR_NONE
@@ -1690,6 +1690,10 @@ int main(int argc, const char **argv){
             "LA7655N",
             CRT_DEMODULATOR_LA7655N
         },
+        {
+            "panasonic_CT36D30B",
+            CRT_DEMODULATOR_CT36D30B
+        }
     };
 
     const paramvalue demodrenormlist[5] = {
