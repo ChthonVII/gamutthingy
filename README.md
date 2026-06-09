@@ -136,7 +136,7 @@ Four general modes of operation:
 **Gamut Parameters:**
 - `--source-primaries` or `-s`: Specifies the color primaries of the source gamut. Possible values are:
      - `srgb_spec` The sRGB/bt709 specification. Used by modern (SDR) computer monitors and modern HD video. [insert cite]
-     - `ntsc_spec` The original 1953 NTSC color primaries. Used for the U.S. broadcast specification until 1994 (actually still in use until 2000ish) and the Japanese broadcast specification for the entire lifetime of SDR television. [insert cite] (Though phosphors actually used in CRT televisions deviated significantly from the specification.)
+     - `ntsc_spec` The original 1953 NTSC color primaries. Used for the U.S. broadcast specification until 1994 (actually still in use until 2000ish) and the Japanese broadcast specification for the entire lifetime of SD television. [insert cite] (Though phosphors actually used in CRT televisions deviated significantly from the specification.)
      - `smptec_spec` The SMPTE-C (170M) specification. U.S. broadcast/phosphor specification from 1994. (Widespread adoption achieved 2000ish.) [insert cite]
      - `ebu_spec` The EBU specification. European broadcast/phosphor specification. [insert cite]
      - `rec2020_spec` Wide gamut specification for modern HDR monitors. [insert cite]
