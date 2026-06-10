@@ -1127,6 +1127,8 @@ int main(int argc, const char **argv){
         {0.56, 0.34, 1.0} // gains
     };
     double nealdistance = 0.8;
+    bool nealrenormangle = true;
+    bool nealrenormgain = true;
     bool crtdoclamphigh = true;
     bool crtclamplowatzerolight = true;
     double crtclamphigh = 1.1;
@@ -1157,7 +1159,7 @@ int main(int argc, const char **argv){
     char* retroarchtextfilename;
     int maxthreads = 0;
     
-    const boolparam params_bool[18] = {
+    const boolparam params_bool[20] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -1247,6 +1249,16 @@ int main(int argc, const char **argv){
             "--nsa",                     //std::string paramstring; // parameter's text
             "Force disable chromatic adapation for source gamut",           //std::string prettyname; // name for pretty printing
             &forcedisablechromaticadapt                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nealrenormangle",                     //std::string paramstring; // parameter's text
+            "Renormalize Neal CRT color correction angles",           //std::string prettyname; // name for pretty printing
+            &nealrenormangle                //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--nealrenormgain",                     //std::string paramstring; // parameter's text
+            "Renormalize Neal CRT color correction gains",           //std::string prettyname; // name for pretty printing
+            &nealrenormgain               //bool* vartobind; // pointer to variable whose value to set
         }
     };
 
@@ -3517,7 +3529,7 @@ int main(int argc, const char **argv){
                 printf("CRT hue knob at %f degrees.\n", crthueknob);
             }
             else if (crtdemodindex == CRT_DEMODULATOR_NEAL){
-                printf("generic Neal color correction (distance factor %f)\n", nealdistance);
+                printf("generic Neal color correction (distance factor %f, renormalize angles %i, renormalize gains %i)\n", nealdistance, nealrenormangle, nealrenormgain);
                 printf("CRT hue knob at %f degrees.\n", crthueknob);
             }
             else {
@@ -3610,7 +3622,7 @@ int main(int argc, const char **argv){
     int sourcegamutcrtsetting = CRT_EMU_NONE;
     int destgamutcrtsetting = CRT_EMU_NONE;
     if (crtemumode != CRT_EMU_NONE){
-        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, custom_demod_constants, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount, crtsuperblacks, nealdistance, (crtemumode == CRT_EMU_FRONT) ? sourcered : destred, (crtemumode == CRT_EMU_FRONT) ? sourcegreen : destgreen, (crtemumode == CRT_EMU_FRONT) ? sourceblue : destblue, (crtemumode == CRT_EMU_FRONT) ? sourcewhite : destwhite);
+        emulatedcrt.Initialize(crtblacklevel, crtwhitelevel, crtyuvconstantprecision, crtmodindex, crtdemodindex, custom_demod_constants, crtdemodrenorm, crtdoclamphigh, crtclamplowatzerolight, crtclamplow, crtclamphigh, verbosity, crtdemodfixes, crthueknob, crtsaturationknob, crtgammaknob, crtblackpedestalcrush, crtblackpedestalcrushamount, crtsuperblacks, nealdistance, (crtemumode == CRT_EMU_FRONT) ? sourcered : destred, (crtemumode == CRT_EMU_FRONT) ? sourcegreen : destgreen, (crtemumode == CRT_EMU_FRONT) ? sourceblue : destblue, (crtemumode == CRT_EMU_FRONT) ? sourcewhite : destwhite, nealrenormangle, nealrenormgain);
         if (crtemumode == CRT_EMU_FRONT){
             sourcegamutcrtsetting = CRT_EMU_FRONT;
         }
@@ -3768,7 +3780,7 @@ int main(int argc, const char **argv){
                 htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
             }
             else if (crtdemodindex == CRT_DEMODULATOR_NEAL){
-                htmlfile << "generic Neal color correction (distance factor " << nealdistance << ")<BR>\n";
+                htmlfile << "generic Neal color correction (distance factor " << nealdistance << ", renormalize angles " << nealrenormangle << ", renormalize gains " << nealrenormgain << ")<BR>\n";
                 htmlfile << "\t\t\tCRT hue knob at " << crthueknob << " degrees.<BR>\n";
             }
             else {

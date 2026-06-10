@@ -95,6 +95,7 @@ Four general modes of operation:
      - `none` Do not simulate demodulation. Equivalent to an ideal "plain-vanilla" demodulator. (default)
      - `dummy` Assume an ideal "plain-vanilla" demodulator. Use this for chips implementing "no color correction" standards such as EBU and SMPTE-C. Same as `none` unless `--crt-hue-knob` is non-zero.
      - `custom` Use custom demodulator angles and gains specified by `--custom_demod`
+     - `neal` Use hypothetical demodulator embodying a correction matrix for the phosphor primaries and CRT whitepoint calculated by the method explained in [new30], controlled by `--nealdist`, `--nealrenormangle`, and `--nealrenormgain`.
      - `CXA1464AS` Used in Japan Sony Trinitron ~1993-1995.
      - `CXA1465AS` Used in U.S. Sony Trinitron ~1993-1995.
      - `CXA1870S_JP` Used in Japan Sony Trinitron ~1996.
@@ -119,6 +120,9 @@ Four general modes of operation:
 - `--custom_demod`: Specifies angles and gains for custom demodulator as a comma-separated list (no spaces!) in the following order: red_angle,green_angle,blue_angle,red_gain,green_gain,blue_gain. For example: `90.0,236.0,0.0,0.56,0.34,1.0`. Default is the example shown (same as `dummy` demodulator). Does nothing unless `--crtdemod` is `custom`.
 - `--crtdemodfixes`: Specificies whether to auto-correct low-precision values for demodulator angles and gains that are likely truncations of known values used for "plain-vanilla" demodulation, using full precision "plain-vanilla" values instead. Possible values are `true` (default) or `false`.
 - `--crtdemodrenorm`: Specifies the conditions for renormalizing demodulator gains. Possible values are `none` (never renormalize), `insane` (only if both the B-Y angle is non-zero and the B-Y gain is non-one)(default), `nonzeroangle` (if the B-Y angle is non-zero), `gainnot1` (if the B-Y gain is non-one), or `all` (if either B-Y angle is non-zero or the B-Y gain is non-one). Presently, CXA1213AS and TDA8362 are the only implemented demodulators that meet any of these criteria. CXA1213AS seems to give better results without renormalization, while TDA8362 gives better results with it. Hence the default.
+- `--nealdist`: Specifies distance factor to use when computing correction matrix for `--crtdemod neal`. Floating point number 0.0 to 1.0. Default 0.8. See [new30] for explanation and sane values. (Does nothing unless `--crtdemod neal`.)
+- `--nealrenormangle`: If enabled, rotate angles of computed demodulator for `--crtdemod neal` so that blue angle is 0. Possible values are `true` (default) or `false`. (Does nothing unless `--crtdemod neal`.)
+- `--nealrenormgain`: If enabled, renormalize gains of computed demodulator for `--crtdemod neal` so that blue gain is 1.0. Possible values are `true` (default) or `false`. (Does nothing unless `--crtdemod neal`.)
 - `--crt-hue-knob` or `--chk`: Apply a global rotation, in degrees, to demodulation axes. Floating point number. Default 0.0. Note: The original angles are used for purposes of `--crtdemodfixes`, while the modified angles are used for purposes of `--crtdemodrenorm`.
 - `--crt-saturation-knob` or `--csk`: Amplify or attenuate C signal prior to demodulation. Non-negative floating point number. Default 1.0.
 - `--crtyuvconst`: Set the precision for the white balance constants used in demodulation equations. Possible values are `2digit` (truncated constants from 1953 standard), `3digit` (less truncated constants from 1994 SMPTE-C (170M) standard)(default), or `exact` (compute precise constants from 1953 primaries and Illuminant C).
@@ -417,6 +421,7 @@ TODO: fill in missing citations, then alphabetize
 - [new27] https://github.com/ChthonVII/gamutthingy/issues/4#issuecomment-4537915279
 - [new28] https://patents.google.com/patent/US5301017A/en?oq=+5%2c301%2c017
 - [new29] https://patents.google.com/patent/US4167750A/en?oq=us+patent+4167750
+- [new30] Neal, C. Bailey. "Computing Colorimetric Errors of a Color Television Display System." *IEEE Transactions on Consumer Electronics*, Vol. CE-21, No. 1, pp 63-73. Feb 28, 1975. ([Link](https://ieeexplore.ieee.org/document/4042734))
 
 
 **Building:**
