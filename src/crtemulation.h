@@ -60,9 +60,18 @@ public:
 
     double NESrenormaliztionfactor = 1.0;
 
+    double nealdist = 0.8;
+    vec3 nealwhitepoint;
+    vec3 nealspecred;
+    vec3 nealspecblue;
+    vec3 nealspecgreen;
+    vec3 nealphosred;
+    vec3 nealphosgreen;
+    vec3 nealphosblue;
+
     // blacklevel is CRT luminosity in cd/m^2 given black input, divided by 100 (sane value 0.001)
     // whitelevel is CRT luminosity in cd/m^2 given white input, divided by 100 (sane value 1.0)
-    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, double (&customdemod)[2][3], int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack);
+    bool Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, double (&customdemod)[2][3], int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack, double nealdistance, vec3 phosredneal, vec3 phosgreenneal, vec3 phosblueneal, vec3 whitepointneal);
     
     // The EOTF function from BT.1886 Appendix 1 for approximating the behavior of CRT televisions.
     // The function from Appendix 1 is more faithful than the fairly useless Annex 1 function, which is just 2.4 gamma
@@ -97,6 +106,8 @@ public:
     void NESScaleBlackPedestal(double input);
     double NESWhiteEstimateToLinear(double input);
     double NESWhiteEstimateToGamma(double input);
+
+    bool NealDemodAnglesGains(double output[6]);
 };
 
 // helper functions

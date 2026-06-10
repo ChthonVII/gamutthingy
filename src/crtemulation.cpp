@@ -8,7 +8,7 @@
 #include <numbers>
 #include <cstring> //for memcpy
 
-bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, double (&customdemod)[2][3], int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack){
+bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvconstprec, int modulatorindex_in, int demodulatorindex_in, double (&customdemod)[2][3], int renorm, bool doclamphigh, bool clamplowzero, double clamplow, double clamphigh, int verbositylevel, bool dodemodfixes, double hueknob, double saturationknob, double gammaknob, bool blackcrush, double blackcrushamount, bool showsuperblack, double nealdistance, vec3 phosredneal, vec3 phosgreenneal, vec3 phosblueneal, vec3 whitepointneal){
     bool output = true;
     verbosity = verbositylevel;
     CRT_EOTF_blacklevel = blacklevel;
@@ -55,6 +55,14 @@ bool crtdescriptor::Initialize(double blacklevel, double whitelevel, int yuvcons
     blackpedestalcrush = blackcrush;
     blackpedestalcrushamount = blackcrushamount;
     superblacks = showsuperblack;
+    nealdist = nealdistance;
+    nealphosred = phosredneal;
+    nealphosgreen = phosgreenneal;
+    nealphosblue = phosblueneal;
+    nealwhitepoint = whitepointneal;
+    nealspecred = vec3(gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][0][2]);
+    nealspecgreen = vec3(gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][1][2]);
+    nealspecblue = vec3(gamutpoints[GAMUT_NTSC][2][0], gamutpoints[GAMUT_NTSC][2][1], gamutpoints[GAMUT_NTSC][2][2]);
     bool havedemodulator = false;
     if (demodulatorindex != CRT_DEMODULATOR_NONE){
         havedemodulator = true;
@@ -460,6 +468,16 @@ bool crtdescriptor::InitializeDemodulator(double (&customdemod)[2][3]){
         greengain = customdemod[1][1];
         bluegain = customdemod[1][2];
     }
+    else if (demodulatorindex == CRT_DEMODULATOR_NEAL){
+        double nealoutput[6];
+        NealDemodAnglesGains(nealoutput);
+        redangle = nealoutput[0];
+        greenangle = nealoutput[1];
+        blueangle = nealoutput[2];
+        redgain = nealoutput[3];
+        greengain = nealoutput[4];
+        bluegain = nealoutput[5];
+    }
     else {
         // convert angles to radians
         redangle = demodulatorinfo[demodulatorindex][0][0] * (std::numbers::pi_v<long double>/ 180.0);
@@ -473,7 +491,7 @@ bool crtdescriptor::InitializeDemodulator(double (&customdemod)[2][3]){
     }
 
     // if red or green looks like it would be unmodified but for rounding/truncation in the datasheet, restore the full precision value
-    if (demodfixes || (demodulatorindex == CRT_DEMODULATOR_DUMMY)){
+    if ((demodfixes || (demodulatorindex == CRT_DEMODULATOR_DUMMY)) && (demodulatorindex != CRT_DEMODULATOR_NEAL)){
         if ((redgain >= 0.55) && (redgain < 0.57)){
             printf("Assuming red gain of %f really meant %f\n", redgain, Vupscale / Uupscale);
             redgain = Vupscale / Uupscale;
@@ -550,6 +568,9 @@ bool crtdescriptor::InitializeDemodulator(double (&customdemod)[2][3]){
             default:
                 break;
         };
+        if (demodulatorindex == CRT_DEMODULATOR_NEAL){
+            dorenorm = false;
+        }
         if (dorenorm){
             // Y'UV upscale factors form an ellipse with Uupscale on one axis and Vupscale on the other
             // radius of ellipse at theta is (a*b)/sqrt((a*sin(theta))^2 + (b*cos(theta))^2)
@@ -1008,6 +1029,246 @@ double crtdescriptor::NESWhiteEstimateToGamma(double input){
     return output;
 }
 
+// TODO explain
+bool crtdescriptor::NealDemodAnglesGains(double output[6]){
+
+    bool status = true;
+
+    double nealredx = nealspecred.x + (nealdist*(nealphosred.x - nealspecred.x));
+    double nealredy = nealspecred.y + (nealdist*(nealphosred.y - nealspecred.y));
+    double nealgreenx = nealspecgreen.x + (nealdist*(nealphosgreen.x - nealspecgreen.x));
+    double nealgreeny = nealspecgreen.y + (nealdist*(nealphosgreen.y - nealspecgreen.y));
+    double nealbluex = nealspecblue.x + (nealdist*(nealphosblue.x - nealspecblue.x));
+    double nealbluey = nealspecblue.y + (nealdist*(nealphosblue.y - nealspecblue.y));
+    vec3 nealred = vec3(nealredx, nealredy, 1.0 - nealredx - nealredy);
+    vec3 nealgreen = vec3(nealgreenx, nealgreeny, 1.0 - nealgreenx - nealgreeny);
+    vec3 nealblue = vec3(nealbluex, nealbluey, 1.0 - nealbluex - nealbluey);
+
+    double specMatrixP[3][3] = {
+        {nealspecred.x, nealspecgreen.x, nealspecblue.x},
+        {nealspecred.y, nealspecgreen.y, nealspecblue.y},
+        {nealspecred.z, nealspecgreen.z, nealspecblue.z},
+    };
+
+    double nealMatrixP[3][3] = {
+        {nealred.x, nealgreen.x, nealblue.x},
+        {nealred.y, nealgreen.y, nealblue.y},
+        {nealred.z, nealgreen.z, nealblue.z},
+    };
+
+    double specInverseMatrixP[3][3];
+    double nealInverseMatrixP[3][3];
+    status &= Invert3x3Matrix(specMatrixP, specInverseMatrixP);
+    if (!status){
+        printf("Disaster! Spec Matrix P is not invertible! Bad stuff will happen!\n");
+    }
+    status &= Invert3x3Matrix(nealMatrixP, nealInverseMatrixP);
+    if (!status){
+        printf("Disaster! Neal Matrix P is not invertible! Bad stuff will happen!\n");
+    }
+
+    vec3 matrixW = vec3(nealwhitepoint.x / nealwhitepoint.y, 1.0, nealwhitepoint.z / nealwhitepoint.y);
+
+    vec3 specNormalizationFactors = multMatrixByColor(specInverseMatrixP, matrixW);
+    vec3 nealNormalizationFactors = multMatrixByColor(nealInverseMatrixP, matrixW);
+
+    double specMatrixC[3][3] = {
+        {specNormalizationFactors.x, 0, 0},
+        {0, specNormalizationFactors.y, 0},
+        {0, 0, specNormalizationFactors.z}
+    };
+
+    double nealMatrixC[3][3] = {
+        {nealNormalizationFactors.x, 0, 0},
+        {0, nealNormalizationFactors.y, 0},
+        {0, 0, nealNormalizationFactors.z}
+    };
+
+    double specMatrixNPM[3][3];
+    double nealMatrixNPM[3][3];
+    mult3x3Matrices(specMatrixP, specMatrixC, specMatrixNPM);
+    mult3x3Matrices(nealMatrixP, nealMatrixC, nealMatrixNPM);
+
+    double nealInverseMatrixNPM[3][3];
+    status &= Invert3x3Matrix(nealMatrixNPM, nealInverseMatrixNPM);
+    if (!status){
+        printf("Disaster! Neal Matrix NPM is not invertible! Bad stuff will happen!\n");
+    }
+
+    double correctionMatrix[3][3];
+    mult3x3Matrices(nealInverseMatrixNPM, specMatrixNPM, correctionMatrix);
+
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("Neal correction matrix:\n");
+        print3x3matrix(correctionMatrix);
+    }
+
+    // now we have linear-RGB-to-linear-RGB correction matrix
+    // for spec to Neal coordinates
+    // which, as per Neal's method, will be used as a gamma-space correction
+    // as an approximation for the spec-to-phosphors matrix in linear space
+
+    // Now we'll convert to angle & gain format
+    // So that we can apply global hue knob
+    // And get a format that can be compared to existing demodulators
+    // And fit into the flow of existing code.
+    // (Though maybe this is not the ideal way to do this)
+/*
+    double wr;
+    double wg;
+    //double wb;
+
+    if (YUVconstantprecision == YUV_CONSTANT_PRECISION_CRAP){
+        // truncated constants from 1953 standard
+        wr = 0.3;
+        wg = 0.59;
+        //wb = 0.11;
+    }
+    else if (YUVconstantprecision == YUV_CONSTANT_PRECISION_MID){
+        // less truncated constants from 1994 SMPTE-C (170M) standard
+        wr = 0.299;
+        wg = 0.587;
+        //wb = 0.114;
+    }
+    else {
+        // compute precise white balance from 1953 primaries and Illuminant C.
+
+        const double matrixP[3][3] = {
+            {gamutpoints[GAMUT_NTSC][0][0], gamutpoints[GAMUT_NTSC][1][0], gamutpoints[GAMUT_NTSC][2][0]},
+            {gamutpoints[GAMUT_NTSC][0][1], gamutpoints[GAMUT_NTSC][1][1], gamutpoints[GAMUT_NTSC][2][1]},
+            {gamutpoints[GAMUT_NTSC][0][2], gamutpoints[GAMUT_NTSC][1][2], gamutpoints[GAMUT_NTSC][2][2]}
+        };
+
+        double inverseMatrixP[3][3];
+        status = Invert3x3Matrix(matrixP, inverseMatrixP);
+        if (!status){
+            printf("Disaster! Matrix P is not invertible! Bad stuff will happen!\n");
+        }
+
+        vec3 matrixW;
+        matrixW.x = whitepoints[WHITEPOINT_ILLUMINANTC][0] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+        matrixW.y = 1.0;
+        matrixW.z = whitepoints[WHITEPOINT_ILLUMINANTC][2] / whitepoints[WHITEPOINT_ILLUMINANTC][1];
+
+        const vec3 normalizationFactors = multMatrixByColor(inverseMatrixP, matrixW);
+
+        const double matrixC[3][3] = {
+            {normalizationFactors.x, 0.0, 0.0},
+            {0.0, normalizationFactors.y, 0.0},
+            {0.0, 0.0, normalizationFactors.z}
+        };
+
+        double matrixNPM[3][3];
+        mult3x3Matrices(matrixP, matrixC, matrixNPM);
+
+        wr = matrixNPM[1][0];
+        wg = matrixNPM[1][1];
+        //wb = matrixNPM[1][2];
+    }
+
+    double MatrixB[2][2] = {
+        {(1.0-wr)/Vupscale, (-1.0*wr)/Uupscale},
+        {(-1.0*wg)/Vupscale, (-1.0*wg)/Uupscale}
+    };
+    double determinant = (MatrixB[0][0]*MatrixB[1][1]) - (MatrixB[0][1]*MatrixB[1][0]);
+    double InverseMatrixB[2][2] = {
+        {MatrixB[1][1]/determinant, (-1.0*MatrixB[0][1])/determinant},
+        {(-1.0*MatrixB[1][0])/determinant, MatrixB[0][0]/determinant}
+    };
+
+    double yr = (InverseMatrixB[0][0] * (correctionMatrix[0][0] - wr)) + (InverseMatrixB[0][1] * (correctionMatrix[0][1] - wg));
+    double xr = (InverseMatrixB[1][0] * (correctionMatrix[0][0] - wr)) + (InverseMatrixB[1][1] * (correctionMatrix[0][1] - wg));
+
+    double yg = (InverseMatrixB[0][0] * (correctionMatrix[1][0] - wr)) + (InverseMatrixB[0][1] * (correctionMatrix[1][1] - wg));
+    double xg = (InverseMatrixB[1][0] * (correctionMatrix[1][0] - wr)) + (InverseMatrixB[1][1] * (correctionMatrix[1][1] - wg));
+
+    double yb = (InverseMatrixB[0][0] * (correctionMatrix[2][0] - wr)) + (InverseMatrixB[0][1] * (correctionMatrix[2][1] - wg));
+    double xb = (InverseMatrixB[1][0] * (correctionMatrix[2][0] - wr)) + (InverseMatrixB[1][1] * (correctionMatrix[2][1] - wg));
+
+    double gainr = sqrt((yr*yr) + (xr*xr));
+    double gaing = sqrt((yg*yg) + (xg*xg));
+    double gainb = sqrt((yb*yb) + (xb*xb));
+    gainr /= Uupscale;
+    gaing /= Uupscale;
+    gainb /= Uupscale;
+
+    double angler = atan2(yr, xr);
+    if (angler < 0){
+        angler += std::numbers::pi_v<long double>;
+    }
+
+    double angleg = atan2(yg, xg);
+    if (angleg < 0){
+        angleg += (2.0 * std::numbers::pi_v<long double>);
+    }
+    else if (angleg <= 0.5 * std::numbers::pi_v<long double>){
+        angleg += std::numbers::pi_v<long double>;
+    }
+
+    double angleb = atan2(yb, xb);
+    if (angleb > 0.5 * std::numbers::pi_v<long double>){
+        angleb -= std::numbers::pi_v<long double>;
+    }
+    else if (angleb < -0.5 * std::numbers::pi_v<long double>){
+        angleb += std::numbers::pi_v<long double>;
+    }
+
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("Neal method angles: %f, %f, %f; and gains: %f, %f, %f.\n", (double)(angler * (180.0 / std::numbers::pi_v<long double>)), (double)(angleg * (180.0 / std::numbers::pi_v<long double>)), (double)(angleb * (180.0 / std::numbers::pi_v<long double>)), gainr, gaing, gainb);
+    }
+    //printf("vanilla green angle is %f and gain is %f\n", (double)(angleg * (180.0 / std::numbers::pi_v<long double>)), gaing);
+
+    output[0] = angler;
+    output[1] = angleg;
+    output[2] = angleb;
+    output[3] = gainr;
+    output[4] = gaing;
+    output[5] = gainb;
+*/
+    double idealYUVtoRGB[3][3];
+    MakeIdealYUVtoRGB(idealYUVtoRGB, YUVconstantprecision);
+    double YUVtoCorrectedRGB[3][3];
+    mult3x3Matrices(correctionMatrix, idealYUVtoRGB, YUVtoCorrectedRGB);
+    //printf("composed matrix:\n");
+    //print3x3matrix(YUVtoCorrectedRGB);
+    double angle_red = atan2(YUVtoCorrectedRGB[0][2], YUVtoCorrectedRGB[0][1]);
+    if (angle_red < 0){
+        angle_red += std::numbers::pi_v<long double>;
+    }
+    double angle_green = atan2(YUVtoCorrectedRGB[1][2], YUVtoCorrectedRGB[1][1]);
+    if (angle_green < 0){
+        angle_green += (2.0 * std::numbers::pi_v<long double>);
+    }
+    else if (angle_green <= 0.5 * std::numbers::pi_v<long double>){
+        angle_green += std::numbers::pi_v<long double>;
+    }
+    double angle_blue = atan2(YUVtoCorrectedRGB[2][2], YUVtoCorrectedRGB[2][1]);
+    if (angle_blue > 0.5 * std::numbers::pi_v<long double>){
+        angle_blue -= std::numbers::pi_v<long double>;
+    }
+    else if (angle_blue < -0.5 * std::numbers::pi_v<long double>){
+        angle_blue += std::numbers::pi_v<long double>;
+    }
+    double gain_red = sqrt((YUVtoCorrectedRGB[0][1]*YUVtoCorrectedRGB[0][1]) + (YUVtoCorrectedRGB[0][2]*YUVtoCorrectedRGB[0][2]));
+    double gain_green = sqrt((YUVtoCorrectedRGB[1][1]*YUVtoCorrectedRGB[1][1]) + (YUVtoCorrectedRGB[1][2]*YUVtoCorrectedRGB[1][2]));
+    double gain_blue = sqrt((YUVtoCorrectedRGB[2][1]*YUVtoCorrectedRGB[2][1]) + (YUVtoCorrectedRGB[2][2]*YUVtoCorrectedRGB[2][2]));
+    gain_red /= Uupscale;
+    gain_green /= Uupscale;
+    gain_blue /= Uupscale;
+    if (verbosity >= VERBOSITY_SLIGHT){
+        printf("Neal method angles: %f, %f, %f; and gains: %f, %f, %f.\n", (double)(angle_red * (180.0 / std::numbers::pi_v<long double>)), (double)(angle_green * (180.0 / std::numbers::pi_v<long double>)), (double)(angle_blue * (180.0 / std::numbers::pi_v<long double>)), gain_red, gain_green, gain_blue);
+    }
+
+    output[0] = angle_red;
+    output[1] = angle_green;
+    output[2] = angle_blue;
+    output[3] = gain_red;
+    output[4] = gain_green;
+    output[5] = gain_blue;
+
+    return status;
+}
+
 bool MakeIdealRGBtoYUV(double output[3][3], int constantprecision){
 
     bool status = true;
@@ -1170,3 +1431,5 @@ vec2 MakeVanillaGreen(int constantprecision, bool &ok){
 
     return vec2(angleg, gaing);
 }
+
+
