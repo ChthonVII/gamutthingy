@@ -187,6 +187,8 @@ double rec2084tolinear(double input, double maxnits){
 
 // GBA SP101
 // Not a properly shaped curve. Can't fit a function. Need to use a lookup table.
+// Interpolating the exponent gives better outputs, but is NOT accurately invertible.
+// Hopefully the user won't do that too often, since there's little use case for going to GBA gamma.
 // Data from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)
 double gbasp101togamma(double input){
     if (input == 0){
@@ -229,14 +231,49 @@ double gbasp101togamma(double input){
         0.947283189159198,
         1
     };
+    const double ptable[32] = {
+        2.12364590513056,
+        2.12364590513056,
+        2.33663438996152,
+        2.48407224413386,
+        2.53982005106654,
+        2.51722140928945,
+        2.45690389962427,
+        2.35977090596427,
+        2.30581038417651,
+        2.31488813387629,
+        2.30445609895439,
+        2.27775402989454,
+        2.28061125178904,
+        2.33255219172782,
+        2.37713686740576,
+        2.41934346569622,
+        2.4586160579311,
+        2.50813676002942,
+        2.56319281064961,
+        2.61273128362985,
+        2.65295212941345,
+        2.67378576065563,
+        2.70621484482827,
+        2.74044488951572,
+        2.74746660020492,
+        2.7113554996249,
+        2.70507200707656,
+        2.74274708421713,
+        2.55788331210186,
+        2.06758275792965,
+        1.65164638456664,
+        1.65164638456664
+    };
+
     for (int i = 1; i<32; i++){
         double top = table[i];
         double bottom = table[i-1];
         if ((input >= bottom) && (input <= top)){
             // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
-            // Suspect it may be forcing 1 of 32 specific binary values
-            double topvalue = ((double)i)/31.0;
-            double bottomvalue = ((double)(i-1))/31.0;
+            // Would need to know what the real 100% is.
+            double topvalue = pow(input, 1.0/ptable[i]);
+            double bottomvalue = pow(input, 1.0/ptable[i-1]);
             double topweight = (input - bottom)/(top - bottom);
             double bottomweight = 1.0 - topweight;
             return (topvalue * topweight) + (bottomvalue * bottomweight);
@@ -253,6 +290,7 @@ double gbasp101tolinear(double input){
     if (input == 1.0){
         return input;
     }
+    /*
     const double table[32] = {
         0,
         0.000680574771184947,
@@ -287,6 +325,41 @@ double gbasp101tolinear(double input){
         0.947283189159198,
         1
     };
+    */
+    const double ptable[32] = {
+        2.12364590513056,
+        2.12364590513056,
+        2.33663438996152,
+        2.48407224413386,
+        2.53982005106654,
+        2.51722140928945,
+        2.45690389962427,
+        2.35977090596427,
+        2.30581038417651,
+        2.31488813387629,
+        2.30445609895439,
+        2.27775402989454,
+        2.28061125178904,
+        2.33255219172782,
+        2.37713686740576,
+        2.41934346569622,
+        2.4586160579311,
+        2.50813676002942,
+        2.56319281064961,
+        2.61273128362985,
+        2.65295212941345,
+        2.67378576065563,
+        2.70621484482827,
+        2.74044488951572,
+        2.74746660020492,
+        2.7113554996249,
+        2.70507200707656,
+        2.74274708421713,
+        2.55788331210186,
+        2.06758275792965,
+        1.65164638456664,
+        1.65164638456664
+    };
     for (int i = 1; i<32; i++){
         double top = ((double)i)/31.0;
         double bottom = ((double)(i-1))/31.0;
@@ -295,7 +368,7 @@ double gbasp101tolinear(double input){
             // Suspect it may be forcing 1 of 32 specific binary values
             double topweight = (input - bottom)/(top - bottom);
             double bottomweight = 1.0 - topweight;
-            return (table[i-1] * bottomweight) + (table[i] * topweight);
+            return (pow(input, ptable[i-1]) * bottomweight) + (pow(input, ptable[i]) * topweight);
         }
     }
     // unreachable
