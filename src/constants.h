@@ -59,6 +59,8 @@
 #define GAMMA_SRGB 1
 #define GAMMA_REC2084 2
 #define GAMMA_POWER 3
+#define GAMMA_GBA_SP101 4
+#define GAMMA_GBA_MICRO 5
 
 extern const vec3 D65;
 
@@ -180,8 +182,10 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_D65_FAIRCHILD 17
 #define WHITEPOINT_D65_DISPLAYMATE 18
 #define WHITEPOINT_D75_COLORTRAK 19
+#define WHITEPOINT_GBA_SP101 20
+#define WHITEPOINT_GBA_MICRO 21
 
-const std::string whitepointnames[20] = {
+const std::string whitepointnames[22] = {
     "D65",
     "9300K + 27mpcd",
     "9300K + 8mpcd (average)",
@@ -201,10 +205,12 @@ const std::string whitepointnames[20] = {
     "Diamond Pro/Trinitron ~93K (Fairchild measurement)",
     "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
     "Trinitron ~D65 (DisplayMate measurement)",
-    "RCA ColorTrak Remote E13169GM ~D75 (Patchy68k measurement)"
+    "RCA ColorTrak Remote E13169GM ~D75 (Patchy68k measurement)",
+    "Gameboy Advance SP101",
+    "Gameboy Advance Micro"
 };
 
-const double whitepoints[20][3] = {
+const double whitepoints[22][3] = {
     // D65
     {0.312713, 0.329016, 0.358271},
     // 9300K + 27MPCD
@@ -273,6 +279,14 @@ const double whitepoints[20][3] = {
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
     {0.301, 0.308, 0.391},
+    // Gameboy Advance SP101
+    // from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)
+    // Close to Illuminant C?! Supposed to be D65?
+    {0.308834, 0.312855, 1.0 - 0.308834 - 0.312855},
+    // Gameboy Advance Micro
+    // from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Micro%20(OXY-001)
+    // Not really close to anything... Sorta D75ish
+    {0.300747, 0.306271, 1.0 - 0.300747 - 0.306271},
 };
 
 #define GAMUT_CUSTOM -1
@@ -300,8 +314,10 @@ const double whitepoints[20][3] = {
 #define GAMUT_P22_BLACKSTRIPE 21
 #define GAMUT_P22_PANASONIC_CT36D30B 22
 #define GAMUT_P22_MATSUSHITA1979 23
+#define GAMUT_GBA_SP101 24
+#define GAMUT_GBA_MICRO 25
 
-const std::string gamutnames[24] = {
+const std::string gamutnames[26] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -325,10 +341,12 @@ const std::string gamutnames[24] = {
     "P22 phosphors, RCA ColorTrak Remote E13169GM, Patchy68k measurement",
     "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
     "P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement",
-    "P22 phosphors, 1979ish"
+    "P22 phosphors, 1979ish",
+    "Gameboy Advance SP101",
+    "Gameboy Advance Micro"
 };
 
-const double gamutpoints[24][3][3] = {
+const double gamutpoints[26][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -555,6 +573,20 @@ const double gamutpoints[24][3][3] = {
         {0.631, 0.347, 0.022},
         {0.268, 0.585, 0.147},
         {0.150, 0.071, 0.779}
+    },
+    // GBA SP101
+    // from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)
+    {
+        {0.618614, 0.348379, 1.0 - 0.618614 - 0.348379}, //red
+        {0.329879, 0.605825, 1.0 - 0.329879 - 0.605825}, //green
+        {0.144104, 0.084113, 1.0 - 0.144104 - 0.084113} //blue
+    },
+    // GBA micro
+    // from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Micro%20(OXY-001)
+    {
+        {0.480078, 0.311795, 1.0 - 0.480078 - 0.311795}, //red
+        {0.339229, 0.473571, 1.0 - 0.339229 - 0.473571}, //green
+        {0.156383, 0.149194, 1.0 - 0.156383 - 0.149194} //blue
     },
 
 

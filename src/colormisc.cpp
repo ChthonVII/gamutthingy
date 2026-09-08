@@ -114,6 +114,140 @@ double rec2084tolinear(double input, double maxnits){
     return output;
 }
 
+// Gameboy Advance gamma functions
+
+// GBA SP101
+// Not a properly shaped curve. Can't fit a function. Need to use a lookup table.
+// Data from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)
+double gbasp101togamma(double input){
+    if (input == 0){
+        return input;
+    }
+    if (input == 1.0){
+        return input;
+    }
+    const double table[32] = {
+        0,
+        0.000680574771184947,
+        0.00165435999107571,
+        0.00302380287984014,
+        0.00551231090357147,
+        0.0101245254091872,
+        0.0176892931922359,
+        0.0298514775490982,
+        0.0440105696260579,
+        0.0570990882522634,
+        0.0737358256953239,
+        0.0944237571526047,
+        0.114809184734779,
+        0.131720090452765,
+        0.151123618344752,
+        0.172684172457374,
+        0.196690288068574,
+        0.221612924155884,
+        0.24823206994771,
+        0.278299345248433,
+        0.312650491714134,
+        0.35297948226102,
+        0.395311120824625,
+        0.441311817140493,
+        0.495014414161263,
+        0.558085321622478,
+        0.621389662392504,
+        0.684606240043919,
+        0.770783109803256,
+        0.87119457361467,
+        0.947283189159198,
+        1
+    };
+    for (int i = 1; i<32; i++){
+        double top = table[i];
+        double bottom = table[i-1];
+        if ((input >= bottom) && (input <= top)){
+            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
+            // Suspect it may be forcing 1 of 32 specific binary values
+            double topvalue = ((double)i)/31.0;
+            double bottomvalue = ((double)(i-1))/31.0;
+            double topweight = (input - bottom)/(top - bottom);
+            double bottomweight = 1.0 - topweight;
+            return (topvalue * topweight) + (bottomvalue * bottomweight);
+        }
+    }
+    // unreachable
+    return 0;
+}
+
+double gbasp101tolinear(double input){
+    if (input == 0){
+        return input;
+    }
+    if (input == 1.0){
+        return input;
+    }
+    const double table[32] = {
+        0,
+        0.000680574771184947,
+        0.00165435999107571,
+        0.00302380287984014,
+        0.00551231090357147,
+        0.0101245254091872,
+        0.0176892931922359,
+        0.0298514775490982,
+        0.0440105696260579,
+        0.0570990882522634,
+        0.0737358256953239,
+        0.0944237571526047,
+        0.114809184734779,
+        0.131720090452765,
+        0.151123618344752,
+        0.172684172457374,
+        0.196690288068574,
+        0.221612924155884,
+        0.24823206994771,
+        0.278299345248433,
+        0.312650491714134,
+        0.35297948226102,
+        0.395311120824625,
+        0.441311817140493,
+        0.495014414161263,
+        0.558085321622478,
+        0.621389662392504,
+        0.684606240043919,
+        0.770783109803256,
+        0.87119457361467,
+        0.947283189159198,
+        1
+    };
+    for (int i = 1; i<32; i++){
+        double top = ((double)i)/31.0;
+        double bottom = ((double)(i-1))/31.0;
+        if ((input >= bottom) && (input <= top)){
+            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
+            // Suspect it may be forcing 1 of 32 specific binary values
+            double topweight = (input - bottom)/(top - bottom);
+            double bottomweight = 1.0 - topweight;
+            return (table[i-1] * bottomweight) + (table[i] * topweight);
+        }
+    }
+    // unreachable
+    return 0;
+}
+
+// GBA Micro
+// This function is very, very close fit to data from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Micro%20(OXY-001)
+double gbamicrotogamma(double input){
+    if (input <= 0.0061186826439517){
+        return clampdouble(input * 10.5441208159459);
+    }
+    return clampdouble((1.05 * pow(input, (1.0/2.3))) - 0.05);
+}
+double gbamicrotolinear(double input){
+    if (input <= 2.0/31.0){
+        return clampdouble(input / 10.5441208159459);
+    }
+    return clampdouble(pow((input + 0.05) / 1.05, 2.3));
+}
+
 
 // Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
 // Answer will be in range -pi to +pi radians.

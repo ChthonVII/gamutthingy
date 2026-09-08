@@ -24,6 +24,12 @@ double tolinear(double input);
 double rec2084togamma(double input, double maxnits);
 double rec2084tolinear(double input, double maxnits);
 
+// Gameboy Advance gamma functions
+double gbasp101togamma(double input);
+double gbasp101tolinear(double input);
+double gbamicrotogamma(double input);
+double gbamicrotolinear(double input);
+
 // Calculate angleA minus angleB assuming both are in range 0 to 2pi radians
 // Answer will be in range -pi to +pi radians.
 double AngleDiff(double angleA, double angleB);

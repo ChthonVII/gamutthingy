@@ -102,6 +102,12 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gamma
     else if (gammamodein == GAMMA_POWER){
         linearinputcolor = vec3(pow(inputcolor.x, gammapowin), pow(inputcolor.y, gammapowin), pow(inputcolor.z, gammapowin));
     }
+    else if (gammamodein == GAMMA_GBA_SP101){
+        linearinputcolor = vec3(gbasp101tolinear(inputcolor.x), gbasp101tolinear(inputcolor.y), gbasp101tolinear(inputcolor.z));
+    }
+    else if (gammamodein == GAMMA_GBA_MICRO){
+        linearinputcolor = vec3(gbamicrotolinear(inputcolor.x), gbamicrotolinear(inputcolor.y), gbamicrotolinear(inputcolor.z));
+    }
     
     // Expanded intermediate LUTs expressly contain a ton of out-of-bounds colors
     // XYZtoJzazbz() will force colors to black if luminosity is negative at that point.
@@ -197,6 +203,12 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gamma
         double powout = 1.0/gammapowout;
         outcolor = vec3(pow(outcolor.x, powout), pow(outcolor.y, powout), pow(outcolor.z, powout));
     }
+    else if (gammamodeout == GAMMA_GBA_SP101){
+        outcolor = vec3(gbasp101togamma(outcolor.x), gbasp101togamma(outcolor.y), gbasp101togamma(outcolor.z));
+    }
+    else if (gammamodeout == GAMMA_GBA_MICRO){
+        outcolor = vec3(gbamicrotogamma(outcolor.x), gbamicrotogamma(outcolor.y), gbamicrotogamma(outcolor.z));
+    }
     return outcolor;
 }
 
@@ -231,6 +243,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     }
     else if (gammamodeout == GAMMA_POWER){
         tempgoal = vec3(pow(tempgoal.x, gammapowout), pow(tempgoal.y, gammapowout), pow(tempgoal.z, gammapowout));
+    }
+    else if (gammamodeout == GAMMA_GBA_SP101){
+        tempgoal = vec3(gbasp101tolinear(tempgoal.x), gbasp101tolinear(tempgoal.y), gbasp101tolinear(tempgoal.z));
+    }
+    else if (gammamodeout == GAMMA_GBA_MICRO){
+        tempgoal = vec3(gbamicrotolinear(tempgoal.x), gbamicrotolinear(tempgoal.y), gbamicrotolinear(tempgoal.z));
     }
     vec3 goalJzazbz = destgamut.linearRGBtoJzazbz(tempgoal);
 
@@ -271,6 +289,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         }
         else if (gammamodein == GAMMA_POWER){
             betterguess = vec3(pow(betterguess.x, 1.0/gammapowin), pow(betterguess.y, 1.0/gammapowin), pow(betterguess.z, 1.0/gammapowin));
+        }
+        else if (gammamodein == GAMMA_GBA_SP101){
+            betterguess = vec3(gbasp101togamma(betterguess.x), gbasp101togamma(betterguess.y), gbasp101togamma(betterguess.z));
+        }
+        else if (gammamodein == GAMMA_GBA_MICRO){
+            betterguess = vec3(gbamicrotogamma(betterguess.x), gbamicrotogamma(betterguess.y), gbamicrotogamma(betterguess.z));
         }
         int betterguessred = toRGB8nodither(betterguess.x);
         int betterguessgreen = toRGB8nodither(betterguess.y);
@@ -344,6 +368,12 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         }
         else if (gammamodeout == GAMMA_POWER){
             testtresultlinear = vec3(pow(testtresultlinear.x, gammapowout), pow(testtresultlinear.y, gammapowout), pow(testtresultlinear.z, gammapowout));
+        }
+        else if (gammamodeout == GAMMA_GBA_SP101){
+            testtresultlinear = vec3(gbasp101tolinear(testtresultlinear.x), gbasp101tolinear(testtresultlinear.y), gbasp101tolinear(testtresultlinear.z));
+        }
+        else if (gammamodeout == GAMMA_GBA_MICRO){
+            testtresultlinear = vec3(gbamicrotolinear(testtresultlinear.x), gbamicrotolinear(testtresultlinear.y), gbamicrotolinear(testtresultlinear.z));
         }
         vec3 testresultJzazbz = destgamut.linearRGBtoJzazbz(testtresultlinear);
         double deltaJz = testresultJzazbz.x - goalJzazbz.x;
@@ -1314,7 +1344,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[25] = {
+    const paramvalue gamutlist[27] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -1412,6 +1442,14 @@ int main(int argc, const char **argv){
             GAMUT_P22_MATSUSHITA1979
         },
         {
+            "GBA_SP101",
+            GAMUT_GBA_SP101
+        },
+        {
+            "GBA_Micro",
+            GAMUT_GBA_MICRO
+        },
+        {
             "customcoord",
             GAMUT_CUSTOM
         }
@@ -1420,7 +1458,7 @@ int main(int argc, const char **argv){
         // see comment in constants.h
     };
 
-    const paramvalue whitepointlist[15] = {
+    const paramvalue whitepointlist[17] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -1504,6 +1542,14 @@ int main(int argc, const char **argv){
             WHITEPOINT_D75_COLORTRAK
         },
         {
+            "GBA_SP101",
+            WHITEPOINT_GBA_SP101
+        },
+        {
+            "GBA_Micro",
+            WHITEPOINT_GBA_MICRO
+        },
+        {
             "customcoord",
             WHITEPOINT_CUSTOM_COORD
         },
@@ -1576,7 +1622,7 @@ int main(int argc, const char **argv){
         },
     };
 
-    const paramvalue gammatypelist[4] = {
+    const paramvalue gammatypelist[6] = {
         {
             "linear",
             GAMMA_LINEAR
@@ -1592,6 +1638,14 @@ int main(int argc, const char **argv){
         {
             "power",
             GAMMA_POWER
+        },
+        {
+            "GBA_SP101",
+            GAMMA_GBA_SP101
+        },
+        {
+            "GBA_Micro",
+            GAMMA_GBA_MICRO
         },
     };
 
