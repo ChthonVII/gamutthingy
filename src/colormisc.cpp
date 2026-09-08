@@ -57,6 +57,75 @@ png_byte toRGB8nodither(double input){
     return (png_byte)output;
 }
 
+vec3 dogammafunction(vec3 input, int direction, int function, double maxnits, double power){
+    if (function == GAMMA_LINEAR){
+        return input;
+    }
+    vec3 output = input;
+    if (direction == GAMMA_DIRECTION_TO_GAMMA){
+        switch (function){
+            case GAMMA_SRGB:
+                output.x = togamma(input.x);
+                output.y = togamma(input.y);
+                output.z = togamma(input.z);
+                break;
+            case GAMMA_REC2084:
+                output.x = rec2084togamma(input.x, maxnits);
+                output.y = rec2084togamma(input.y, maxnits);
+                output.z = rec2084togamma(input.z, maxnits);
+                break;
+            case GAMMA_POWER:
+                output.x = pow(input.x, 1.0/power);
+                output.y = pow(input.y, 1.0/power);
+                output.z = pow(input.z, 1.0/power);
+            case GAMMA_GBA_SP101:
+                output.x = gbasp101togamma(input.x);
+                output.y = gbasp101togamma(input.y);
+                output.z = gbasp101togamma(input.z);
+                break;
+            case GAMMA_GBA_MICRO:
+                output.x = gbamicrotogamma(input.x);
+                output.y = gbamicrotogamma(input.y);
+                output.z = gbamicrotogamma(input.z);
+                break;
+            default:
+                break;
+        }
+    }
+    // otherwise to linear
+    else {
+        switch (function){
+            case GAMMA_SRGB:
+                output.x = tolinear(input.x);
+                output.y = tolinear(input.y);
+                output.z = tolinear(input.z);
+                break;
+            case GAMMA_REC2084:
+                output.x = rec2084tolinear(input.x, maxnits);
+                output.y = rec2084tolinear(input.y, maxnits);
+                output.z = rec2084tolinear(input.z, maxnits);
+                break;
+            case GAMMA_POWER:
+                output.x = pow(input.x, power);
+                output.y = pow(input.y, power);
+                output.z = pow(input.z, power);
+            case GAMMA_GBA_SP101:
+                output.x = gbasp101tolinear(input.x);
+                output.y = gbasp101tolinear(input.y);
+                output.z = gbasp101tolinear(input.z);
+                break;
+            case GAMMA_GBA_MICRO:
+                output.x = gbamicrotolinear(input.x);
+                output.y = gbamicrotolinear(input.y);
+                output.z = gbamicrotolinear(input.z);
+                break;
+            default:
+                break;
+        }
+    }
+    return output;
+}
+
 // sRGB gamma functions
 double togamma(double input){
     if (input <= 0.0031308){

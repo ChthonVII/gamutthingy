@@ -16,6 +16,9 @@ png_byte quasirandomdither(double input, int x, int y);
 // return to RGB8 with just rounding
 png_byte toRGB8nodither(double input);
 
+// Generic gamma function
+vec3 dogammafunction(vec3 input, int direction, int function, double maxnits, double power);
+
 // sRGB gamma functions
 double togamma(double input);
 double tolinear(double input);

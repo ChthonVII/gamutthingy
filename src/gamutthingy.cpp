@@ -93,22 +93,10 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gamma
         }
         // do nothing if lutmode == LUTMODE_POSTGAMMA, since input color is already linear RGB
     }
-    else if (gammamodein == GAMMA_SRGB){
-        linearinputcolor = vec3(tolinear(inputcolor.x), tolinear(inputcolor.y), tolinear(inputcolor.z));
+    else {
+       linearinputcolor = dogammafunction(inputcolor, GAMMA_DIRECTION_TO_LINEAR, gammamodein, hdrsdrmaxnits, gammapowin);
     }
-    else if (gammamodein == GAMMA_REC2084){
-        linearinputcolor = vec3(rec2084tolinear(inputcolor.x, hdrsdrmaxnits), rec2084tolinear(inputcolor.y, hdrsdrmaxnits), rec2084tolinear(inputcolor.z, hdrsdrmaxnits));
-    }
-    else if (gammamodein == GAMMA_POWER){
-        linearinputcolor = vec3(pow(inputcolor.x, gammapowin), pow(inputcolor.y, gammapowin), pow(inputcolor.z, gammapowin));
-    }
-    else if (gammamodein == GAMMA_GBA_SP101){
-        linearinputcolor = vec3(gbasp101tolinear(inputcolor.x), gbasp101tolinear(inputcolor.y), gbasp101tolinear(inputcolor.z));
-    }
-    else if (gammamodein == GAMMA_GBA_MICRO){
-        linearinputcolor = vec3(gbamicrotolinear(inputcolor.x), gbamicrotolinear(inputcolor.y), gbamicrotolinear(inputcolor.z));
-    }
-    
+
     // Expanded intermediate LUTs expressly contain a ton of out-of-bounds colors
     // XYZtoJzazbz() will force colors to black if luminosity is negative at that point.
     // CUSP and VPR-alike GMA algorithms will pull down stuff that's above 1.0 luminosity.
@@ -193,22 +181,10 @@ vec3 processcolor(vec3 inputcolor, int gammamodein, double gammapowin, int gamma
     if (destgamut.crtemumode == CRT_EMU_BACK){
         outcolor = destgamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(outcolor, true);
     }
-    else if (gammamodeout == GAMMA_SRGB){
-        outcolor = vec3(togamma(outcolor.x), togamma(outcolor.y), togamma(outcolor.z));
+    else {
+        outcolor = dogammafunction(outcolor, GAMMA_DIRECTION_TO_GAMMA, gammamodeout, hdrsdrmaxnits, gammapowout);
     }
-    else if (gammamodeout == GAMMA_REC2084){
-        outcolor = vec3(rec2084togamma(outcolor.x, hdrsdrmaxnits), rec2084togamma(outcolor.y, hdrsdrmaxnits), rec2084togamma(outcolor.z, hdrsdrmaxnits));
-    }
-    else if (gammamodeout == GAMMA_POWER){
-        double powout = 1.0/gammapowout;
-        outcolor = vec3(pow(outcolor.x, powout), pow(outcolor.y, powout), pow(outcolor.z, powout));
-    }
-    else if (gammamodeout == GAMMA_GBA_SP101){
-        outcolor = vec3(gbasp101togamma(outcolor.x), gbasp101togamma(outcolor.y), gbasp101togamma(outcolor.z));
-    }
-    else if (gammamodeout == GAMMA_GBA_MICRO){
-        outcolor = vec3(gbamicrotogamma(outcolor.x), gbamicrotogamma(outcolor.y), gbamicrotogamma(outcolor.z));
-    }
+
     return outcolor;
 }
 
@@ -235,21 +211,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
     if (destgamut.crtemumode == CRT_EMU_BACK){
         tempgoal = destgamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(tempgoal);
     }
-    else if (gammamodeout == GAMMA_SRGB){
-        tempgoal = vec3(tolinear(tempgoal.x), tolinear(tempgoal.y), tolinear(tempgoal.z));
+    else {
+        tempgoal = dogammafunction(tempgoal, GAMMA_DIRECTION_TO_LINEAR, gammamodeout, hdrsdrmaxnits, gammapowout);
     }
-    else if (gammamodeout == GAMMA_REC2084){
-        tempgoal = vec3(rec2084tolinear(tempgoal.x, hdrsdrmaxnits), rec2084tolinear(tempgoal.y, hdrsdrmaxnits), rec2084tolinear(tempgoal.z, hdrsdrmaxnits));
-    }
-    else if (gammamodeout == GAMMA_POWER){
-        tempgoal = vec3(pow(tempgoal.x, gammapowout), pow(tempgoal.y, gammapowout), pow(tempgoal.z, gammapowout));
-    }
-    else if (gammamodeout == GAMMA_GBA_SP101){
-        tempgoal = vec3(gbasp101tolinear(tempgoal.x), gbasp101tolinear(tempgoal.y), gbasp101tolinear(tempgoal.z));
-    }
-    else if (gammamodeout == GAMMA_GBA_MICRO){
-        tempgoal = vec3(gbamicrotolinear(tempgoal.x), gbamicrotolinear(tempgoal.y), gbamicrotolinear(tempgoal.z));
-    }
+
     vec3 goalJzazbz = destgamut.linearRGBtoJzazbz(tempgoal);
 
 
@@ -281,21 +246,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         if (sourcegamut.crtemumode == CRT_EMU_FRONT){
             betterguess = sourcegamut.attachedCRT->CRTEmulateLinearRGBtoGammaSpaceRGB(betterguess, false);
         }
-        else if (gammamodein == GAMMA_SRGB){
-            betterguess = vec3(togamma(betterguess.x), togamma(betterguess.y), togamma(betterguess.z));
+        else {
+            betterguess = dogammafunction(betterguess, GAMMA_DIRECTION_TO_GAMMA, gammamodein, hdrsdrmaxnits, gammapowin);
         }
-        else if (gammamodein == GAMMA_REC2084){
-            betterguess = vec3(rec2084togamma(betterguess.x, hdrsdrmaxnits), rec2084togamma(betterguess.y, hdrsdrmaxnits), rec2084togamma(betterguess.z, hdrsdrmaxnits));
-        }
-        else if (gammamodein == GAMMA_POWER){
-            betterguess = vec3(pow(betterguess.x, 1.0/gammapowin), pow(betterguess.y, 1.0/gammapowin), pow(betterguess.z, 1.0/gammapowin));
-        }
-        else if (gammamodein == GAMMA_GBA_SP101){
-            betterguess = vec3(gbasp101togamma(betterguess.x), gbasp101togamma(betterguess.y), gbasp101togamma(betterguess.z));
-        }
-        else if (gammamodein == GAMMA_GBA_MICRO){
-            betterguess = vec3(gbamicrotogamma(betterguess.x), gbamicrotogamma(betterguess.y), gbamicrotogamma(betterguess.z));
-        }
+
         int betterguessred = toRGB8nodither(betterguess.x);
         int betterguessgreen = toRGB8nodither(betterguess.y);
         int betterguessblue = toRGB8nodither(betterguess.z);
@@ -360,21 +314,10 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         if (destgamut.crtemumode == CRT_EMU_BACK){
             testtresultlinear = destgamut.attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(testtresultlinear);
         }
-        else if (gammamodeout == GAMMA_SRGB){
-            testtresultlinear = vec3(tolinear(testtresultlinear.x), tolinear(testtresultlinear.y), tolinear(testtresultlinear.z));
+        else {
+            testtresultlinear = dogammafunction(testtresultlinear, GAMMA_DIRECTION_TO_LINEAR, gammamodeout, hdrsdrmaxnits, gammapowout);
         }
-        else if (gammamodeout == GAMMA_REC2084){
-            testtresultlinear = vec3(rec2084tolinear(testtresultlinear.x, hdrsdrmaxnits), rec2084tolinear(testtresultlinear.y, hdrsdrmaxnits), rec2084tolinear(testtresultlinear.z, hdrsdrmaxnits));
-        }
-        else if (gammamodeout == GAMMA_POWER){
-            testtresultlinear = vec3(pow(testtresultlinear.x, gammapowout), pow(testtresultlinear.y, gammapowout), pow(testtresultlinear.z, gammapowout));
-        }
-        else if (gammamodeout == GAMMA_GBA_SP101){
-            testtresultlinear = vec3(gbasp101tolinear(testtresultlinear.x), gbasp101tolinear(testtresultlinear.y), gbasp101tolinear(testtresultlinear.z));
-        }
-        else if (gammamodeout == GAMMA_GBA_MICRO){
-            testtresultlinear = vec3(gbamicrotolinear(testtresultlinear.x), gbamicrotolinear(testtresultlinear.y), gbamicrotolinear(testtresultlinear.z));
-        }
+
         vec3 testresultJzazbz = destgamut.linearRGBtoJzazbz(testtresultlinear);
         double deltaJz = testresultJzazbz.x - goalJzazbz.x;
         double deltaaz = testresultJzazbz.y - goalJzazbz.y;
