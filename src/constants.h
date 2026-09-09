@@ -62,8 +62,10 @@
 #define GAMMA_SRGB 1
 #define GAMMA_REC2084 2
 #define GAMMA_POWER 3
-#define GAMMA_GBA_SP101 4
-#define GAMMA_GBA_MICRO 5
+#define GAMMA_GBA 4
+#define GAMMA_GBA_SP001 5
+#define GAMMA_GBA_SP101 6
+#define GAMMA_GBA_MICRO 7
 
 extern const vec3 D65;
 
@@ -185,10 +187,12 @@ const double CAT16Matrix[3][3] = {
 #define WHITEPOINT_D65_FAIRCHILD 17
 #define WHITEPOINT_D65_DISPLAYMATE 18
 #define WHITEPOINT_D75_COLORTRAK 19
-#define WHITEPOINT_GBA_SP101 20
-#define WHITEPOINT_GBA_MICRO 21
+#define WHITEPOINT_GBA 20
+#define WHITEPOINT_GBA_SP001 21
+#define WHITEPOINT_GBA_SP101 22
+#define WHITEPOINT_GBA_MICRO 23
 
-const std::string whitepointnames[22] = {
+const std::string whitepointnames[24] = {
     "D65",
     "9300K + 27mpcd",
     "9300K + 8mpcd (average)",
@@ -209,11 +213,13 @@ const std::string whitepointnames[22] = {
     "Diamond Pro/Trinitron ~D65 (Fairchild measurement)",
     "Trinitron ~D65 (DisplayMate measurement)",
     "RCA ColorTrak Remote E13169GM ~D75 (Patchy68k measurement)",
+    "Gameboy Advance",
+    "Gameboy Advance SP001",
     "Gameboy Advance SP101",
     "Gameboy Advance Micro"
 };
 
-const double whitepoints[22][3] = {
+const double whitepoints[24][3] = {
     // D65
     {0.312713, 0.329016, 0.358271},
     // 9300K + 27MPCD
@@ -282,6 +288,14 @@ const double whitepoints[22][3] = {
     // measurements and math by Patchy68k
     // https://github.com/ChthonVII/gamutthingy/issues/1#issuecomment-2672961597
     {0.301, 0.308, 0.391},
+    // Gameboy Advance
+    // from https://github.com/Brankale/Handheld-Color-Space-Project/tree/main/handhelds/Nintendo%20GBA
+    // way the hell off away from normal whitepoints
+    {0.324809945649355, 0.350758704460442, 1.0 - 0.324809945649355 - 0.350758704460442},
+    // Gameboy Advance SP001
+    // from https://github.com/Brankale/Handheld-Color-Space-Project/tree/main/handhelds/Nintendo%20GBA%20SP%20AGS-001/%5B2026-05-xx%5D%5BPokefan531%5D%5BWIP%5D
+    // close to original GBA
+    {0.337091966457911, 0.357354427053101, 1.0 - 0.337091966457911 - 0.357354427053101},
     // Gameboy Advance SP101
     // from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)
     // Close to Illuminant C?! Supposed to be D65?
@@ -317,10 +331,12 @@ const double whitepoints[22][3] = {
 #define GAMUT_P22_BLACKSTRIPE 21
 #define GAMUT_P22_PANASONIC_CT36D30B 22
 #define GAMUT_P22_MATSUSHITA1979 23
-#define GAMUT_GBA_SP101 24
-#define GAMUT_GBA_MICRO 25
+#define GAMUT_GBA 24
+#define GAMUT_GBA_SP001 25
+#define GAMUT_GBA_SP101 26
+#define GAMUT_GBA_MICRO 27
 
-const std::string gamutnames[26] = {
+const std::string gamutnames[28] = {
     "sRGB / bt709 (specification)",
     "NTSC (specification)",
     "SMPTE-C (specification)",
@@ -345,11 +361,13 @@ const std::string gamutnames[26] = {
     "P22 phosphors, Toshiba Blackstripe CF2005, Patchy68k measurement",
     "P22 phosphors, Panasonic CT-36D30B, Patchy68k measurement",
     "P22 phosphors, 1979ish",
+    "Gameboy Advance",
+    "Gameboy Advance SP001",
     "Gameboy Advance SP101",
     "Gameboy Advance Micro"
 };
 
-const double gamutpoints[26][3][3] = {
+const double gamutpoints[28][3][3] = {
     // srgb_spec
     {
         {0.64, 0.33, 0.03}, //red
@@ -576,6 +594,20 @@ const double gamutpoints[26][3][3] = {
         {0.631, 0.347, 0.022},
         {0.268, 0.585, 0.147},
         {0.150, 0.071, 0.779}
+    },
+    // GBA
+    // from https://github.com/Brankale/Handheld-Color-Space-Project/tree/main/handhelds/Nintendo%20GBA
+    {
+        {0.416041417870143, 0.324949598639749, 1.0 - 0.416041417870143 - 0.324949598639749}, //red
+        {0.317372980335517, 0.404406002322758, 1.0 - 0.317372980335517 - 0.404406002322758}, //green
+        {0.243105451033367, 0.290620900957341, 1.0 - 0.243105451033367 - 0.290620900957341} //blue
+    },
+    // GBA SP001
+    // from https://github.com/Brankale/Handheld-Color-Space-Project/tree/main/handhelds/Nintendo%20GBA%20SP%20AGS-001/%5B2026-05-xx%5D%5BPokefan531%5D%5BWIP%5D
+    {
+        {0.408930137945821, 0.326682758684981, 1.0 - 0.408930137945821 - 0.326682758684981}, //red
+        {0.330583314387357, 0.402413378855622, 1.0 - 0.330583314387357 - 0.402413378855622}, //green
+        {0.251779845893524, 0.298494595085933, 1.0 - 0.251779845893524 - 0.298494595085933} //blue
     },
     // GBA SP101
     // from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)

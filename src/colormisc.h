@@ -28,6 +28,10 @@ double rec2084togamma(double input, double maxnits);
 double rec2084tolinear(double input, double maxnits);
 
 // Gameboy Advance gamma functions
+double gbatogamma(double input);
+double gbatolinear(double input);
+double gbasp001togamma(double input);
+double gbasp001tolinear(double input);
 double gbasp101togamma(double input);
 double gbasp101tolinear(double input);
 double gbamicrotogamma(double input);

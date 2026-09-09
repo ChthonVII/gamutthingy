@@ -1287,7 +1287,7 @@ int main(int argc, const char **argv){
 
     };
 
-    const paramvalue gamutlist[27] = {
+    const paramvalue gamutlist[29] = {
         {
             "srgb_spec",
             GAMUT_SRGB
@@ -1385,6 +1385,14 @@ int main(int argc, const char **argv){
             GAMUT_P22_MATSUSHITA1979
         },
         {
+            "GBA",
+            GAMUT_GBA
+        },
+        {
+            "GBA_SP001",
+            GAMUT_GBA_SP001
+        },
+        {
             "GBA_SP101",
             GAMUT_GBA_SP101
         },
@@ -1401,7 +1409,7 @@ int main(int argc, const char **argv){
         // see comment in constants.h
     };
 
-    const paramvalue whitepointlist[17] = {
+    const paramvalue whitepointlist[19] = {
         {
             "D65",
             WHITEPOINT_D65
@@ -1485,6 +1493,14 @@ int main(int argc, const char **argv){
             WHITEPOINT_D75_COLORTRAK
         },
         {
+            "GBA",
+            WHITEPOINT_GBA
+        },
+        {
+            "GBA_SP001",
+            WHITEPOINT_GBA_SP001
+        },
+        {
             "GBA_SP101",
             WHITEPOINT_GBA_SP101
         },
@@ -1565,7 +1581,7 @@ int main(int argc, const char **argv){
         },
     };
 
-    const paramvalue gammatypelist[6] = {
+    const paramvalue gammatypelist[8] = {
         {
             "linear",
             GAMMA_LINEAR
@@ -1581,6 +1597,14 @@ int main(int argc, const char **argv){
         {
             "power",
             GAMMA_POWER
+        },
+        {
+            "GBA",
+            GAMMA_GBA
+        },
+        {
+            "GBA_SP001",
+            GAMMA_GBA_SP001
         },
         {
             "GBA_SP101",

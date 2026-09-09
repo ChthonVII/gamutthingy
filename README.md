@@ -22,7 +22,7 @@ Four general modes of operation:
 
 **Input-Related Parameters:**
 - `--backwards` or `-b`: Enables backwards search mode. Possible values are `true` or `false`(default). In backwards search mode, the user-supplied input is treated as the desired output and gamutthingy searches for an input that yields that output (or as close as possible). This is equivalent to performing the inverse of the specified operations. This is useful for roundtrip conversions and two-step conversions. If backward search mode is enabled and `--lutmode postcc`, then `--crtclamplow` and `--crtclamphigh` will be forced to 0.0 and 1.0. Backwards search mode "works" with NES palette generation, but it's hard to imagine the output being of any use. WARNING: Backwards search mode can be VERY SLOW. (Alternatively, `--map-mode expand` also performs inverse operations. However backwards search mode is preferred because (1) backward search mode *guarantees* the closest possible match after RGB8 quantization, while `--map-mode expand` merely assumes its inverse functions will quantize to best matches, and (2) backwards search mode works in combination with CRT simulation, while `--map-mode expand` generally does not.)
-- `--gamma-in` or `--gin`: Specifies the gamma function to be applied to the input. Possible values are `srgb` (default), `linear`, `rec2084`, `power`, `GBA_SP101` (Gameboy Advance SP101), and `GBA_Micro` (Gameboy Advance Micro). Will be ignored if CRT simulation before gamut conversion is enabled (`--crtemu front`) since the CRT EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png input isn't supported yet.)
+- `--gamma-in` or `--gin`: Specifies the gamma function to be applied to the input. Possible values are `srgb` (default), `linear`, `rec2084`, `power`, `GBA` (Gameboy Advance), `GBA_SP001` (Gameboy Advance SP001), `GBA_SP101` (Gameboy Advance SP101), and `GBA_Micro` (Gameboy Advance Micro). Will be ignored if CRT simulation before gamut conversion is enabled (`--crtemu front`) since the CRT EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png input isn't supported yet.)
 - `--gamma-in-power` or `--ginp`: Specifies power to use when `--gamma-in power`. Otherwise does nothing. Floating point number. Default 2.4.
 - `--hdr-sdr-max-nits` or `--hsmn`: See same in "Output Parameters," below.
 - `--lutsize`: Specifies the size of the LUT to generate. E.g., `--lutsize 64` will result in a 64x64x64 LUT. Integer number. Default 128.
@@ -163,6 +163,8 @@ Four general modes of operation:
      - `P22_toshiba_blackstripe_patchy68k` Measurements of a Toshiba Blackstripe CF2005 CRT television (US model, 1985) The unit measured was in deteriorated condition, so take these measurements with a grain of salt. White point could not be measured due to poor condition. [new16]
      - `P22_panasonic_CT36D30B` Measurements of a Panasonic CT-36D30B (US model, 2000) taken by patchy68k. [new25]
      - `P22_1979ish` Described as "typical chromaticities of phosphors... in a recent television receiver" in a 1979 patent filing by Matsushita Electric. Pairs with `9300K27mpcd` whitepoint and `1979ish` demodulator. [new29]
+     - `GBA` Gameboy Advance. Pairs with `GBA` whitepoint. [new32]
+     - `GBA_SP001` Gameboy Advance SP001. Pairs with `GBA_SP001` whitepoint. [new32]
      - `GBA_SP101` Gameboy Advance SP101. Pairs with `GBA_SP101` whitepoint. [new31]
      - `GBA_Micro` Gameboy Advance Micro. Pairs with `GBA_Micro` whitepoint. [new31]
      - `customcoord` Use the coordinants supplied by the user via `--source-primaries-custom-coords`.
@@ -181,6 +183,8 @@ Four general modes of operation:
      - `nec_multisync_c400_93k` Measured whitepoint of a NEC MultiSync C400 computer monitor. See [insert cite]. Near 9300K+27mpcd.
      - `kds_vs19_93k` Whitepoint for KDS VS19 computer monitor. Probably not an actual measurement, since exactly equal to 9300K+27mpcd.
      - `rca_colortrak_D75_patchy68k` Measured whitepoint of a RCA Colortrack Remote CRT E13169GM television (US model, 1989). Near D75. [new16]
+     - `GBA` Gameboy Advance. [new32]
+     - `GBA_SP001` Gameboy Advance SP001. [new32]
      - `GBA_SP101` Gameboy Advance SP101. [new31]
      - `GBA_Micro` Gameboy Advance Micro. [new31]
      - `customcoord` Use the coordinants supplied by the user via `--source-whitepoint-custom-coords`.
@@ -245,7 +249,7 @@ Four general modes of operation:
 - `--outfile` or `-o`: Specifies output file. For .png file conversion and LUT generation, the output will be a .png file. For NES palette generation, the output will be a .pal file usable by most NES emulators.
 - `--neshtmloutputfile`: Specifies a secondary output file for writing a NES palette in human-readable html.
 - `--retroarchtextoutputfile`: Specifies a secondary output file for writing text to copy/paste into a shader preset template for [Chthon's Color Correction shaders for retroarch](https://github.com/ChthonVII/chthons_color_correction).
-- `--gamma-out` or `--gout`: Specifies the inverse gamma function to be applied to the output. Possible values are `srgb` (default), `linear`, `rec2084`, `power`, `GBA_SP101` (Gameboy Advance SP101), and `GBA_Micro` (Gameboy Advance Micro). Will be ignored if CRT simulation after gamut conversion is enabled (`--crtemu back`) since the CRT inverse EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png output isn't supported yet.) (Note that `GBA_SP101` is not perfectly invertible.)
+- `--gamma-out` or `--gout`: Specifies the inverse gamma function to be applied to the output. Possible values are `srgb` (default), `linear`, `rec2084`, `power`, `GBA` (Gameboy Advance), `GBA_SP001` (Gameboy Advance SP001), `GBA_SP101` (Gameboy Advance SP101), and `GBA_Micro` (Gameboy Advance Micro). Will be ignored if CRT simulation after gamut conversion is enabled (`--crtemu back`) since the CRT inverse EOTF function will be used instead. (Note that `rec2084` is not very useful since 16-bit png output isn't supported yet.) (Note that `GBA_SP101` is not perfectly invertible.)
 - `--gamma-out-power` or `--goutp`: Specifies power to use when `--gamma-out power`. Otherwise does nothing. Floating point number. Default 2.2.
 - `--hdr-sdr-max-nits` or `--hsmn`: Specific max nits used to display SDR white on a HDR monitor for rec2084 gamma. Floating point number. Default 200.0. Sane values are ~150 to ~200. This should be documented in your monitor's user manual. Google Chrome defaults to 200 if autodetection fails [insert cite].
 - `--dither` or `--di`: Specifies whether to apply dithering to the output. Possible values are `true` (default) or `false`. Uses Martin Roberts' quasirandom dithering algorithm described in [old5]. Automatically disabled for single-color input, LUT generation, and NES palette generation.
@@ -427,6 +431,7 @@ TODO: fill in missing citations, then alphabetize
 - [new29] https://patents.google.com/patent/US4167750A/en?oq=us+patent+4167750
 - [new30] Neal, C. Bailey. "Computing Colorimetric Errors of a Color Television Display System." *IEEE Transactions on Consumer Electronics*, Vol. CE-21, No. 1, pp 63-73. Feb 28, 1975. ([Link](https://ieeexplore.ieee.org/document/4042734))
 - [new31] Pokefan531, Handheld-Colorspace-Shaders. ([Link](https://github.com/Pokefan531/Handheld-Colorspace-Shaders))
+- [new32] Brankale, Handheld Color Space Project. ([Link](https://github.com/Brankale/Handheld-Color-Space-Project)) 
 
 
 **Building:**
