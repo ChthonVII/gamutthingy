@@ -1102,7 +1102,7 @@ int main(int argc, const char **argv){
     double nealdistance = 0.8;
     bool nealrenormangle = true;
     bool nealrenormgain = true;
-    bool crtdoclamphigh = true;
+    bool crtdoclamphigh = false;
     bool crtclamplowatzerolight = true;
     double crtclamphigh = 1.1;
     double crtclamplow = -0.1;
