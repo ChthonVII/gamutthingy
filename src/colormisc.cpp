@@ -207,7 +207,7 @@ double rec2084tolinear(double input, double maxnits){
 
 // OG GBA
 // Can't fit a function. Need to use a lookup table.
-// Interpolating the exponent gives better outputs, but is NOT accurately invertible.
+// Extrapolating exponents is not invertible, so we have to use binary search to invert.
 // Hopefully the user won't do that too often, since there's little use case for going to GBA gamma.
 // Data from https://github.com/Brankale/Handheld-Color-Space-Project/tree/main/handhelds/Nintendo%20GBA
 double gbatogamma(double input){
@@ -217,45 +217,46 @@ double gbatogamma(double input){
     if (input == 1.0){
         return input;
     }
-    // looks like we have middle-of-bin values.
-    const double table[34] = {
-        0,
-        0.00803774027072327,
-        0.0116446667923317,
-        0.0139983391835508,
-        0.0148395478096072,
-        0.0207573526789581,
-        0.0223957532006378,
-        0.0252348323135784,
-        0.0315854683655223,
-        0.0412019012782173,
-        0.0486187203562095,
-        0.0675874857990005,
-        0.0793619611898782,
-        0.0979260172500752,
-        0.106058108197607,
-        0.123749165770879,
-        0.136175333309559,
-        0.155141653378437,
-        0.17413731793427,
-        0.193463107968353,
-        0.210718888985119,
-        0.238433534227593,
-        0.265348542200531,
-        0.296015976442898,
-        0.334658997702367,
-        0.375389145596544,
-        0.428807116038087,
-        0.476303613549409,
-        0.53354737147777,
-        0.617921330283409,
-        0.738578524522515,
-        0.854168904013979,
-        0.971516284661902,
-        1
-    };
-    const double ptable[32] = {
-        1.90262585117491,
+    // binary search
+    // it will be slowm but we need this accurate
+    double top = 1.0;
+    double bottom = 0.0;
+    double guess = 0.5;
+    int tries = 0;
+    while (true){
+        guess = (top + bottom) / 2.0;
+        double result = gbatolinear(guess);
+        double error = fabs(result - input);
+        if (error < EPSILONZERO){
+            break;
+        }
+        tries++;
+        if (tries > 50){
+            break;
+        }
+        if (result > input){
+            top = guess;
+        }
+        else {
+            bottom = guess;
+        }
+    }
+
+    return guess;
+}
+
+double gbatolinear(double input){
+    if (input == 0){
+        return input;
+    }
+    if (input == 1.0){
+        return input;
+    }
+    const double ptable[34] = {
+        1.15983238755895,
+        1.15983238755895,
+        1.45506959631695,
+        1.67441003824394,
         1.90262585117491,
         1.97529526020924,
         2.15724600963696,
@@ -287,73 +288,22 @@ double gbatogamma(double input){
         1.8349373190851,
         1.8349373190851
     };
-
+    // unlike the other GBA data sets, this one appears to contain middle-of-bin values
+    // (the others likely do too, but we don't have a true 100% value to normalize them with)
     for (int i = 1; i<34; i++){
-        double top = table[i];
-        double bottom = table[i-1];
-        if ((input >= bottom) && (input <= top)){
-            double topvalue = pow(input, 1.0/ptable[i]);
-            double bottomvalue = pow(input, 1.0/ptable[i-1]);
-            // linear interpolation is wrong here, but we don't have a better option
-            double topweight = (input - bottom)/(top - bottom);
-            double bottomweight = 1.0 - topweight;
-            return (topvalue * topweight) + (bottomvalue * bottomweight);
+        double top = ((double)(i+0.5))/34.0;
+        double bottom = ((double)(i-0.5))/34.0;
+        if ((i==1) && (input < bottom)){
+            return pow(input, ptable[0]);
         }
-    }
-    // unreachable
-    return 0;
-}
-
-double gbatolinear(double input){
-    if (input == 0){
-        return input;
-    }
-    if (input == 1.0){
-        return input;
-    }
-    const double ptable[32] = {
-        2.12364590513056,
-        2.12364590513056,
-        2.33663438996152,
-        2.48407224413386,
-        2.53982005106654,
-        2.51722140928945,
-        2.45690389962427,
-        2.35977090596427,
-        2.30581038417651,
-        2.31488813387629,
-        2.30445609895439,
-        2.27775402989454,
-        2.28061125178904,
-        2.33255219172782,
-        2.37713686740576,
-        2.41934346569622,
-        2.4586160579311,
-        2.50813676002942,
-        2.56319281064961,
-        2.61273128362985,
-        2.65295212941345,
-        2.67378576065563,
-        2.70621484482827,
-        2.74044488951572,
-        2.74746660020492,
-        2.7113554996249,
-        2.70507200707656,
-        2.74274708421713,
-        2.55788331210186,
-        2.06758275792965,
-        1.65164638456664,
-        1.65164638456664
-    };
-    for (int i = 1; i<32; i++){
-        double top = ((double)i)/31.0;
-        double bottom = ((double)(i-1))/31.0;
-        if ((input >= bottom) && (input <= top)){
-            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
-            // Suspect it may be forcing 1 of 32 specific binary values
+        else if ((i == 33) && (input > top)){
+            return pow(input, ptable[33]);
+        }
+        else if ((input >= bottom) && (input <= top)){
             double topweight = (input - bottom)/(top - bottom);
             double bottomweight = 1.0 - topweight;
-            return (pow(input, ptable[i-1]) * bottomweight) + (pow(input, ptable[i]) * topweight);
+            double localgamma = (ptable[i-1] * bottomweight) + (ptable[i] * topweight);
+            return pow(input, localgamma);
         }
     }
     // unreachable
@@ -362,7 +312,7 @@ double gbatolinear(double input){
 
 // GBA SP001
 // Not a properly shaped curve. Can't fit a function. Need to use a lookup table.
-// Interpolating the exponent gives better outputs, but is NOT accurately invertible.
+// Extrapolating exponents is not invertible, so we have to use binary search to invert.
 // Hopefully the user won't do that too often, since there's little use case for going to GBA gamma.
 // Data from https://github.com/Brankale/Handheld-Color-Space-Project/tree/main/handhelds/Nintendo%20GBA%20SP%20AGS-001/%5B2026-05-xx%5D%5BPokefan531%5D%5BWIP%5D
 double gbasp001togamma(double input){
@@ -372,91 +322,32 @@ double gbasp001togamma(double input){
     if (input == 1.0){
         return input;
     }
-    const double table[32] = {
-        0,
-        0.00114604950166322,
-        0.00164493863024115,
-        0.00227291095991963,
-        0.00415333921379028,
-        0.00559186101344267,
-        0.0104795789794403,
-        0.0165493967104716,
-        0.0213272195187754,
-        0.0264975250331284,
-        0.034944334323165,
-        0.046197831053348,
-        0.055528453251821,
-        0.0643834445561485,
-        0.0737954705751354,
-        0.0848541795919459,
-        0.0974950300060297,
-        0.111162150014449,
-        0.127362673208433,
-        0.144302808257371,
-        0.166081237524138,
-        0.191986840490958,
-        0.219418765092414,
-        0.250710393697949,
-        0.29116344084646,
-        0.340721505319449,
-        0.39915200477259,
-        0.460814817355992,
-        0.563001614702925,
-        0.708138812120564,
-        0.858813795156589,
-        1
-    };
-    const double ptable[32] = {
-        1.97188692421733,
-        1.97188692421733,
-        2.33871811063422,
-        2.60630268253274,
-        2.6780591904786,
-        2.84258866093105,
-        2.77569710750266,
-        2.7561782606602,
-        2.84063595349931,
-        2.93565140604029,
-        2.96446232284902,
-        2.96771197116442,
-        3.04595822144858,
-        3.15624775195263,
-        3.27885264597266,
-        3.39811997242537,
-        3.51974481204068,
-        3.65655944335984,
-        3.79076161402123,
-        3.95434249789868,
-        4.09642448025469,
-        4.23742682074895,
-        4.42279171988722,
-        4.63480506749099,
-        4.82106142367947,
-        5.00526674711475,
-        5.22149917766194,
-        5.60808625528304,
-        5.64411058979825,
-        5.17480925806698,
-        4.64178018388539,
-        4.64178018388539
-    };
-
-    for (int i = 1; i<32; i++){
-        double top = table[i];
-        double bottom = table[i-1];
-        if ((input >= bottom) && (input <= top)){
-            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
-            // Would need to know what the real 100% is.
-            double topvalue = pow(input, 1.0/ptable[i]);
-            double bottomvalue = pow(input, 1.0/ptable[i-1]);
-            // linear interpolation is wrong here, but we don't have a better option
-            double topweight = (input - bottom)/(top - bottom);
-            double bottomweight = 1.0 - topweight;
-            return (topvalue * topweight) + (bottomvalue * bottomweight);
+    // binary search
+    // it will be slowm but we need this accurate
+    double top = 1.0;
+    double bottom = 0.0;
+    double guess = 0.5;
+    int tries = 0;
+    while (true){
+        guess = (top + bottom) / 2.0;
+        double result = gbasp001tolinear(guess);
+        double error = fabs(result - input);
+        if (error < EPSILONZERO){
+            break;
+        }
+        tries++;
+        if (tries > 50){
+            break;
+        }
+        if (result > input){
+            top = guess;
+        }
+        else {
+            bottom = guess;
         }
     }
-    // unreachable
-    return 0;
+
+    return guess;
 }
 
 double gbasp001tolinear(double input){
@@ -505,11 +396,13 @@ double gbasp001tolinear(double input){
         double top = ((double)i)/31.0;
         double bottom = ((double)(i-1))/31.0;
         if ((input >= bottom) && (input <= top)){
-            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
-            // Suspect it may be forcing 1 of 32 specific binary values
+            // Suspect these are really middle-of-bin values.
+            // But not sure.
+            // And don't have a true 100% value to normalize with.
             double topweight = (input - bottom)/(top - bottom);
             double bottomweight = 1.0 - topweight;
-            return (pow(input, ptable[i-1]) * bottomweight) + (pow(input, ptable[i]) * topweight);
+            double localgamma = (ptable[i-1] * bottomweight) + (ptable[i] * topweight);
+            return pow(input, localgamma);
         }
     }
     // unreachable
@@ -518,7 +411,7 @@ double gbasp001tolinear(double input){
 
 // GBA SP101
 // Not a properly shaped curve. Can't fit a function. Need to use a lookup table.
-// Interpolating the exponent gives better outputs, but is NOT accurately invertible.
+// Extrapolating exponents is not invertible, so we have to use binary search to invert.
 // Hopefully the user won't do that too often, since there's little use case for going to GBA gamma.
 // Data from https://github.com/Pokefan531/Handheld-Colorspace-Shaders/tree/main/Colorspace%20Data/Gameboy%20Advance%20SP%20(AGS-101)
 double gbasp101togamma(double input){
@@ -528,91 +421,32 @@ double gbasp101togamma(double input){
     if (input == 1.0){
         return input;
     }
-    const double table[32] = {
-        0,
-        0.000680574771184947,
-        0.00165435999107571,
-        0.00302380287984014,
-        0.00551231090357147,
-        0.0101245254091872,
-        0.0176892931922359,
-        0.0298514775490982,
-        0.0440105696260579,
-        0.0570990882522634,
-        0.0737358256953239,
-        0.0944237571526047,
-        0.114809184734779,
-        0.131720090452765,
-        0.151123618344752,
-        0.172684172457374,
-        0.196690288068574,
-        0.221612924155884,
-        0.24823206994771,
-        0.278299345248433,
-        0.312650491714134,
-        0.35297948226102,
-        0.395311120824625,
-        0.441311817140493,
-        0.495014414161263,
-        0.558085321622478,
-        0.621389662392504,
-        0.684606240043919,
-        0.770783109803256,
-        0.87119457361467,
-        0.947283189159198,
-        1
-    };
-    const double ptable[32] = {
-        2.12364590513056,
-        2.12364590513056,
-        2.33663438996152,
-        2.48407224413386,
-        2.53982005106654,
-        2.51722140928945,
-        2.45690389962427,
-        2.35977090596427,
-        2.30581038417651,
-        2.31488813387629,
-        2.30445609895439,
-        2.27775402989454,
-        2.28061125178904,
-        2.33255219172782,
-        2.37713686740576,
-        2.41934346569622,
-        2.4586160579311,
-        2.50813676002942,
-        2.56319281064961,
-        2.61273128362985,
-        2.65295212941345,
-        2.67378576065563,
-        2.70621484482827,
-        2.74044488951572,
-        2.74746660020492,
-        2.7113554996249,
-        2.70507200707656,
-        2.74274708421713,
-        2.55788331210186,
-        2.06758275792965,
-        1.65164638456664,
-        1.65164638456664
-    };
-
-    for (int i = 1; i<32; i++){
-        double top = table[i];
-        double bottom = table[i-1];
-        if ((input >= bottom) && (input <= top)){
-            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
-            // Would need to know what the real 100% is.
-            double topvalue = pow(input, 1.0/ptable[i]);
-            double bottomvalue = pow(input, 1.0/ptable[i-1]);
-            // linear interpolation is wrong here, but we don't have a better option
-            double topweight = (input - bottom)/(top - bottom);
-            double bottomweight = 1.0 - topweight;
-            return (topvalue * topweight) + (bottomvalue * bottomweight);
+    // binary search
+    // it will be slowm but we need this accurate
+    double top = 1.0;
+    double bottom = 0.0;
+    double guess = 0.5;
+    int tries = 0;
+    while (true){
+        guess = (top + bottom) / 2.0;
+        double result = gbasp101tolinear(guess);
+        double error = fabs(result - input);
+        if (error < EPSILONZERO){
+            break;
+        }
+        tries++;
+        if (tries > 50){
+            break;
+        }
+        if (result > input){
+            top = guess;
+        }
+        else {
+            bottom = guess;
         }
     }
-    // unreachable
-    return 0;
+
+    return guess;
 }
 
 double gbasp101tolinear(double input){
@@ -622,42 +456,6 @@ double gbasp101tolinear(double input){
     if (input == 1.0){
         return input;
     }
-    /*
-    const double table[32] = {
-        0,
-        0.000680574771184947,
-        0.00165435999107571,
-        0.00302380287984014,
-        0.00551231090357147,
-        0.0101245254091872,
-        0.0176892931922359,
-        0.0298514775490982,
-        0.0440105696260579,
-        0.0570990882522634,
-        0.0737358256953239,
-        0.0944237571526047,
-        0.114809184734779,
-        0.131720090452765,
-        0.151123618344752,
-        0.172684172457374,
-        0.196690288068574,
-        0.221612924155884,
-        0.24823206994771,
-        0.278299345248433,
-        0.312650491714134,
-        0.35297948226102,
-        0.395311120824625,
-        0.441311817140493,
-        0.495014414161263,
-        0.558085321622478,
-        0.621389662392504,
-        0.684606240043919,
-        0.770783109803256,
-        0.87119457361467,
-        0.947283189159198,
-        1
-    };
-    */
     const double ptable[32] = {
         2.12364590513056,
         2.12364590513056,
@@ -696,11 +494,13 @@ double gbasp101tolinear(double input){
         double top = ((double)i)/31.0;
         double bottom = ((double)(i-1))/31.0;
         if ((input >= bottom) && (input <= top)){
-            // I'm tempted to use BetterDAC/BetterADC here, but unsure how the colorimeter's test suite works
-            // Suspect it may be forcing 1 of 32 specific binary values
+            // Suspect these are really middle-of-bin values.
+            // But not sure.
+            // And don't have a true 100% value to normalize with.
             double topweight = (input - bottom)/(top - bottom);
             double bottomweight = 1.0 - topweight;
-            return (pow(input, ptable[i-1]) * bottomweight) + (pow(input, ptable[i]) * topweight);
+            double localgamma = (ptable[i-1] * bottomweight) + (ptable[i] * topweight);
+            return pow(input, localgamma);
         }
     }
     // unreachable
