@@ -5,6 +5,7 @@
 #include "matrix.h"
 #include "cielab.h"
 #include "jzazbz.h"
+#include "oklab.h"
 #include "colormisc.h"
 
 #ifdef _WIN32
@@ -21,7 +22,7 @@
 const double HuePerStep = ((2.0 *  std::numbers::pi_v<long double>) / HUE_STEPS);
 const double HalfHuePerStep = HuePerStep / 2.0;
 
-bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool noadapt, bool compressenabled, int crtmode, crtdescriptor* crttoattach){
+bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool noadapt, int uniformcolorspace, bool compressenabled, int crtmode, crtdescriptor* crttoattach){
     verbosemode = verbose;
     gamutname = name;
     whitepoint = wp;
@@ -31,6 +32,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     issourcegamut = issource;
     CATtype = cattype;
     // working in JzCzhz colorspace requires everything be converted to D65 whitepoint.
+    // so does Oklab.
     // don't convert to D65 if both white points are equal and we're not doing compression.
     // we're doing extra math (and maybe accruing some floating point errors) in the case where no compression and unequal whitepoints and destination is not D65 -- but I don't care enough about that case to deal with it.
     needschromaticadapt = ((compressenabled && !whitepoint.isequal(D65)) || (!whitepoint.isequal(other_wp)));
@@ -38,6 +40,7 @@ bool gamutdescriptor::initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, ve
     // This will lead to achromatic inputs NOT yielding achromatic outputs
     // The resulting gamut will have funny pointy bits, but compressed result should be more or less sane. (I hope...)
     forcenoadapt = (noadapt && issource);
+    perceptuallyuniformcolorspace = uniformcolorspace;
     crtemumode = crtmode;
     attachedCRT = crttoattach;
     if (verbose >= VERBOSITY_SLIGHT){
@@ -244,16 +247,16 @@ bool gamutdescriptor::initializeChromaticAdaptationToD65(){
 bool gamutdescriptor::initializePolarPrimaries(bool dosc, double scfloor, double scceil, double scexp, int scmode, int verbose){
         
     if (verbose >= VERBOSITY_SLIGHT){
-        printf("\n----------\nInitializing polar JzCzhz primary/seconday coordinates for %s...\n", gamutname.c_str());
+        printf("\n----------\nInitializing perceptually uniform polar primary/seconday coordinates for %s...\n", gamutname.c_str());
     }
     
-    polarredpoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
-    polargreenpoint = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
-    polarbluepoint = linearRGBtoJzCzhz(vec3(0.0, 0.0, 1.0));
+    polarredpoint = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 0.0));
+    polargreenpoint = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 0.0));
+    polarbluepoint = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 0.0, 1.0));
         
-    polarcyanpoint = linearRGBtoJzCzhz(vec3(0.0, 1.0, 1.0));
-    polarmagentapoint = linearRGBtoJzCzhz(vec3(1.0, 0.0, 1.0));
-    polaryellowpoint = linearRGBtoJzCzhz(vec3(1.0, 1.0, 0.0));
+    polarcyanpoint = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 1.0));
+    polarmagentapoint = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 1.0));
+    polaryellowpoint = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 1.0, 0.0));
         
     // If we're emulating a CRT, then use the CRT's outputs for the primary/secondary points.
     if (crtemumode != CRT_EMU_NONE){
@@ -265,13 +268,13 @@ bool gamutdescriptor::initializePolarPrimaries(bool dosc, double scfloor, double
         vec3 crtmagenta = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(1.0, 0.0, 1.0));
         vec3 crtyellow = attachedCRT->CRTEmulateGammaSpaceRGBtoLinearRGB(vec3(1.0, 1.0, 0.0));
         
-        adjpolarredpoint = linearRGBtoJzCzhz(crtred);
-        adjpolargreenpoint = linearRGBtoJzCzhz(crtgreen);
-        adjpolarbluepoint = linearRGBtoJzCzhz(crtblue);
+        adjpolarredpoint = linearRGBtoPerceptuallyUniformPolar(crtred);
+        adjpolargreenpoint = linearRGBtoPerceptuallyUniformPolar(crtgreen);
+        adjpolarbluepoint = linearRGBtoPerceptuallyUniformPolar(crtblue);
 
-        adjpolarcyanpoint = linearRGBtoJzCzhz(crtcyan);
-        adjpolarmagentapoint = linearRGBtoJzCzhz(crtmagenta);
-        adjpolaryellowpoint = linearRGBtoJzCzhz(crtyellow);
+        adjpolarcyanpoint = linearRGBtoPerceptuallyUniformPolar(crtcyan);
+        adjpolarmagentapoint = linearRGBtoPerceptuallyUniformPolar(crtmagenta);
+        adjpolaryellowpoint = linearRGBtoPerceptuallyUniformPolar(crtyellow);
     }
     else {
         adjpolarredpoint = polarredpoint;
@@ -755,6 +758,101 @@ vec3 gamutdescriptor::linearRGBtoJzazbz(vec3 input){
     return output;
 }
 
+vec3 gamutdescriptor::linearRGBtoOkLCh(vec3 input){
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("Linear RGB input is: ");
+        input.printout();
+    }
+    vec3 output = linearRGBtoXYZ(input);
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("XYZ is: ");
+        output.printout();
+    }
+    output = XYZtoOklab(output);
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("Oklab is: ");
+        output.printout();
+    }
+    output = Polarize(output);
+    return output;
+}
+
+vec3 gamutdescriptor::OkLChToLinearRGB(vec3 input){
+    vec3 output = Depolarize(input);
+    output = OklabToXYZ(output);
+    output = XYZtoLinearRGB(output);
+    return output;
+}
+
+vec3 gamutdescriptor::linearRGBtoOklab(vec3 input){
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("Linear RGB input is: ");
+        input.printout();
+    }
+    vec3 output = linearRGBtoXYZ(input);
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("XYZ is: ");
+        output.printout();
+    }
+    output = XYZtoOklab(output);
+    if (verbosemode >= VERBOSITY_EXTREME){
+        printf("Oklab is: ");
+        output.printout();
+    }
+    return output;
+}
+
+vec3 gamutdescriptor::linearRGBtoPerceptuallyUniform(vec3 input){
+    vec3 output;
+    switch (perceptuallyuniformcolorspace){
+        case PERCEPTUALLYUNIFORM_JZCZHZ:
+            output = linearRGBtoJzazbz(input);
+            break;
+        case PERCEPTUALLYUNIFORM_OKLCH:
+            output = linearRGBtoOklab(input);
+            break;
+        default:
+            // should be unreachable
+            output = vec3(0.0, 0.0, 0.0);
+            break;
+    }
+    return output;
+}
+
+vec3 gamutdescriptor::linearRGBtoPerceptuallyUniformPolar(vec3 input){
+    vec3 output;
+    switch (perceptuallyuniformcolorspace){
+        case PERCEPTUALLYUNIFORM_JZCZHZ:
+            output = linearRGBtoJzCzhz(input);
+            break;
+        case PERCEPTUALLYUNIFORM_OKLCH:
+            output = linearRGBtoOkLCh(input);
+            break;
+        default:
+            // should be unreachable
+            output = vec3(0.0, 0.0, 0.0);
+            break;
+    }
+    return output;
+}
+
+vec3 gamutdescriptor::PerceptuallyUniformPolarToLinearRGB(vec3 input){
+    vec3 output;
+    switch (perceptuallyuniformcolorspace){
+        case PERCEPTUALLYUNIFORM_JZCZHZ:
+            output = JzCzhzToLinearRGB(input);
+            break;
+        case PERCEPTUALLYUNIFORM_OKLCH:
+            output = OkLChToLinearRGB(input);
+            break;
+        default:
+            // should be unreachable
+            output = vec3(0.0, 0.0, 0.0);
+            break;
+    }
+    return output;
+}
+
 /*
 vec3 gamutdescriptor::linearRGBtoLCh(vec3 input){
     if (verbosemode >= VERBOSITY_EXTREME){
@@ -783,17 +881,17 @@ void gamutdescriptor::FindBoundaries(){
     // first we need to know what scale we'll be working at so we can adjust the step size accordingly
     
     // find max luminosity by checking the white point
-    vec3 tempcolor = linearRGBtoJzCzhz(vec3(1.0, 1.0, 1.0));
+    vec3 tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 1.0, 1.0));
     double maxluma = tempcolor.x;
     
     // find max chroma by checking the red/green/blue points
-    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 0.0));
     double maxchroma = tempcolor.y;
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 0.0));
     if (tempcolor.y > maxchroma){
         maxchroma = tempcolor.y;
     }
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 0.0, 1.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 0.0, 1.0));
     if (tempcolor.y > maxchroma){
         maxchroma = tempcolor.y;
     }
@@ -958,9 +1056,9 @@ vec3 gamutdescriptor::ClampLuminosity(vec3 input){
 
 
 // checks if the supplied JzCzhz color is within this gamut.
-bool gamutdescriptor::IsJzCzhzInBounds(vec3 color){
+bool gamutdescriptor::IsPerceptuallyUniformPolarInBounds(vec3 color){
 
-    vec3 rgbcolor = JzCzhzToLinearRGB(color);
+    vec3 rgbcolor = PerceptuallyUniformPolarToLinearRGB(color);
     vec3 rgbcoloruc= rgbcolor;
     
     // inverse PQ function can generate NaN :( Let's assume all NaNs are waaay out of bounds
@@ -1622,7 +1720,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
         double rowluma = row * lumastep;
         for (int col = 1; col < CHROMA_STEPS; col++){
             vec3 color = vec3(rowluma, col * chromastep, hue);
-            grid[row][col].inbounds = IsJzCzhzInBounds(color);
+            grid[row][col].inbounds = IsPerceptuallyUniformPolarInBounds(color);
             
             //printf("row %i, col %i, color: %f, %f, %f, rgbcolor %f, %f, %f, inbounds %i\n", row, col, color.x, color.y, color.z, rgbcolor.z, rgbcolor.y, rgbcolor.z, isinbounds);
         }
@@ -1643,7 +1741,7 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
                 for (int finestep = 1; finestep<FINE_CHROMA_STEPS; finestep++){
                     double finex = (col * chromastep) + (finestep * finechromastep);
                     vec3 color = vec3(rowluma, finex, hue);
-                    bool isinbounds = IsJzCzhzInBounds(color);
+                    bool isinbounds = IsPerceptuallyUniformPolarInBounds(color);
                     // we found the boundary point
                     if ((waitingforout && !isinbounds) || (!waitingforout && isinbounds)){
                         boundarypoint newbpoint;
@@ -1689,15 +1787,15 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     double cuspchroma = biggestchroma;
     while (scanluma <= scanmaxluma){
         vec3 color = vec3(scanluma, biggestchroma, hue);
-        //vec3 rgbcolor = JzCzhzToLinearRGB(color);
+        //vec3 rgbcolor = PerceptuallyUniformPolarToLinearRGB(color);
         // only process this row if it's in bounds at the biggest chroma found so far
-        if (IsJzCzhzInBounds(color)){
+        if (IsPerceptuallyUniformPolarInBounds(color)){
             double scanchroma = cuspchroma;
             while (scanchroma <= maxchroma){
                 color = vec3(scanluma, scanchroma, hue);
-                //rgbcolor = JzCzhzToLinearRGB(color);
+                //rgbcolor = PerceptuallyUniformPolarToLinearRGB(color);
                 // we've gone out of bounds, so we can stop now
-                if (!IsJzCzhzInBounds(color)){
+                if (!IsPerceptuallyUniformPolarInBounds(color)){
                     double boundary = scanchroma - (0.5 * finechromastep); // assume boundary is halfway between samples;
                     if (boundary > cuspchroma){
                         cuspchroma = boundary;
@@ -1726,11 +1824,11 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     // TODO: this could be refactored to only compute once and share values with every slice, but it shouldn't hurt performance too much
     if (forcenoadapt){
         vec3 color = vec3(newbpoint.y, 0, hue);
-        bool happy = IsJzCzhzInBounds(color);
+        bool happy = IsPerceptuallyUniformPolarInBounds(color);
         while (!happy){
             newbpoint.y -= finechromastep;
             color = vec3(newbpoint.y, 0, hue);
-            happy = IsJzCzhzInBounds(color);
+            happy = IsPerceptuallyUniformPolarInBounds(color);
             if (happy){
                 newbpoint.y += (0.5 * finechromastep);
             }
@@ -1745,11 +1843,11 @@ void gamutdescriptor::ProcessSlice(int huestep, double maxluma, double maxchroma
     // TODO: this could be refactored to only compute once and share values with every slice, but it shouldn't hurt performance too much
     if (forcenoadapt){
         vec3 color = vec3(newbpoint.y, 0, hue);
-        bool happy = IsJzCzhzInBounds(color);
+        bool happy = IsPerceptuallyUniformPolarInBounds(color);
         while (!happy){
             newbpoint.y += finechromastep;
             color = vec3(newbpoint.y, 0, hue);
-            happy = IsJzCzhzInBounds(color);
+            happy = IsPerceptuallyUniformPolarInBounds(color);
             if (happy){
                 newbpoint.y -= (0.5 * finechromastep);
             }
@@ -2316,14 +2414,14 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
         }
         *rotationptr = 0.0; //initialize to 0 each pass
         // if source primary is representable in dest gamut, no rotation needed
-        if (!othergamut.IsJzCzhzInBounds(sourceprimary)){
+        if (!othergamut.IsPerceptuallyUniformPolarInBounds(sourceprimary)){
             if (verbose >= VERBOSITY_SLIGHT){
                 printf("not representable in destination gamut, ");
             }
             // We want to compare just compressing the primary/secondary verus rotating to match hue with the destination's primary/secondary and then compressing
             
             // We can just use mapColor() for the unrotated possibility
-            vec3 compressedcolor = linearRGBtoJzCzhz(mapColor(JzCzhzToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false, false));
+            vec3 compressedcolor = linearRGBtoPerceptuallyUniformPolar(mapColor(PerceptuallyUniformPolarToLinearRGB(sourceprimary), *this, othergamut, expand, remapfactor, remaplimit, softknee, kneefactor, mapdirection, safezonetype, false, false));
             vec3 depocolor = Depolarize(sourceprimary);
             double nomovedist = Distance3D(Depolarize(compressedcolor), depocolor);
             // However, we can't use mapColor() for the rotated possibility because WarpBoundaries() hasn't been called yet. (And can't be called until this is done.)
@@ -2476,40 +2574,40 @@ void gamutdescriptor::FindPrimaryRotations(gamutdescriptor &othergamut, double m
     printf("testing FindHueMaxRotation()...\n");
     vec3 tempcolor;
     double temprotate;
-    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 0.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Red: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.5, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.5, 0.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Orange: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 1.0, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 1.0, 0.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Yellow: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(0.5, 1.0, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.5, 1.0, 0.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Slime: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 0.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Green: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 0.5));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 0.5));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Seagreen: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 1.0, 1.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 1.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Cyan: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 0.5, 1.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 0.5, 1.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Greenish Blue: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(0.0, 0.0, 1.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 0.0, 1.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Blue: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(5.0, 0.0, 1.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(5.0, 0.0, 1.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Purplish Blue: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 1.0));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 1.0));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Magenta: %f\n", temprotate);
-    tempcolor = linearRGBtoJzCzhz(vec3(1.0, 0.0, 0.5));
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 0.5));
     temprotate = FindHueMaxRotation(tempcolor.z);
     printf("Purplish Red: %f\n", temprotate);
     */
@@ -2687,7 +2785,7 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
     }
     
     // convert to JzCzhz
-    vec3 Jcolor = sourcegamut.linearRGBtoJzCzhz(color);
+    vec3 Jcolor = sourcegamut.linearRGBtoPerceptuallyUniformPolar(color);
     vec2 colorCJ = vec2(Jcolor.y, Jcolor.x); // chroma is x; luma is y
     vec3 Joutput = Jcolor;
     
@@ -2932,7 +3030,7 @@ vec3 mapColor(vec3 color, gamutdescriptor &sourcegamut, gamutdescriptor &destgam
     }
     */
     
-    return destgamut.JzCzhzToLinearRGB(Joutput);
+    return destgamut.PerceptuallyUniformPolarToLinearRGB(Joutput);
 
 }
 

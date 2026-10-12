@@ -19,6 +19,7 @@
 #include "matrix.h"
 //#include "cielab.h"
 #include "jzazbz.h"
+#include "oklab.h"
 #include "gamutbounds.h"
 #include "colormisc.h"
 #include "crtemulation.h"
@@ -215,7 +216,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
         tempgoal = dogammafunction(tempgoal, GAMMA_DIRECTION_TO_LINEAR, gammamodeout, hdrsdrmaxnits, gammapowout);
     }
 
-    vec3 goalJzazbz = destgamut.linearRGBtoJzazbz(tempgoal);
+    vec3 goalJzazbz = destgamut.linearRGBtoPerceptuallyUniform(tempgoal);
 
 
     std::deque<frontiernode> frontier;
@@ -318,7 +319,7 @@ vec3 inverseprocesscolor(vec3 inputcolor, int gammamodein, double gammapowin, in
             testtresultlinear = dogammafunction(testtresultlinear, GAMMA_DIRECTION_TO_LINEAR, gammamodeout, hdrsdrmaxnits, gammapowout);
         }
 
-        vec3 testresultJzazbz = destgamut.linearRGBtoJzazbz(testtresultlinear);
+        vec3 testresultJzazbz = destgamut.linearRGBtoPerceptuallyUniform(testtresultlinear);
         double deltaJz = testresultJzazbz.x - goalJzazbz.x;
         double deltaaz = testresultJzazbz.y - goalJzazbz.y;
         double deltabz = testresultJzazbz.z - goalJzazbz.z;
@@ -1076,6 +1077,7 @@ int main(int argc, const char **argv){
     int verbosity = VERBOSITY_SLIGHT;
     int adapttype = ADAPT_CAT16;
     bool forcedisablechromaticadapt = false;
+    int uniformcolorspace = PERCEPTUALLYUNIFORM_OKLCH;
     int cccfunctiontype = CCC_EXPONENTIAL;
     double cccfloor = 0.5;
     double cccceiling = 0.95;
@@ -1627,6 +1629,17 @@ int main(int argc, const char **argv){
         },
     };
 
+    const paramvalue uniformcolorspacelist[2] = {
+        {
+            "Jzazbz",
+            PERCEPTUALLYUNIFORM_JZCZHZ
+        },
+        {
+            "Oklab",
+            PERCEPTUALLYUNIFORM_OKLCH
+        },
+    };
+
     const paramvalue scfunclist[2] = {
         {
             "exponential",
@@ -1904,7 +1917,7 @@ int main(int argc, const char **argv){
         }
     };
 
-    const selectparam params_select[41] = {
+    const selectparam params_select[43] = {
         {
             "--source-primaries",            //std::string paramstring; // parameter's text
             "Source Primaries",             //std::string prettyname; // name for pretty printing
@@ -2191,6 +2204,20 @@ int main(int argc, const char **argv){
             &nesagcchroma,          //int* vartobind; // pointer to variable whose value to set
             nesagcchromalist,                  // const paramvalue* valuetable; // pointer to table of possible values
             sizeof(nesagcchromalist)/sizeof(nesagcchromalist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--uniformcolorspace",            //std::string paramstring; // parameter's text
+            "Perceptually Uniform Colorspace for Internal Use",             //std::string prettyname; // name for pretty printing
+            &uniformcolorspace,          //int* vartobind; // pointer to variable whose value to set
+            uniformcolorspacelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(uniformcolorspacelist)/sizeof(uniformcolorspacelist[0])  //int tablesize; // number of items in the table
+        },
+        {
+            "--ucs",            //std::string paramstring; // parameter's text
+            "Perceptually Uniform Colorspace for Internal Use",             //std::string prettyname; // name for pretty printing
+            &uniformcolorspace,          //int* vartobind; // pointer to variable whose value to set
+            uniformcolorspacelist,                  // const paramvalue* valuetable; // pointer to table of possible values
+            sizeof(uniformcolorspacelist)/sizeof(uniformcolorspacelist[0])  //int tablesize; // number of items in the table
         },
     };
 
@@ -3040,8 +3067,16 @@ int main(int argc, const char **argv){
         printf("Cannot clamp CRT R'G'B' low output above 0%%; clamping to 0%% instead.\n");
     }
     else if (crtclamplow < -0.1){
-        crtclamplow = -0.1;
-        printf("CRT R'G'B' low output clamp must be at least -0.1; clamping to -0.1 instead.\n");
+        if (uniformcolorspace = PERCEPTUALLYUNIFORM_JZCZHZ){
+            crtclamplow = -0.1;
+            printf("CRT R'G'B' low output clamp must be at least -0.1 when using Jzazbz for perceptually uniform colorspace; clamping to -0.1 instead.\n");
+        }
+        else if (uniformcolorspace = PERCEPTUALLYUNIFORM_OKLCH){
+            printf("Note: CRT R'G'B' low output clamp below -0.1 only allowed for Oklab perceptually uniform colorspace.\n");
+        }
+        else {
+            printf("Oops! Reached unreachable branch!\n");
+        }
     }
 
     if ((crthueknob != 0.0) && ((crtemumode == CRT_EMU_NONE) || (crtdemodindex == CRT_DEMODULATOR_NONE))){
@@ -3221,7 +3256,17 @@ int main(int argc, const char **argv){
         else {
             printf("disabled\n");
         }
-
+        printf("Perceptually uniform colorspace used internally: ");
+        switch(uniformcolorspace){
+            case PERCEPTUALLYUNIFORM_JZCZHZ:
+                printf("Jzazbz\n");
+                break;
+            case PERCEPTUALLYUNIFORM_OKLCH:
+                printf("Oklab\n");
+                break;
+            default:
+                break;
+        };
         switch (gammamodein){
             case GAMMA_LINEAR:
                 printf("Input gamma function: linear\n");
@@ -3590,6 +3635,10 @@ int main(int argc, const char **argv){
         printf("Unable to initialize inverse Jzazbz matrices. WTF error!\n");
         return ERROR_INVERT_MATRIX_FAIL;
     }
+    if (!initializeInverseOklabMatrices()){
+        printf("Unable to initialize inverse Kolab matrices. WTF error!\n");
+        return ERROR_INVERT_MATRIX_FAIL;
+    }
     
 
     
@@ -3655,10 +3704,10 @@ int main(int argc, const char **argv){
     bool compressenabled = (mapmode >= MAP_FIRST_COMPRESS);
     
     gamutdescriptor sourcegamut;
-    bool srcOK = sourcegamut.initialize(sourcegamutindex != GAMUT_CUSTOM ? gamutnames[sourcegamutindex] : "Custom Source Gamut", sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, forcedisablechromaticadapt, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
+    bool srcOK = sourcegamut.initialize(sourcegamutindex != GAMUT_CUSTOM ? gamutnames[sourcegamutindex] : "Custom Source Gamut", sourcewhite, sourcered, sourcegreen, sourceblue, destwhite, true, verbosity, adapttype, forcedisablechromaticadapt, uniformcolorspace, compressenabled, sourcegamutcrtsetting, &emulatedcrt);
     
     gamutdescriptor destgamut;
-    bool destOK = destgamut.initialize(destgamutindex != GAMUT_CUSTOM ? gamutnames[destgamutindex] : "Custom Destination Gamut", destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, false, compressenabled, destgamutcrtsetting, &emulatedcrt);
+    bool destOK = destgamut.initialize(destgamutindex != GAMUT_CUSTOM ? gamutnames[destgamutindex] : "Custom Destination Gamut", destwhite, destred, destgreen, destblue, sourcewhite, false, verbosity, adapttype, false, uniformcolorspace, compressenabled, destgamutcrtsetting, &emulatedcrt);
     
     if ((mapmode == MAP_CCC_B) || (mapmode == MAP_CCC_C)){
         destgamut.initializeMatrixChunghwa(sourcegamut, verbosity);
@@ -3772,6 +3821,19 @@ int main(int argc, const char **argv){
             if (backwardsmode){
                 htmlfile << "\t\t\tBackwards search mode enabled. (Output is likely useless.)<BR>\n";
             }
+
+            htmlfile << "\t\t\tPerceptually uniform colorspace used internally: ";
+            switch(uniformcolorspace){
+                case PERCEPTUALLYUNIFORM_JZCZHZ:
+                    htmlfile << "Jzazbz<BR>\n";
+                    break;
+                case PERCEPTUALLYUNIFORM_OKLCH:
+                    htmlfile << "Oklab<BR>\n";
+                    break;
+                default:
+                    htmlfile << "\?\?\?<BR>\n"; //escape to avoid "trigraph ignored compiler warning"
+                    break;
+            };
 
             htmlfile << "\t\t\tNES simulate PAL phase alternation: " << (nesispal ? "true" : "false") << "<BR>\n";
             htmlfile << "\t\t\tNES phase skew for hues 0x2, 0x6, and 0xA: " << nesskew26A << " degrees<BR>\n";

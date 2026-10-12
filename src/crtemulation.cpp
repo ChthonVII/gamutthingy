@@ -865,6 +865,7 @@ vec3 crtdescriptor::CRTEmulateGammaSpaceRGBtoLinearRGB(vec3 input){
 
     // clamp rgb
     // Real CRT probably did this, though who knows what the threshholds were.
+    // Edit: No, they probably didn't. At least so far as very limited testing for clipped reds can tell.
     // We can sort of guess that maybe clipping here roughly mirrored clipping guidelines for broadcast media.
     // Broadcast signals absolutely must be clipped to -20 to 120 IRE in order to be modulated onto the carrier.
     // Some internet comments suggest clipping broadcast signals to 104 or 110 IRE "super white" was common.
@@ -968,7 +969,7 @@ vec3 crtdescriptor::CRTEmulateLinearRGBtoGammaSpaceRGB(vec3 input, bool uncrushb
     vec3 output = multMatrixByColor(inverseOverallMatrix, input);
 
     // we don't always want to do this
-    // gamutdescriptor::IsJzCzhzInBounds() does not want the bottom 7.5% out input space unreachable
+    // gamutdescriptor::IsPerceptuallyUniformPolarInBounds() does not want the bottom 7.5% out input space unreachable
     if (blackpedestalcrush && uncrushblacks){
         output = UncrushBlack(output);
     }

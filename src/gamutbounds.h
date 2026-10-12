@@ -50,6 +50,7 @@ public:
     bool needschromaticadapt;
     bool forcenoadapt;
     int CATtype;
+    int perceptuallyuniformcolorspace = PERCEPTUALLYUNIFORM_OKLCH;
     vec3 whitepoint;
     vec3 redpoint;
     vec3 greenpoint;
@@ -136,7 +137,7 @@ public:
     double spiralcharismaexponent;
     int spiralcarismascalemode;
     
-    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool noadapt, bool compressenabled, int crtmode, crtdescriptor* crttoattach);
+    bool initialize(std::string name, vec3 wp, vec3 rp, vec3 gp, vec3 bp, vec3 other_wp, bool issource, int verbose, int cattype, bool noadapt, int uniformcolorspace, bool compressenabled, int crtmode, crtdescriptor* crttoattach);
     // resizes vectors ahead of time
     void reservespace();
     void initializeMatrixP();
@@ -158,7 +159,7 @@ public:
     vec3 ClampLuminosity(vec3 input);
 
     // checks if the supplied JzCzhz color is within this gamut.
-    bool IsJzCzhzInBounds(vec3 color);
+    bool IsPerceptuallyUniformPolarInBounds(vec3 color);
 
     // Populates the gamut boundary descriptor using the algorithm from
     // Lihao, Xu, Chunzhi, Xu, & Luo, Ming Ronnier. "Accurate gamut boundary descriptor for displays." *Optics Express*, Vol. 30, No. 2, pp. 1615-1626. January 2022. (https://opg.optica.org/fulltext.cfm?rwjcode=oe&uri=oe-30-2-1615&id=466694)
@@ -176,7 +177,13 @@ public:
     vec3 linearRGBtoJzazbz(vec3 input);
     vec3 linearRGBtoJzCzhz(vec3 input);
     vec3 JzCzhzToLinearRGB(vec3 input);
-    
+    vec3 linearRGBtoOklab(vec3 input);
+    vec3 linearRGBtoOkLCh(vec3 input);
+    vec3 OkLChToLinearRGB(vec3 input);
+    vec3 linearRGBtoPerceptuallyUniform(vec3 input);
+    vec3 linearRGBtoPerceptuallyUniformPolar(vec3 input);
+    vec3 PerceptuallyUniformPolarToLinearRGB(vec3 input);
+
     //vec3 linearRGBtoLCh(vec3 input);
     // TODO: LChtoLinearRGB
     

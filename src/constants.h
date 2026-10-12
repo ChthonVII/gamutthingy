@@ -69,6 +69,9 @@
 
 extern const vec3 D65;
 
+#define PERCEPTUALLYUNIFORM_JZCZHZ 0
+#define PERCEPTUALLYUNIFORM_OKLCH 1
+
 #define ADAPT_BRADFORD 0
 #define ADAPT_CAT16 1
 
