@@ -895,6 +895,19 @@ void gamutdescriptor::FindBoundaries(){
     if (tempcolor.y > maxchroma){
         maxchroma = tempcolor.y;
     }
+    // check yellow, magenta, cyan just to be sure
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 1.0, 0.0));
+    if (tempcolor.y > maxchroma){
+        maxchroma = tempcolor.y;
+    }
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(1.0, 0.0, 1.0));
+    if (tempcolor.y > maxchroma){
+        maxchroma = tempcolor.y;
+    }
+    tempcolor = linearRGBtoPerceptuallyUniformPolar(vec3(0.0, 1.0, 1.0));
+    if (tempcolor.y > maxchroma){
+        maxchroma = tempcolor.y;
+    }
     maxchroma *= 1.1; // pad it to make sure we don't accidentally clip anything
     
     // process every hue slice
