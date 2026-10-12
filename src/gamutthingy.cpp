@@ -3067,11 +3067,11 @@ int main(int argc, const char **argv){
         printf("Cannot clamp CRT R'G'B' low output above 0%%; clamping to 0%% instead.\n");
     }
     else if (crtclamplow < -0.1){
-        if (uniformcolorspace = PERCEPTUALLYUNIFORM_JZCZHZ){
+        if (uniformcolorspace == PERCEPTUALLYUNIFORM_JZCZHZ){
             crtclamplow = -0.1;
             printf("CRT R'G'B' low output clamp must be at least -0.1 when using Jzazbz for perceptually uniform colorspace; clamping to -0.1 instead.\n");
         }
-        else if (uniformcolorspace = PERCEPTUALLYUNIFORM_OKLCH){
+        else if (uniformcolorspace == PERCEPTUALLYUNIFORM_OKLCH){
             printf("Note: CRT R'G'B' low output clamp below -0.1 only allowed for Oklab perceptually uniform colorspace.\n");
         }
         else {
