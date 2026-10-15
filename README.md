@@ -7,11 +7,12 @@ Performs color gamut conversion conversion with chromatic adaptation and gamut c
 
 Principally intended for adjusting the colors of CRT-era games for modern sRGB displays.
 
-Four general modes of operation:
+Five general modes of operation:
 - Convert a single color input and print the result to the console.
 - Convert a .png image input and save the output to a .png image.
 - Generate a 3D lookup table (LUT) and save the output to a .png image.
 - Simulate the color palette of a NES/Famicom and save the output to a .pal file in the format used by most NES emulators.
+- Simulate the color palette of a MSX1 computer and output to the screen.
 
 #### Parameters
 **Input Modes:**
