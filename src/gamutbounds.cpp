@@ -1055,7 +1055,7 @@ vec3 gamutdescriptor::ClampLuminosity(vec3 input){
         return XYZtoLinearRGB(XYZ);
     }
 
-    // clmap below
+    // clamp below
     else if (XYZ.y <= 0.0){
         XYZ.y = 0.0;
         // if not perfectly neutral, make it a bit bigger to avoid later floating point errors putting us out of bounds again

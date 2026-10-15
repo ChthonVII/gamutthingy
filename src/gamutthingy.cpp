@@ -1035,14 +1035,14 @@ int main(int argc, const char **argv){
     int mapmode = MAP_COMPRESS;
     int sourcegamutindex = GAMUT_P22_TRINITRON;
     double sourcecustomgamut[3][3] = {
-        // deafult to GAMUT_P22_TRINITRON
+        // default to GAMUT_P22_TRINITRON
         {0.621, 0.34, 0.039}, //red
         {0.281, 0.606, 0.113}, //green
         {0.152, 0.067, 0.781} //blue
     };
     int destgamutindex = GAMUT_SRGB;
     double destcustomgamut[3][3] = {
-        // deafult to GAMUT_SRGB
+        // default to GAMUT_SRGB
         {0.64, 0.33, 0.03}, //red
         {0.3, 0.6, 0.1}, //green
         {0.15, 0.06, 0.79} //blue
@@ -1126,6 +1126,7 @@ int main(int argc, const char **argv){
     int nesagcluma = NES_AGC_LUMA_NONE;
     int nesagcchroma = NES_AGC_CHROMA_BURST;
     double nessuperwhiteshowfactor = 1.0;
+    bool msx1mode = false;
     bool backwardsmode = false;
     double crthueknob = 0.0;
     double crtsaturationknob = 1.0;
@@ -1134,7 +1135,7 @@ int main(int argc, const char **argv){
     char* retroarchtextfilename;
     int maxthreads = 0;
     
-    const boolparam params_bool[20] = {
+    const boolparam params_bool[21] = {
         {
             "--dither",         //std::string paramstring; // parameter's text
             "Dithering",        //std::string prettyname; // name for pretty printing
@@ -1169,6 +1170,11 @@ int main(int argc, const char **argv){
             "--nespalmode",                     //std::string paramstring; // parameter's text
             "NES simulation PAL mode",           //std::string prettyname; // name for pretty printing
             &nesispal                 //bool* vartobind; // pointer to variable whose value to set
+        },
+        {
+            "--msx1palgen",                     //std::string paramstring; // parameter's text
+            "MSX1 Palette Generation",           //std::string prettyname; // name for pretty printing
+            &msx1mode                 //bool* vartobind; // pointer to variable whose value to set
         },
         {
             "--crtclamphighenable",                     //std::string paramstring; // parameter's text
@@ -2889,9 +2895,18 @@ int main(int argc, const char **argv){
             lutgen = false;
         }
         if (nesmode){
-            printf("\nForcing lutgen to false because single-color input mode specified.\n");
+            printf("\nForcing lutgen to false because NES mode specified.\n");
             nesmode = false;
         }
+        if (msx1mode){
+            printf("\nForcing lutgen to false because MSX1 mode specified.\n");
+            nesmode = false;
+        }
+    }
+
+    if (nesmode && msx1mode){
+        printf("\nCannot do nespalgen and msx1palgen at the same time. Disabling msx1palgen.\n");
+        msx1mode = false;
     }
 
     if (nesmode && lutgen){
@@ -2922,6 +2937,35 @@ int main(int argc, const char **argv){
     }
     if (nesmode && (crtmodindex != CRT_MODULATOR_NONE)){
         printf("\nForcing crt modulator to none because nespalgen is true.\n");
+        crtmodindex = CRT_MODULATOR_NONE;
+    }
+
+    if (msx1mode && lutgen){
+        printf("\nForcing lutgen to false because msx1palgen is true.\n");
+        lutgen = false;
+    }
+    if (msx1mode && filemode){
+        if (infileset){
+            printf("\nIgnoring input file because msx1palgen is true.\n");
+            infileset = false;
+        }
+        filemode = false;
+    }
+    if (msx1mode && spiralcarisma){
+        printf("\nForcing spiral-carisma to false because msx1palgen is true.\n");
+        spiralcarisma = false;
+    }
+
+    if (msx1mode && (crtemumode != CRT_EMU_FRONT)){
+        printf("\nForcing crtemu to front because msx1palgen is true.\n");
+        crtemumode = CRT_EMU_FRONT;
+        if (crtdemodindex == CRT_DEMODULATOR_NONE){
+            printf("\nForcing crt demodulator to dummy because none specifed.\n");
+            crtdemodindex = CRT_DEMODULATOR_DUMMY;
+        }
+    }
+    if (msx1mode && (crtmodindex != CRT_MODULATOR_NONE)){
+        printf("\nForcing crt modulator to none because msx1palgen is true.\n");
         crtmodindex = CRT_MODULATOR_NONE;
     }
 
@@ -2987,13 +3031,17 @@ int main(int argc, const char **argv){
         printf("\nWARNING: You've specified NES palette generation in combination with backwards search. The output will likely be useless.\n");
     }
 
-    if (filemode || lutgen || nesmode){
+    if (msx1mode && backwardsmode){
+        printf("\nWARNING: You've specified MSX1 palette generation in combination with backwards search. The output will likely be useless.\n");
+    }
+
+    if (filemode || lutgen || nesmode || msx1mode){
         bool failboat = false;
-        if (!infileset && !lutgen && !nesmode){
+        if (!infileset && !lutgen && !nesmode && !msx1mode){
             printf("Input file not specified.\n");
             failboat = true;
         }
-        if (!outfileset){
+        if (!outfileset && !msx1mode){
             printf("Output file not specified.\n");
             failboat = true;
         }
@@ -3018,6 +3066,10 @@ int main(int argc, const char **argv){
         }
         if (nesmode && dither){
             printf("\nForcing dither to false because nespalgen is true.\n");
+            dither = false;
+        }
+        if (msx1mode && dither){
+            printf("\nForcing dither to false because msx1palgen is true.\n");
             dither = false;
         }
         if (backwardsmode && dither){
@@ -3244,6 +3296,9 @@ int main(int argc, const char **argv){
             if (neswritehtml){
                 printf("HTML output file: %s\n", neshtmlfilename);
             }
+        }
+        else if (msx1mode){
+            printf("MSX1 palette generation. (Output to screen.)\n");
         }
         else {
             printf("Input color: %s\n", inputcolorstring);
@@ -3763,7 +3818,7 @@ int main(int argc, const char **argv){
     // Do actual color processing
 
     // this mode converts a single color and printfs the result
-    if (!filemode && !nesmode){
+    if (!filemode && !nesmode && !msx1mode){
         int redout;
         int greenout;
         int blueout;
@@ -4164,6 +4219,46 @@ int main(int argc, const char **argv){
         printf("done.\n");
 
         return RETURN_SUCCESS;
+    }
+    else if (msx1mode){
+        // MSX1 palette has 16 entries
+        vec3 msx1uncorrected[16];
+        vec3 msx1corrected[16];
+        // we need YUV to RGB conversion
+        double yuvToRgb[3][3];
+        MakeIdealYUVtoRGB(yuvToRgb, YUV_CONSTANT_PRECISION_FULL);
+        // convert the YC+Phase data from the datasheet to YUV to RGB, then CRT simulation and gamut conversion
+
+        for (int i=0; i<16; i++){
+            // YCH to YUV
+            vec3 ych = TMS9188YchValues[i];
+            double U = std::cos(ych.z / 360.0 * 2.0 * 3.14159265) * ych.y;
+            double V = std::sin(ych.z / 360.0 * 2.0 * 3.14159265) * ych.y;
+            vec3 yuv(ych.x, U, V);
+            // YUV to RGB
+            msx1uncorrected[i] = multMatrixByColor(yuvToRgb, yuv);
+            // CRT simulation and gamut conversion
+            msx1corrected[i] = processcolorwrapper(msx1uncorrected[i], gammamodein, gammapowin, gammamodeout, gammapowout, mapmode, sourcegamut, destgamut, cccfunctiontype, cccfloor, cccceiling, cccexp, remapfactor, remaplimit, softkneemode, kneefactor, mapdirection, safezonetype, false, false, true, hdrsdrmaxnits, backwardsmode, inversesearchvisitlist0);
+        }
+
+        // screen barf
+        printf("\n-------------\nMSX1 Raw Console Output:\n");
+        for (int i=0; i<16; i++){
+            unsigned char redin = toRGB8nodither(msx1uncorrected[i].x);
+            unsigned char greenin = toRGB8nodither(msx1uncorrected[i].y);
+            unsigned char bluein = toRGB8nodither(msx1uncorrected[i].z);
+            printf("Index %i (%s): Y=%.3f, C=%.3f, Phase=%idegrees = uncorrected RGB 0x%02X%02X%02X (R=%f; G=%f, B=%f R=%i, G=%i, B=%i)\n", i, msx1palettenames[i].c_str(), TMS9188YchValues[i].x, TMS9188YchValues[i].y, (int)TMS9188YchValues[i].z, redin, greenin, bluein, msx1uncorrected[i].x, msx1uncorrected[i].y, msx1uncorrected[i].z, redin, greenin, bluein);
+        }
+        printf("\n-------------\nMSX1 Palette:\n");
+        for (int i=0; i<16; i++){
+            unsigned char redout = toRGB8nodither(msx1corrected[i].x);
+            unsigned char greenout = toRGB8nodither(msx1corrected[i].y);
+            unsigned char blueout = toRGB8nodither(msx1corrected[i].z);
+            printf("Index %i (%s): 0x%02X%02X%02X (R=%f; G=%f, B=%f R=%i, G=%i, B=%i)\n", i, msx1palettenames[i].c_str(), redout, greenout, blueout, msx1corrected[i].x, msx1corrected[i].y, msx1corrected[i].z, redout, greenout, blueout);
+        }
+
+        return RETURN_SUCCESS;
+
     }
 
     // if we didn't just return, we are in file mode or LUT mode

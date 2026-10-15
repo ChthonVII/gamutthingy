@@ -149,6 +149,30 @@ const std::string nesagcchromanames[2] = {
     "normalize to color burst"
 };
 
+// TMS9118 chip
+// Supposedly indistinguishable from TMS9918 chip used in MSX1 computers
+// see:
+// https://github.com/ChthonVII/gamutthingy/issues/5
+extern const vec3 TMS9188YchValues[16];
+const std::string msx1palettenames[16] = {
+    "Transparent",
+    "Black",
+    "Medium Green",
+    "Light Green",
+    "Dark Blue",
+    "Light Blue",
+    "Dark Red",
+    "Cyan",
+    "Medium Red",
+    "Light Red",
+    "Dark Yellow",
+    "Light Yellow",
+    "Dark Green",
+    "Magenta",
+    "Gray",
+    "White"
+};
+
 // see:
 // K.M. Lam, “Metamerism and Colour Constancy,” Ph.D. Thesis, University of Bradford, 1985.
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
