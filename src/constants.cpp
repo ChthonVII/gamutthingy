@@ -5,7 +5,7 @@
 const vec3 D65 = vec3(0.312713, 0.329016, 0.358271);
 
 // TMS9118 chip
-// Supposedly indistinguishable from TMS9918 chip used in MSX1 computers
+// Supposedly indistinguishable from TMS9918 chip used in MSX computers
 // see:
 // https://github.com/ChthonVII/gamutthingy/issues/5
 // first value is Y on 0 to 1 scale

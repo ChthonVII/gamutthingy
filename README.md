@@ -12,7 +12,7 @@ Five general modes of operation:
 - Convert a .png image input and save the output to a .png image.
 - Generate a 3D lookup table (LUT) and save the output to a .png image.
 - Simulate the color palette of a NES/Famicom and save the output to a .pal file in the format used by most NES emulators.
-- Simulate the color palette of a MSX1 computer and print the result to the console.
+- Simulate the color palette of a MSX computer and print the result to the console.
 
 #### Parameters
 **Input Modes:**
@@ -20,7 +20,7 @@ Five general modes of operation:
 - `--infile` or `-i`: Specifies an input file to convert. Should be a .png image. Output will be saved to the output file specified with `-o` or `--outfile`.
 - `--lutgen`: Generate a LUT. Possible values are `true` or `false`(default). Output will be saved to the output file specified with `-o` or `--outfile`.
 - `--nespalgen`: Generate a NES/Famicom palette. Possible values are `true` or `false`(default). Output will be saved to the output file specified with `-o` or `--outfile`.
-- `--msx1palgen`:  Generate a MSX1 palette. Possible values are `true` or `false`(default). A message containing the result will be printed to stdout.
+- `--msxpalgen`:  Generate a MSX palette. Possible values are `true` or `false`(default). A message containing the result will be printed to stdout.
 
 **Input-Related Parameters:**
 - `--backwards` or `-b`: Enables backwards search mode. Possible values are `true` or `false`(default). In backwards search mode, the user-supplied input is treated as the desired output and gamutthingy searches for an input that yields that output (or as close as possible). This is equivalent to performing the inverse of the specified operations. This is useful for roundtrip conversions and two-step conversions. If backward search mode is enabled and `--lutmode postcc`, then `--crtclamplow` and `--crtclamphigh` will be forced to 0.0 and 1.0. Backwards search mode "works" with NES palette generation, but it's hard to imagine the output being of any use. WARNING: Backwards search mode can be VERY SLOW. (Alternatively, `--map-mode expand` also performs inverse operations. However backwards search mode is preferred because (1) backward search mode *guarantees* the closest possible match after RGB8 quantization, while `--map-mode expand` merely assumes its inverse functions will quantize to best matches, and (2) backwards search mode works in combination with CRT simulation, while `--map-mode expand` generally does not.)
