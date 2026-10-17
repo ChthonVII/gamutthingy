@@ -5,7 +5,7 @@
 const vec3 D65 = vec3(0.312713, 0.329016, 0.358271);
 
 // TMS9118 chip
-// Supposedly indistinguishable from TMS9918 chip used in MSX1 computers
+// Supposedly indistinguishable from TMS9918 chip used in MSX computers
 // see:
 // https://github.com/ChthonVII/gamutthingy/issues/5
 // first value is Y on 0 to 1 scale
@@ -13,7 +13,7 @@ const vec3 D65 = vec3(0.312713, 0.329016, 0.358271);
 // third value is chroma phase in degrees
 // Sync is -0.4 (theorectically perfect)
 // Burst is 0.2 at 180 degress (also theorectically perfect)
-const vec3 TMS9188YchValues[16] = {
+const vec3 TMS9118YchValues[16] = {
     {0, 0, 0},
     {0, 0, 0},
     {.53, .267, 237},
