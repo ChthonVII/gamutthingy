@@ -4231,7 +4231,7 @@ int main(int argc, const char **argv){
 
         for (int i=0; i<16; i++){
             // YCH to YUV
-            vec3 ych = TMS9188YchValues[i];
+            vec3 ych = TMS9118YchValues[i];
             double U = std::cos(ych.z / 360.0 * 2.0 * 3.14159265) * ych.y;
             double V = std::sin(ych.z / 360.0 * 2.0 * 3.14159265) * ych.y;
             vec3 yuv(ych.x, U, V);
@@ -4247,7 +4247,7 @@ int main(int argc, const char **argv){
             unsigned char redin = toRGB8nodither(msxuncorrected[i].x);
             unsigned char greenin = toRGB8nodither(msxuncorrected[i].y);
             unsigned char bluein = toRGB8nodither(msxuncorrected[i].z);
-            printf("Index %i (%s): Y=%.3f, C=%.3f, Phase=%idegrees = uncorrected RGB 0x%02X%02X%02X (R=%f; G=%f, B=%f R=%i, G=%i, B=%i)\n", i, msxpalettenames[i].c_str(), TMS9188YchValues[i].x, TMS9188YchValues[i].y, (int)TMS9188YchValues[i].z, redin, greenin, bluein, msxuncorrected[i].x, msxuncorrected[i].y, msxuncorrected[i].z, redin, greenin, bluein);
+            printf("Index %i (%s): Y=%.3f, C=%.3f, Phase=%idegrees = uncorrected RGB 0x%02X%02X%02X (R=%f; G=%f, B=%f R=%i, G=%i, B=%i)\n", i, msxpalettenames[i].c_str(), TMS9118YchValues[i].x, TMS9118YchValues[i].y, (int)TMS9118YchValues[i].z, redin, greenin, bluein, msxuncorrected[i].x, msxuncorrected[i].y, msxuncorrected[i].z, redin, greenin, bluein);
         }
         printf("\n-------------\nMSX Palette:\n");
         for (int i=0; i<16; i++){

@@ -153,7 +153,7 @@ const std::string nesagcchromanames[2] = {
 // Supposedly indistinguishable from TMS9918 chip used in MSX computers
 // see:
 // https://github.com/ChthonVII/gamutthingy/issues/5
-extern const vec3 TMS9188YchValues[16];
+extern const vec3 TMS9118YchValues[16];
 const std::string msxpalettenames[16] = {
     "Transparent",
     "Black",

@@ -13,7 +13,7 @@ const vec3 D65 = vec3(0.312713, 0.329016, 0.358271);
 // third value is chroma phase in degrees
 // Sync is -0.4 (theorectically perfect)
 // Burst is 0.2 at 180 degress (also theorectically perfect)
-const vec3 TMS9188YchValues[16] = {
+const vec3 TMS9118YchValues[16] = {
     {0, 0, 0},
     {0, 0, 0},
     {.53, .267, 237},
